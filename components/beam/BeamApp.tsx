@@ -218,7 +218,7 @@ export function BeamApp() {
     startAxis: 0,
     endAxis: 1,
     startType: 1,
-    endType: 2,
+    endType: 1,
   }));
 
   const barRegion =
