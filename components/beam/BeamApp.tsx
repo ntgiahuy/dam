@@ -94,6 +94,18 @@ function barListLabel(b: MainBar) {
   return `${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
 }
 
+/** Trùng dòng thép chủ: cùng số lượng, đường kính và đoạn trục. */
+function mainBarDuplicate(bars: MainBar[], candidate: MainBar, exceptId?: string | null) {
+  return bars.some(
+    (b) =>
+      b.id !== exceptId &&
+      b.qty === candidate.qty &&
+      b.dia === candidate.dia &&
+      b.startAxis === candidate.startAxis &&
+      b.endAxis === candidate.endAxis,
+  );
+}
+
 function extraLabel(b: ExtraBar) {
   return `Lớp ${b.layer}: ${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
 }
@@ -273,16 +285,30 @@ export function BeamApp() {
   }
 
   function addMain(key: "mainBottom" | "mainTop") {
+    if (mainBarDuplicate(project[key], mainForm)) {
+      setError(`Không thêm được: đã có ${barListLabel(mainForm)} trong danh sách.`);
+      setStatus(null);
+      return;
+    }
     const bar = { ...mainForm, id: uid("bar") };
     persist({ ...project, [key]: [...project[key], bar] });
     setSelectedBar(bar.id);
+    setError(null);
+    setStatus(`Đã thêm ${barListLabel(bar)}.`);
   }
   function editMain(key: "mainBottom" | "mainTop") {
     if (!selectedBar) return;
+    if (mainBarDuplicate(project[key], mainForm, selectedBar)) {
+      setError(`Không lưu được: đã có ${barListLabel(mainForm)} trong danh sách.`);
+      setStatus(null);
+      return;
+    }
     persist({
       ...project,
       [key]: project[key].map((b) => (b.id === selectedBar ? { ...mainForm, id: b.id } : b)),
     });
+    setError(null);
+    setStatus(`Đã sửa ${barListLabel(mainForm)}.`);
   }
   function delMain(key: "mainBottom" | "mainTop") {
     persist({ ...project, [key]: project[key].filter((b) => b.id !== selectedBar) });
@@ -1010,6 +1036,11 @@ function MainBarPanel({
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
 }) {
+  const addBlocked = mainBarDuplicate(bars, form);
+  const editBlocked = mainBarDuplicate(bars, form, selected);
+  const hint = addBlocked
+    ? `Đã có ${barListLabel(form)} — đổi Ø, số lượng hoặc đoạn trục rồi thêm.`
+    : "Không thêm hai dòng giống hệt. Cùng Ø/số lượng nhưng đoạn khác (0→1, 0→3, …) thì được.";
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[260px]">
@@ -1062,6 +1093,16 @@ function MainBarPanel({
             onAdd={onAdd}
             onEdit={onEdit}
             onDelete={onDelete}
+            addDisabled={addBlocked}
+            editDisabled={editBlocked}
+            addTitle={
+              addBlocked ? `Đã có ${barListLabel(form)} trong danh sách` : "Thêm thanh thép chủ"
+            }
+            editTitle={
+              editBlocked
+                ? `Đã có ${barListLabel(form)} — không lưu trùng`
+                : "Lưu thay đổi thanh đang chọn"
+            }
             onShiftLeft={() => {
               const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
               setForm({ ...form, ...next });
@@ -1077,6 +1118,9 @@ function MainBarPanel({
             rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
         </div>
+        <p className={`mt-2 text-[11px] leading-snug ${addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
+          {hint}
+        </p>
       </Panel>
       <Panel title="Danh sách thép" className="w-56">
         <ul className="max-h-36 overflow-auto text-sm">
