@@ -146,21 +146,21 @@ export const LAYER_LABELS = [
   { value: 3, label: "3 — Cách lớp 2 thêm 50mm" },
 ];
 export const END_TYPE_OPTIONS = [
-  { value: 1, label: "1 — Cắt thẳng M- tại gối, l₀/4" },
-  { value: 2, label: "2 — Cắt thẳng mép gối" },
-  { value: 3, label: "3 — Cắt thẳng tim cột" },
-  { value: 4, label: "4 — Móc 90°" },
-];
-
-export const EXTRA_BOTTOM_END_TYPE_OPTIONS = [
   { value: 1, label: "1 — Cắt thẳng M+ giữa nhịp" },
   { value: 2, label: "2 — Cắt thẳng mép gối" },
   { value: 3, label: "3 — Cắt thẳng tim cột" },
   { value: 4, label: "4 — Móc 90°" },
 ];
 
+export const EXTRA_BOTTOM_END_TYPE_OPTIONS = END_TYPE_OPTIONS;
+
+export const EXTRA_TOP_END_TYPE_OPTIONS = [
+  { value: 1, label: "1 — Cắt thẳng M- tại gối, l₀/4" },
+  { value: 2, label: "2 — Cắt thẳng M- tại gối, tới tim cột" },
+];
+
 export function extraEndTypeOptions(face: "top" | "bottom") {
-  return face === "bottom" ? EXTRA_BOTTOM_END_TYPE_OPTIONS : END_TYPE_OPTIONS;
+  return face === "bottom" ? EXTRA_BOTTOM_END_TYPE_OPTIONS : EXTRA_TOP_END_TYPE_OPTIONS;
 }
 
 export const SLAB_TYPES = [

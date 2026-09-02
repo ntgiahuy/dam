@@ -110,12 +110,9 @@ function hoggingBarAtSupport(
   axisIndex: number,
   leftType: number,
   rightType: number,
-  dia: number,
 ) {
   const f = supportFaces(project, axisIndex);
   const last = project.spans.length;
-  const hookStart = hookLength(dia, leftType);
-  const hookEnd = hookLength(dia, rightType);
 
   const endX = (type: number, side: "left" | "right") => {
     if (type === 1) {
@@ -131,26 +128,22 @@ function hoggingBarAtSupport(
       const ext = hoggingExtraExtensionMm(l0);
       return side === "left" ? f.left - ext : f.right + ext;
     }
-    if (type === 2) return side === "left" ? f.left : f.right;
     return f.axis;
   };
 
   let x1 = endX(leftType, "left");
   let x2 = endX(rightType, "right");
-  if (axisIndex === 0) {
-    x1 = leftType === 2 ? f.right : f.axis;
-  }
-  if (axisIndex === last) {
-    x2 = rightType === 2 ? f.left : f.axis;
-  }
-  return { x1, x2, hookStart, hookEnd };
+  if (axisIndex === 0) x1 = f.axis;
+  if (axisIndex === last) x2 = f.axis;
+  return { x1, x2, hookStart: 0, hookEnd: 0 };
 }
 
 /**
  * Dạng đầu thanh bổ sung:
  * 1 — lớp trên: M- tại gối, từ mép trong kéo vào nhịp l₀/4
  *     lớp dưới: M+ giữa nhịp, l₀/2 + 2·max(h₀, 15d, l₀/16)
- * 2 — cắt thẳng tại mép trong gối
+ * 2 — lớp trên: M- tại gối, tới tim cột
+ *     lớp dưới: cắt thẳng tại mép trong gối
  * 3 — cắt thẳng tại tim cột
  * 4 — móc 90° tại tim cột (đuôi theo TCVN 5574:2018)
  */
@@ -191,6 +184,7 @@ export function extraTermination(
     return { x: inner + intoSpan * Math.max(off, 0), hook: 0 };
   }
   if (type === 2) {
+    if (face === "top") return { x: f.axis, hook: 0 };
     return { x: inner, hook: 0 };
   }
   if (type === 4) {
@@ -277,8 +271,10 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
   const e = Math.max(0, Math.min(bar.endAxis, last));
   const leftAxis = Math.min(s, e);
   const rightAxis = Math.max(s, e);
-  const leftType = normalizeEndType(s <= e ? bar.startType : bar.endType);
-  const rightType = normalizeEndType(s <= e ? bar.endType : bar.startType);
+  const leftRaw = normalizeEndType(s <= e ? bar.startType : bar.endType);
+  const rightRaw = normalizeEndType(s <= e ? bar.endType : bar.startType);
+  const leftType = face === "top" ? (leftRaw === 1 ? 1 : 2) : leftRaw;
+  const rightType = face === "top" ? (rightRaw === 1 ? 1 : 2) : rightRaw;
 
   let x1: number;
   let x2: number;
@@ -287,7 +283,7 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
 
   if (leftAxis === rightAxis) {
     if (face === "top") {
-      const g = hoggingBarAtSupport(project, leftAxis, leftType, rightType, bar.dia);
+      const g = hoggingBarAtSupport(project, leftAxis, leftType, rightType);
       x1 = g.x1;
       x2 = g.x2;
       hookStart = g.hookStart;
@@ -312,16 +308,16 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
       hookEnd = hookLength(bar.dia, rightType);
     }
   } else if (face === "top" && rightAxis === leftAxis + 1) {
-    const leftAnchored = leftType === 2 || leftType === 3 || leftType === 4;
-    const rightAnchored = rightType === 2 || rightType === 3 || rightType === 4;
+    const leftAnchored = leftType === 2;
+    const rightAnchored = rightType === 2;
     if (leftAnchored && rightType === 1 && !rightAnchored) {
-      const g = hoggingBarAtSupport(project, leftAxis, leftType, 1, bar.dia);
+      const g = hoggingBarAtSupport(project, leftAxis, leftType, 1);
       x1 = g.x1;
       x2 = g.x2;
       hookStart = g.hookStart;
       hookEnd = g.hookEnd;
     } else if (rightAnchored && leftType === 1 && !leftAnchored) {
-      const g = hoggingBarAtSupport(project, rightAxis, 1, rightType, bar.dia);
+      const g = hoggingBarAtSupport(project, rightAxis, 1, rightType);
       x1 = g.x1;
       x2 = g.x2;
       hookStart = g.hookStart;

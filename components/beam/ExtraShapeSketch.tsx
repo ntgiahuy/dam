@@ -1,23 +1,11 @@
 "use client";
 
-function hoggingLeft(y: number, dir: number, hooked: boolean) {
-  const axis = 40;
-  const cut = 78;
-  const hook = 16;
-  if (hooked) {
-    return `M ${axis} ${y + dir * hook} L ${axis} ${y} L ${cut} ${y}`;
-  }
-  return `M ${axis} ${y} L ${cut} ${y}`;
+function hoggingLeft(y: number) {
+  return `M 40 ${y} L 78 ${y}`;
 }
 
-function hoggingRight(y: number, dir: number, hooked: boolean) {
-  const axis = 170;
-  const cut = 132;
-  const hook = 16;
-  if (hooked) {
-    return `M ${cut} ${y} L ${axis} ${y} L ${axis} ${y + dir * hook}`;
-  }
-  return `M ${cut} ${y} L ${axis} ${y}`;
+function hoggingRight(y: number) {
+  return `M 132 ${y} L 170 ${y}`;
 }
 
 function endPath(
@@ -29,7 +17,6 @@ function endPath(
 ) {
   const axis = side === "left" ? 40 : 170;
   const inner = side === "left" ? 52 : 158;
-  const eighth = side === "left" ? 72 : 138;
   const midspan = side === "left" ? 88 : 122;
   const hook = 16;
   if (type === 4) {
@@ -39,10 +26,11 @@ function endPath(
       : `L ${hx} ${y} L ${hx} ${y + dir * hook}`;
   }
   if (type === 1) {
-    const x = face === "bottom" ? midspan : eighth;
-    return side === "left" ? `M ${x} ${y}` : `L ${x} ${y}`;
+    if (face === "top") return side === "left" ? `M ${axis} ${y}` : `L ${axis} ${y}`;
+    return side === "left" ? `M ${midspan} ${y}` : `L ${midspan} ${y}`;
   }
   if (type === 2) {
+    if (face === "top") return side === "left" ? `M ${axis} ${y}` : `L ${axis} ${y}`;
     return side === "left" ? `M ${inner} ${y}` : `L ${inner} ${y}`;
   }
   return side === "left" ? `M ${axis} ${y}` : `L ${axis} ${y}`;
@@ -65,6 +53,9 @@ export function ExtraShapeSketch({
   const yA = 38;
   const yB = 54;
   const hogging = face === "top" && (startType === 1 || endType === 1);
+  const both = startType === 1 && endType === 1;
+  const leftStub = both || (endType === 1 && startType !== 1);
+  const rightStub = both || (startType === 1 && endType !== 1);
   const dA = hogging
     ? null
     : `${endPath(startType, "left", yA, dir, face)} ${endPath(endType, "right", yA, dir, face)}`;
@@ -91,40 +82,16 @@ export function ExtraShapeSketch({
         </text>
         {hogging ? (
           <>
-            {(startType === 1 || startType === 4) && (
+            {leftStub && (
               <>
-                <path
-                  d={hoggingLeft(yA, dir, startType === 4)}
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth={2.2}
-                  strokeLinecap="square"
-                />
-                <path
-                  d={hoggingLeft(yB, -dir, startType === 4)}
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth={2.2}
-                  strokeLinecap="square"
-                />
+                <path d={hoggingLeft(yA)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingLeft(yB)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
               </>
             )}
-            {(endType === 1 || endType === 4) && (
+            {rightStub && (
               <>
-                <path
-                  d={hoggingRight(yA, dir, endType === 4)}
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth={2.2}
-                  strokeLinecap="square"
-                />
-                <path
-                  d={hoggingRight(yB, -dir, endType === 4)}
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth={2.2}
-                  strokeLinecap="square"
-                />
+                <path d={hoggingRight(yA)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingRight(yB)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
               </>
             )}
           </>
@@ -134,13 +101,13 @@ export function ExtraShapeSketch({
             <path d={dB ?? ""} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
           </>
         )}
-        {startType === 4 && startHook ? (
-          <text x={8} y={face === "bottom" ? 28 : 70} fill="#fca5a5" fontSize={8}>
+        {face === "bottom" && startType === 4 && startHook ? (
+          <text x={8} y={28} fill="#fca5a5" fontSize={8}>
             {startHook}
           </text>
         ) : null}
-        {endType === 4 && endHook ? (
-          <text x={202} y={face === "bottom" ? 28 : 70} textAnchor="end" fill="#fca5a5" fontSize={8}>
+        {face === "bottom" && endType === 4 && endHook ? (
+          <text x={202} y={28} textAnchor="end" fill="#fca5a5" fontSize={8}>
             {endHook}
           </text>
         ) : null}

@@ -81,7 +81,14 @@ function migrateLoadedProject(raw: BeamProject, fromV2: boolean): BeamProject {
   return {
     ...raw,
     extraBottom: (raw.extraBottom ?? []).map(fix),
-    extraTop: (raw.extraTop ?? []).map(fix),
+    extraTop: (raw.extraTop ?? []).map((b) => {
+      const x = fix(b);
+      return {
+        ...x,
+        startType: (x.startType === 1 ? 1 : 2) as EndType,
+        endType: (x.endType === 1 ? 1 : 2) as EndType,
+      };
+    }),
   };
 }
 
@@ -223,6 +230,16 @@ export function BeamApp() {
     startType: 1,
     endType: 1,
   }));
+
+  useEffect(() => {
+    if (tab !== "extraTop") return;
+    setExtraForm((f) => {
+      const startType = f.startType === 1 ? 1 : 2;
+      const endType = f.endType === 1 ? 1 : 2;
+      if (startType === f.startType && endType === f.endType) return f;
+      return { ...f, startType, endType };
+    });
+  }, [tab]);
 
   const barRegion =
     tab === "extraBottom" || tab === "extraTop"

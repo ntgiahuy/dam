@@ -112,7 +112,10 @@ export function describeEndType(
     if (face === "bottom") return describeSaggingExtraBottom(l0, h0, ds);
     return describeHoggingExtraTop(l0);
   }
-  if (type === 2) return "Cắt thẳng tại mép trong gối";
+  if (type === 2) {
+    if (face === "top") return "Cắt thẳng M- tại gối, tới tim cột";
+    return "Cắt thẳng tại mép trong gối";
+  }
   if (type === 3) return "Cắt thẳng tại tim cột";
   const hook = hook90ExtensionMm(ds);
   const pin = bendPinDiameterMm(ds);
