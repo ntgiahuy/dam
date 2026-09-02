@@ -97,12 +97,12 @@ export function saggingExtraInsetMm(l0: number, h0: number, dia: number) {
 }
 
 /**
- * Đoạn kéo vào nhịp kề của thép bổ sung M- tại gối, lớp trên.
- * Từ mép trong gối: l₀/4, làm tròn lên 50 mm (bản vẽ: 2456→2500, 2513→2550).
+ * Đoạn kéo vào nhịp của thép bổ sung M- tại gối, lớp trên.
+ * l₀/4, làm tròn 50 mm (9825 → 2456 → 2450).
  */
 export function hoggingExtraExtensionMm(l0: number) {
   if (!(l0 > 0)) return 0;
-  return Math.ceil(l0 / 4 / 50) * 50;
+  return roundTo(l0 / 4, 50);
 }
 
 /** Lớp bảo vệ đầu biên dầm — lùi 50 mm từ mỗi mép ngoài bê tông. */
@@ -168,11 +168,17 @@ function hoggingBarAtSupport(
   let hookStart = 0;
   let hookEnd = 0;
   if (axisIndex === 0) {
+    const l0 = clearSpanMm(project, 0);
+    const ext = hoggingExtraExtensionMm(l0);
     x1 = hoggingEdgeStartX(project);
+    x2 = x1 + ext;
     hookStart = hook;
   }
   if (axisIndex === last) {
+    const l0 = clearSpanMm(project, last - 1);
+    const ext = hoggingExtraExtensionMm(l0);
     x2 = hoggingEdgeEndX(project);
+    x1 = x2 - ext;
     hookEnd = hook;
   }
   if (x2 <= x1) {
@@ -411,12 +417,26 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
     const Hs = project.spans[0]?.H ?? 500;
     const He = project.spans[Math.max(0, last - 1)]?.H ?? Hs;
     if (leftAxis === 0 && x1 <= first.right + 0.5) {
-      x1 = hoggingEdgeStartX(project);
+      const start = hoggingEdgeStartX(project);
+      const ext = hoggingExtraExtensionMm(clearSpanMm(project, 0));
       hookStart = hoggingEdgeHookMm(Hs);
+      if (rightAxis === leftAxis) {
+        x1 = start;
+        x2 = start + ext;
+      } else {
+        x1 = start;
+      }
     }
     if (rightAxis === last && x2 >= lastF.left - 0.5) {
-      x2 = hoggingEdgeEndX(project);
+      const end = hoggingEdgeEndX(project);
+      const ext = hoggingExtraExtensionMm(clearSpanMm(project, Math.max(0, last - 1)));
       hookEnd = hoggingEdgeHookMm(He);
+      if (rightAxis === leftAxis) {
+        x2 = end;
+        x1 = end - ext;
+      } else {
+        x2 = end;
+      }
     }
   }
 

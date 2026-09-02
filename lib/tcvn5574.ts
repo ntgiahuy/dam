@@ -91,12 +91,12 @@ export function describeSaggingExtraBottom(l0?: number, h0?: number, dia?: numbe
 }
 
 export function describeHoggingExtraTop(l0?: number) {
-  const formula = "M- tại gối, lớp trên · từ mép trong kéo vào nhịp l₀/4";
-  const edge = " · gối biên: móc tại tim cột (cách mép ngoài ≥ 50 mm), đuôi 2/3H làm tròn 50";
+  const formula = "M- tại gối, lớp trên · l₀/4 (làm tròn 50 mm)";
+  const edge = " · gối biên: đoạn thẳng = l₀/4 từ móc, không cộng bề rộng cột; móc 2/3H";
   if (!(l0 && l0 > 0)) return formula + edge;
   const raw = l0 / 4;
-  const ext = Math.ceil(raw / 50) * 50;
-  return `${formula} = ${Math.round(raw)} → ${ext} mm (làm tròn lên 50)${edge}`;
+  const ext = roundTo(raw, 50);
+  return `${formula} = ${Math.round(raw)} → ${ext} mm (làm tròn 50) · gối biên: đoạn thẳng = l₀/4 từ móc, không cộng bề rộng cột`;
 }
 
 export function describeEndType(
