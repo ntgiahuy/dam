@@ -44,6 +44,7 @@ import {
   DIAMETERS,
   extraEndTypeOptions,
   LAYER_LABELS,
+  MAX_SPAN_COUNT,
   QTY_OPTIONS,
   SLAB_TYPES,
   TABS,
@@ -381,7 +382,7 @@ export function BeamApp() {
                     <Input
                       type="number"
                       min={1}
-                      max={12}
+                      max={MAX_SPAN_COUNT}
                       value={project.spans.length}
                       onChange={(e) => persist(syncGeometry(project, Number(e.target.value) || 1))}
                     />

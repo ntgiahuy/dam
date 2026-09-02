@@ -1,4 +1,4 @@
-import type { BeamProject, Span, SpanStirrups, Support } from "./types";
+import { MAX_SPAN_COUNT, type BeamProject, type Span, type SpanStirrups, type Support } from "./types";
 import { uid } from "./utils";
 
 function span(partial: Partial<Span> & Pick<Span, "L">): Span {
@@ -111,7 +111,7 @@ export function defaultStirrupsForLength(L: number): SpanStirrups {
 }
 
 export function syncGeometry(project: BeamProject, spanCount: number): BeamProject {
-  const count = Math.max(1, Math.min(12, spanCount));
+  const count = Math.max(1, Math.min(MAX_SPAN_COUNT, spanCount));
   const template = project.spans[0] ?? span({ L: 4000 });
   const spans: Span[] = Array.from({ length: count }, (_, i) => {
     const existing = project.spans[i];
