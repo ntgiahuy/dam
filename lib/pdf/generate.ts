@@ -151,17 +151,51 @@ function markCircle(ctx: Ctx, cx: number, cy: number, mark: string, r = 7) {
   textCentered(ctx, mark, cx, cy, size);
 }
 
+function textAboveLine(
+  ctx: Ctx,
+  str: string,
+  x: number,
+  lineY: number,
+  size: number,
+  align: "left" | "center" | "right" = "center",
+  bold = false,
+  gap = 3.4,
+) {
+  const font = bold ? ctx.fontBold : ctx.font;
+  const width = font.widthOfTextAtSize(str, size);
+  let tx = x;
+  if (align === "center") tx = x - width / 2;
+  if (align === "right") tx = x - width;
+  // Baseline sits above the stroke so digits rest on top of the bar / dim line.
+  const lift = Math.max(gap, size * 0.42);
+  ctx.page.drawText(str, {
+    x: tx,
+    y: ty(lineY) + lift,
+    size,
+    font,
+    color: BLACK,
+  });
+  return width;
+}
+
 function dimH(ctx: Ctx, x1: number, x2: number, y: number, label: string, size = 6.5) {
   const a = Math.min(x1, x2);
   const b = Math.max(x1, x2);
   if (b - a < 2) return;
-  line(ctx, a, y, b, y, 0.35);
+  const mid = (a + b) / 2;
+  const labelW = ctx.font.widthOfTextAtSize(label, size) + 5;
   line(ctx, a, y - 2.4, a, y + 2.4, 0.35);
   line(ctx, b, y - 2.4, b, y + 2.4, 0.35);
   line(ctx, a, y - 2.2, a + 3.2, y + 2.2, 0.3);
   line(ctx, b, y - 2.2, b - 3.2, y + 2.2, 0.3);
+  if (b - a > labelW + 12) {
+    line(ctx, a, y, mid - labelW / 2, y, 0.35);
+    line(ctx, mid + labelW / 2, y, b, y, 0.35);
+  } else {
+    line(ctx, a, y, b, y, 0.35);
+  }
   if (b - a > 14 || label.length < 5) {
-    textSimple(ctx, label, (a + b) / 2, y - 1.5, size, false, "center");
+    textAboveLine(ctx, label, mid, y, size, "center", false, 3.8);
   }
 }
 
@@ -279,21 +313,17 @@ function drawShopSpec(
   y: number,
   mark: string,
   spec: string,
-  dir: 1 | -1,
+  _dir: 1 | -1,
 ) {
   const mid = (x1 + x2) / 2;
   const spanPt = Math.abs(x2 - x1);
   const size = spanPt < 90 ? 6 : 7.5;
   const font = ctx.font;
   const sw = font.widthOfTextAtSize(spec, size);
-  if (spanPt < 86) {
-    markCircle(ctx, mid, y + (dir > 0 ? 12 : -10), mark, 5.8);
-    textSimple(ctx, spec, mid, y + (dir > 0 ? -10 : 14), size, false, "center");
-    return;
-  }
-  const off = dir > 0 ? -11 : 14;
-  markCircle(ctx, mid - sw / 2 - 11, y + off, mark, 6.8);
-  textSimple(ctx, spec, mid - sw / 2, y + off + 2.4, size);
+  const specX = mid - sw / 2;
+  const r = spanPt < 86 ? 5.8 : 6.8;
+  markCircle(ctx, specX - r - 5, y - r - 3.6, mark, r);
+  textAboveLine(ctx, spec, specX, y, size, "left", false, 3.4);
 }
 
 function drawMainShopRows(ctx: Ctx, bar: ResolvedBar, row: ScheduleRow | undefined, y: number, dir: 1 | -1) {
@@ -323,7 +353,7 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const family = row?.family ?? barFamilyOf(b);
     const mark = row?.mark ?? "";
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
-    dimH(ctx, x1, x2, y + (dir > 0 ? -10 : 10), String(Math.round(b.straight)), 6.2);
+    dimH(ctx, x1, x2, y + (dir > 0 ? -16 : 14), String(Math.round(b.straight)), 6.2);
     const hs = Math.max(b.hookStart * ctx.scale * 0.28, b.hookStart > 0 ? 8 : 0);
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
@@ -514,12 +544,13 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     textSimple(ctx, lb.text.replace(/^\d+/, (m) => m), x - 21, y0 - 9.5, 6.2);
   }
 
-  const call = (bar: ResolvedBar, y: number, side: 1 | -1) => {
+  const call = (bar: ResolvedBar, planeY: number, side: 1 | -1) => {
     const row = markForBar(model.schedule, bar);
     if (!row) return;
     const x = xAt(ctx, (bar.x1 + bar.x2) / 2);
-    markCircle(ctx, x - 18, y + (side > 0 ? 11 : -8), String(row.markNum), 5.6);
-    textSimple(ctx, barNotation(bar.qty, bar.dia), x - 11, y + (side > 0 ? 13.5 : -5.5), 6.3);
+    const barY = planeY + side * extraLayerOffsetMm(bar.layer) * mmToPt;
+    markCircle(ctx, x - 18, barY - 8, String(row.markNum), 5.6);
+    textAboveLine(ctx, barNotation(bar.qty, bar.dia), x - 11, barY, 6.3, "left", false, 3.2);
   };
   for (const b of model.extraTop) call(b, topY, 1);
   for (const b of model.extraBottom) call(b, botY, -1);
@@ -527,10 +558,28 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   const mb = model.schedule.find((r) => r.family === "B1");
   const mt = model.schedule.find((r) => r.family === "T1");
   if (mt && model.mainTop[0]) {
-    textSimple(ctx, `${mt.markNum}  ${barNotation(model.mainTop[0].qty, model.mainTop[0].dia)}`, xStart - 6, topY + 4, 6.5, false, "right");
+    textAboveLine(
+      ctx,
+      `${mt.markNum}  ${barNotation(model.mainTop[0].qty, model.mainTop[0].dia)}`,
+      xStart - 6,
+      topY,
+      6.5,
+      "right",
+      false,
+      3.2,
+    );
   }
   if (mb && model.mainBottom[0]) {
-    textSimple(ctx, `${mb.markNum}  ${barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia)}`, xStart - 6, botY + 4, 6.5, false, "right");
+    textAboveLine(
+      ctx,
+      `${mb.markNum}  ${barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia)}`,
+      xStart - 6,
+      botY,
+      6.5,
+      "right",
+      false,
+      3.2,
+    );
   }
 
   const elev = ctx.project.info.elevation;
@@ -771,18 +820,18 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     line(ctx, x1, cy, x1, cy + dir * hook, 0.85);
     line(ctx, x2, cy, x2, cy + dir * hook, 0.85);
     textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), x1 - 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
-    textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy - 2, 6, false, "center");
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
     textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), x2 + 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
   } else if (row.shape === "l-left") {
     line(ctx, x1, cy, x1, cy + dir * hook, 0.85);
     textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), x1 - 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
-    textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy - 2, 6, false, "center");
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
   } else if (row.shape === "l-right") {
     line(ctx, x2, cy, x2, cy + dir * hook, 0.85);
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy - 2, 6, false, "center");
+    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
     textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), x2 + 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
   } else {
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy - 2, 6, false, "center");
+    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
   }
 }
 
