@@ -92,9 +92,11 @@ export function describeSaggingExtraBottom(l0?: number, h0?: number, dia?: numbe
 
 export function describeHoggingExtraTop(l0?: number) {
   const formula = "M- tại gối, lớp trên · từ mép trong kéo vào nhịp l₀/4";
-  if (!(l0 && l0 > 0)) return formula;
-  const ext = Math.ceil(l0 / 4 / 50) * 50;
-  return `${formula} = ${ext} mm`;
+  const edge = " · gối biên: neo 200 mm vào gối, bẻ móc đứng H+lớp bảo vệ";
+  if (!(l0 && l0 > 0)) return formula + edge;
+  const raw = l0 / 4;
+  const ext = Math.ceil(raw / 50) * 50;
+  return `${formula} = ${Math.round(raw)} → ${ext} mm (làm tròn lên 50)${edge}`;
 }
 
 export function describeEndType(
@@ -113,7 +115,7 @@ export function describeEndType(
     return describeHoggingExtraTop(l0);
   }
   if (type === 2) {
-    if (face === "top") return "Cắt thẳng M- tại gối, tới tim cột";
+    if (face === "top") return "Cắt thẳng M- tại gối, tới tim cột (gối biên tự bẻ móc H+lớp bảo vệ, neo 200 mm)";
     return "Cắt thẳng tại mép trong gối";
   }
   if (type === 3) return "Cắt thẳng tại tim cột";

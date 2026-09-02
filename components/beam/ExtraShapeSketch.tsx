@@ -1,11 +1,11 @@
 "use client";
 
-function hoggingLeft(y: number) {
-  return `M 40 ${y} L 78 ${y}`;
+function hoggingLeft(y: number, hooked: boolean) {
+  return hooked ? `M 40 ${y + 16} L 40 ${y} L 78 ${y}` : `M 40 ${y} L 78 ${y}`;
 }
 
-function hoggingRight(y: number) {
-  return `M 132 ${y} L 170 ${y}`;
+function hoggingRight(y: number, hooked: boolean) {
+  return hooked ? `M 132 ${y} L 170 ${y} L 170 ${y + 16}` : `M 132 ${y} L 170 ${y}`;
 }
 
 function endPath(
@@ -42,20 +42,38 @@ export function ExtraShapeSketch({
   face,
   startHook,
   endHook,
+  startAxis,
+  endAxis,
+  lastAxis,
 }: {
   startType: number;
   endType: number;
   face: "top" | "bottom";
   startHook?: number;
   endHook?: number;
+  startAxis?: number;
+  endAxis?: number;
+  lastAxis?: number;
 }) {
   const dir = face === "bottom" ? -1 : 1;
   const yA = 38;
   const yB = 54;
   const hogging = face === "top" && (startType === 1 || endType === 1);
   const both = startType === 1 && endType === 1;
-  const leftStub = both || (endType === 1 && startType !== 1);
-  const rightStub = both || (startType === 1 && endType !== 1);
+  let leftStub = both || (endType === 1 && startType !== 1);
+  let rightStub = both || (startType === 1 && endType !== 1);
+  const sameAxis = startAxis != null && endAxis != null && startAxis === endAxis;
+  if (sameAxis && face === "top") {
+    if (startAxis === 0) {
+      leftStub = true;
+      rightStub = false;
+    } else if (lastAxis != null && startAxis === lastAxis) {
+      leftStub = false;
+      rightStub = true;
+    }
+  }
+  const hookL = (startHook ?? 0) > 0;
+  const hookR = (endHook ?? 0) > 0;
   const dA = hogging
     ? null
     : `${endPath(startType, "left", yA, dir, face)} ${endPath(endType, "right", yA, dir, face)}`;
@@ -84,14 +102,14 @@ export function ExtraShapeSketch({
           <>
             {leftStub && (
               <>
-                <path d={hoggingLeft(yA)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
-                <path d={hoggingLeft(yB)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingLeft(yA, hookL)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingLeft(yB, hookL)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
               </>
             )}
             {rightStub && (
               <>
-                <path d={hoggingRight(yA)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
-                <path d={hoggingRight(yB)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingRight(yA, hookR)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+                <path d={hoggingRight(yB, hookR)} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
               </>
             )}
           </>
@@ -101,12 +119,12 @@ export function ExtraShapeSketch({
             <path d={dB ?? ""} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
           </>
         )}
-        {face === "bottom" && startType === 4 && startHook ? (
+        {hookL && startHook ? (
           <text x={8} y={28} fill="#fca5a5" fontSize={8}>
             {startHook}
           </text>
         ) : null}
-        {face === "bottom" && endType === 4 && endHook ? (
+        {hookR && endHook ? (
           <text x={202} y={28} textAnchor="end" fill="#fca5a5" fontSize={8}>
             {endHook}
           </text>

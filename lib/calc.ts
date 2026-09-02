@@ -105,6 +105,17 @@ export function hoggingExtraExtensionMm(l0: number) {
   return Math.ceil(l0 / 4 / 50) * 50;
 }
 
+/** Neo thẳng vào gối biên, đo từ mép trong (mm). Bản vẽ: 200 + 2500 = 2700. */
+export const HOGGING_EDGE_EMBED_MM = 200;
+
+/**
+ * Móc đứng M- gối biên.
+ * Bản vẽ H=500, lớp bảo vệ 25 → 525; L = 2700 + 525 = 3225.
+ */
+export function hoggingEdgeHookMm(H: number, cover = 25) {
+  return Math.round(Math.max(H || 500, 1) + Math.max(cover || 0, 0));
+}
+
 function hoggingBarAtSupport(
   project: BeamProject,
   axisIndex: number,
@@ -113,6 +124,9 @@ function hoggingBarAtSupport(
 ) {
   const f = supportFaces(project, axisIndex);
   const last = project.spans.length;
+  const span = project.spans[axisIndex] ?? project.spans[axisIndex - 1] ?? project.spans[0];
+  const hook = hoggingEdgeHookMm(span?.H ?? typicalH(project.spans), project.info.cover || 25);
+  const embed = HOGGING_EDGE_EMBED_MM;
 
   const endX = (type: number, side: "left" | "right") => {
     if (type === 1) {
@@ -133,9 +147,21 @@ function hoggingBarAtSupport(
 
   let x1 = endX(leftType, "left");
   let x2 = endX(rightType, "right");
-  if (axisIndex === 0) x1 = f.axis;
-  if (axisIndex === last) x2 = f.axis;
-  return { x1, x2, hookStart: 0, hookEnd: 0 };
+  let hookStart = 0;
+  let hookEnd = 0;
+  if (axisIndex === 0) {
+    x1 = Math.max(f.left, f.right - embed);
+    hookStart = hook;
+  }
+  if (axisIndex === last) {
+    x2 = Math.min(f.right, f.left + embed);
+    hookEnd = hook;
+  }
+  if (x2 <= x1) {
+    hookStart = 0;
+    hookEnd = 0;
+  }
+  return { x1, x2, hookStart, hookEnd };
 }
 
 /**
@@ -352,6 +378,22 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
     const tp = startType;
     startType = endType;
     endType = tp;
+  }
+
+  if (face === "top") {
+    const first = supportFaces(project, 0);
+    const lastF = supportFaces(project, last);
+    const cover = project.info.cover || 25;
+    const Hs = project.spans[0]?.H ?? 500;
+    const He = project.spans[Math.max(0, last - 1)]?.H ?? Hs;
+    if (leftAxis === 0 && x1 <= first.right + 0.5) {
+      x1 = Math.max(first.left, first.right - HOGGING_EDGE_EMBED_MM);
+      hookStart = hoggingEdgeHookMm(Hs, cover);
+    }
+    if (rightAxis === last && x2 >= lastF.left - 0.5) {
+      x2 = Math.min(lastF.right, lastF.left + HOGGING_EDGE_EMBED_MM);
+      hookEnd = hoggingEdgeHookMm(He, cover);
+    }
   }
 
   const straight = x2 - x1;

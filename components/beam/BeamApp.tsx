@@ -31,6 +31,7 @@ import {
   adjacentSpanLength,
   clearSpanMm,
   effectiveDepthMm,
+  hoggingEdgeHookMm,
   placeAxisRange,
   shiftAxisRange,
   syncSpanSupportGeometry,
@@ -1151,8 +1152,23 @@ function ExtraBarPanel({
   const startHint = extraEndHint(project, form, "start", startSide, face);
   const endHint = extraEndHint(project, form, "end", endSide, face);
   const endTypeOpts = extraEndTypeOptions(face);
-  const startHook = form.startType === 4 ? hook90ExtensionMm(form.dia) : 0;
-  const endHook = form.endType === 4 ? hook90ExtensionMm(form.dia) : 0;
+  const edgeHookStart = hoggingEdgeHookMm(project.spans[0]?.H ?? 500, project.info.cover || 25);
+  const edgeHookEnd = hoggingEdgeHookMm(
+    project.spans[project.spans.length - 1]?.H ?? 500,
+    project.info.cover || 25,
+  );
+  const startHook =
+    face === "top" && form.startAxis === 0
+      ? edgeHookStart
+      : form.startType === 4
+        ? hook90ExtensionMm(form.dia)
+        : 0;
+  const endHook =
+    face === "top" && form.endAxis === lastAxis
+      ? edgeHookEnd
+      : form.endType === 4
+        ? hook90ExtensionMm(form.dia)
+        : 0;
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">
@@ -1277,6 +1293,9 @@ function ExtraBarPanel({
           face={face}
           startHook={startHook}
           endHook={endHook}
+          startAxis={form.startAxis}
+          endAxis={form.endAxis}
+          lastAxis={lastAxis}
         />
         <Panel title="Danh sách thép">
         <ul className="max-h-36 overflow-auto text-sm">
