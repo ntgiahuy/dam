@@ -26,7 +26,7 @@ import {
   applySupportToAll,
   canShiftAxisRange,
   computeModel,
-  extraBarLength,
+  extraBarLengthHint,
   adjacentSpanIndex,
   adjacentSpanLength,
   clearSpanMm,
@@ -637,11 +637,11 @@ export function BeamApp() {
                 setExtraForm(b);
               }}
               lastAxis={lastAxis}
-              hint={
-                extraForm.lengthOverride
-                  ? `L=${extraForm.lengthOverride}`
-                  : `L≈${extraBarLength(project, extraForm, tab === "extraTop" ? "top" : "bottom")}`
-              }
+              hint={extraBarLengthHint(
+                project,
+                extraForm,
+                tab === "extraTop" ? "top" : "bottom",
+              )}
               onAdd={() => addExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onEdit={() => editExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onDelete={() => delExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
@@ -1069,7 +1069,20 @@ function extraEndHint(
 ) {
   const axis = which === "start" ? form.startAxis : form.endAxis;
   const type = which === "start" ? form.startType : form.endType;
-  const si = adjacentSpanIndex(project, axis, side);
+  const si =
+    face === "top"
+      ? side === "left"
+        ? axis > 0
+          ? axis - 1
+          : axis < project.spans.length
+            ? axis
+            : null
+        : axis < project.spans.length
+          ? axis
+          : axis > 0
+            ? axis - 1
+            : null
+      : adjacentSpanIndex(project, axis, side);
   const l0 = si != null ? clearSpanMm(project, si) : 0;
   const h0 = si != null ? effectiveDepthMm(project, si, form.dia) : 0;
   const spanL = adjacentSpanLength(project, axis, side);

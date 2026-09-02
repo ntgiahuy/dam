@@ -35,9 +35,9 @@ export function BeamPreview({
 }) {
   const model = useMemo(() => computeModel(project), [project]);
   const extraFace = tab === "extraTop" ? "top" : "bottom";
-  const sample = useMemo(() => {
-    if (!extraDraft || (tab !== "extraBottom" && tab !== "extraTop")) return null;
-    return resolveExtraBars(project, [extraDraft], extraFace)[0] ?? null;
+  const samples = useMemo(() => {
+    if (!extraDraft || (tab !== "extraBottom" && tab !== "extraTop")) return [];
+    return resolveExtraBars(project, [extraDraft], extraFace);
   }, [extraDraft, extraFace, project, tab]);
   const [hoverSupport, setHoverSupport] = useState<number | null>(null);
   const padL = 56;
@@ -303,49 +303,50 @@ export function BeamPreview({
           </text>
         ))}
 
-        {sample && extraFace === "bottom" && (
-          <g>
-            <RebarMark
-              b={sample}
-              x={x}
-              y={extraY("bottom", extraDraft?.layer ?? 1, planes)}
-              face="bottom"
-              color="#ef4444"
-              width={2.6}
-            />
-            <text
-              x={(x(sample.x1) + x(sample.x2)) / 2}
-              y={extraY("bottom", extraDraft?.layer ?? 1, planes) - 8}
-              textAnchor="middle"
-              fill="#fca5a5"
-              fontSize={9}
-              pointerEvents="none"
-            >
-              mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
-            </text>
-          </g>
-        )}
-        {sample && extraFace === "top" && (
-          <g>
-            <RebarMark
-              b={sample}
-              x={x}
-              y={extraY("top", extraDraft?.layer ?? 1, planes)}
-              face="top"
-              color="#ef4444"
-              width={2.6}
-            />
-            <text
-              x={(x(sample.x1) + x(sample.x2)) / 2}
-              y={extraY("top", extraDraft?.layer ?? 1, planes) + 12}
-              textAnchor="middle"
-              fill="#fca5a5"
-              fontSize={9}
-              pointerEvents="none"
-            >
-              mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
-            </text>
-          </g>
+        {samples.map((sample, i) =>
+          extraFace === "bottom" ? (
+            <g key={`sample-bot-${i}`}>
+              <RebarMark
+                b={sample}
+                x={x}
+                y={extraY("bottom", extraDraft?.layer ?? 1, planes)}
+                face="bottom"
+                color="#ef4444"
+                width={2.6}
+              />
+              <text
+                x={(x(sample.x1) + x(sample.x2)) / 2}
+                y={extraY("bottom", extraDraft?.layer ?? 1, planes) - 8}
+                textAnchor="middle"
+                fill="#fca5a5"
+                fontSize={9}
+                pointerEvents="none"
+              >
+                mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
+              </text>
+            </g>
+          ) : (
+            <g key={`sample-top-${i}`}>
+              <RebarMark
+                b={sample}
+                x={x}
+                y={extraY("top", extraDraft?.layer ?? 1, planes)}
+                face="top"
+                color="#ef4444"
+                width={2.6}
+              />
+              <text
+                x={(x(sample.x1) + x(sample.x2)) / 2}
+                y={extraY("top", extraDraft?.layer ?? 1, planes) + 12}
+                textAnchor="middle"
+                fill="#fca5a5"
+                fontSize={9}
+                pointerEvents="none"
+              >
+                mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
+              </text>
+            </g>
+          ),
         )}
       </svg>
       <div className="pointer-events-none absolute bottom-1 left-2 text-[10px] text-zinc-500">

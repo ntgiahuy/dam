@@ -1,5 +1,25 @@
 "use client";
 
+function hoggingLeft(y: number, dir: number, hooked: boolean) {
+  const axis = 40;
+  const cut = 78;
+  const hook = 16;
+  if (hooked) {
+    return `M ${axis} ${y + dir * hook} L ${axis} ${y} L ${cut} ${y}`;
+  }
+  return `M ${axis} ${y} L ${cut} ${y}`;
+}
+
+function hoggingRight(y: number, dir: number, hooked: boolean) {
+  const axis = 170;
+  const cut = 132;
+  const hook = 16;
+  if (hooked) {
+    return `M ${cut} ${y} L ${axis} ${y} L ${axis} ${y + dir * hook}`;
+  }
+  return `M ${cut} ${y} L ${axis} ${y}`;
+}
+
 function endPath(
   type: number,
   side: "left" | "right",
@@ -44,8 +64,13 @@ export function ExtraShapeSketch({
   const dir = face === "bottom" ? -1 : 1;
   const yA = 38;
   const yB = 54;
-  const dA = `${endPath(startType, "left", yA, dir, face)} ${endPath(endType, "right", yA, dir, face)}`;
-  const dB = `${endPath(startType, "left", yB, -dir, face)} ${endPath(endType, "right", yB, -dir, face)}`;
+  const hogging = face === "top" && (startType === 1 || endType === 1);
+  const dA = hogging
+    ? null
+    : `${endPath(startType, "left", yA, dir, face)} ${endPath(endType, "right", yA, dir, face)}`;
+  const dB = hogging
+    ? null
+    : `${endPath(startType, "left", yB, -dir, face)} ${endPath(endType, "right", yB, -dir, face)}`;
 
   return (
     <div className="rounded border border-zinc-700 bg-zinc-950 p-2">
@@ -64,8 +89,51 @@ export function ExtraShapeSketch({
         <text x={170} y={15} textAnchor="middle" fill="#facc15" fontSize={8}>
           1
         </text>
-        <path d={dA} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
-        <path d={dB} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+        {hogging ? (
+          <>
+            {(startType === 1 || startType === 4) && (
+              <>
+                <path
+                  d={hoggingLeft(yA, dir, startType === 4)}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth={2.2}
+                  strokeLinecap="square"
+                />
+                <path
+                  d={hoggingLeft(yB, -dir, startType === 4)}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth={2.2}
+                  strokeLinecap="square"
+                />
+              </>
+            )}
+            {(endType === 1 || endType === 4) && (
+              <>
+                <path
+                  d={hoggingRight(yA, dir, endType === 4)}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth={2.2}
+                  strokeLinecap="square"
+                />
+                <path
+                  d={hoggingRight(yB, -dir, endType === 4)}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth={2.2}
+                  strokeLinecap="square"
+                />
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <path d={dA ?? ""} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+            <path d={dB ?? ""} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+          </>
+        )}
         {startType === 4 && startHook ? (
           <text x={8} y={face === "bottom" ? 28 : 70} fill="#fca5a5" fontSize={8}>
             {startHook}

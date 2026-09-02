@@ -90,6 +90,13 @@ export function describeSaggingExtraBottom(l0?: number, h0?: number, dia?: numbe
   return `${formula} = ${Math.round(raw)} → ${shop} mm (dư 50 mỗi đầu, tròn 50) · cách mép gối ${Math.round(inset)} mm`;
 }
 
+export function describeHoggingExtraTop(l0?: number) {
+  const formula = "M- tại gối, lớp trên · từ mép trong kéo vào nhịp l₀/4";
+  if (!(l0 && l0 > 0)) return formula;
+  const ext = Math.ceil(l0 / 4 / 50) * 50;
+  return `${formula} = ${ext} mm`;
+}
+
 export function describeEndType(
   type: number,
   dia: number,
@@ -103,10 +110,7 @@ export function describeEndType(
   const ds = Math.max(dia || 1, 1);
   if (type === 1) {
     if (face === "bottom") return describeSaggingExtraBottom(l0, h0, ds);
-    const L = spanL && spanL > 0 ? roundTo(spanL / 8, 10) : null;
-    return L
-      ? `Cắt thẳng cách mép cột L/8 = ${L} mm`
-      : "Cắt thẳng từ mép cột trở ra L/8 nhịp kề";
+    return describeHoggingExtraTop(l0);
   }
   if (type === 2) return "Cắt thẳng tại mép trong gối";
   if (type === 3) return "Cắt thẳng tại tim cột";

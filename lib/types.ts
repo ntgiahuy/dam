@@ -146,7 +146,7 @@ export const LAYER_LABELS = [
   { value: 3, label: "3 — Cách lớp 2 thêm 50mm" },
 ];
 export const END_TYPE_OPTIONS = [
-  { value: 1, label: "1 — Cắt thẳng, cách mép cột L/8" },
+  { value: 1, label: "1 — Cắt thẳng M- tại gối, l₀/4" },
   { value: 2, label: "2 — Cắt thẳng mép gối" },
   { value: 3, label: "3 — Cắt thẳng tim cột" },
   { value: 4, label: "4 — Móc 90°" },

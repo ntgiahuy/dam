@@ -97,8 +97,58 @@ export function saggingExtraInsetMm(l0: number, h0: number, dia: number) {
 }
 
 /**
+ * Đoạn kéo vào nhịp kề của thép bổ sung M- tại gối, lớp trên.
+ * Từ mép trong gối: l₀/4, làm tròn lên 50 mm (bản vẽ: 2456→2500, 2513→2550).
+ */
+export function hoggingExtraExtensionMm(l0: number) {
+  if (!(l0 > 0)) return 0;
+  return Math.ceil(l0 / 4 / 50) * 50;
+}
+
+function hoggingBarAtSupport(
+  project: BeamProject,
+  axisIndex: number,
+  leftType: number,
+  rightType: number,
+  dia: number,
+) {
+  const f = supportFaces(project, axisIndex);
+  const last = project.spans.length;
+  const hookStart = hookLength(dia, leftType);
+  const hookEnd = hookLength(dia, rightType);
+
+  const endX = (type: number, side: "left" | "right") => {
+    if (type === 1) {
+      const si =
+        side === "left"
+          ? axisIndex > 0
+            ? axisIndex - 1
+            : null
+          : axisIndex < project.spans.length
+            ? axisIndex
+            : null;
+      const l0 = si != null ? clearSpanMm(project, si) : 0;
+      const ext = hoggingExtraExtensionMm(l0);
+      return side === "left" ? f.left - ext : f.right + ext;
+    }
+    if (type === 2) return side === "left" ? f.left : f.right;
+    return f.axis;
+  };
+
+  let x1 = endX(leftType, "left");
+  let x2 = endX(rightType, "right");
+  if (axisIndex === 0) {
+    x1 = leftType === 2 ? f.right : f.axis;
+  }
+  if (axisIndex === last) {
+    x2 = rightType === 2 ? f.left : f.axis;
+  }
+  return { x1, x2, hookStart, hookEnd };
+}
+
+/**
  * Dạng đầu thanh bổ sung:
- * 1 — lớp trên: cắt thẳng từ mép cột trở ra L/8 nhịp kề
+ * 1 — lớp trên: M- tại gối, từ mép trong kéo vào nhịp l₀/4
  *     lớp dưới: M+ giữa nhịp, l₀/2 + 2·max(h₀, 15d, l₀/16)
  * 2 — cắt thẳng tại mép trong gối
  * 3 — cắt thẳng tại tim cột
@@ -124,6 +174,15 @@ export function extraTermination(
         if (l0 > 0) {
           const h0 = effectiveDepthMm(project, si, dia);
           const off = saggingExtraInsetMm(l0, h0, dia);
+          return { x: inner + intoSpan * off, hook: 0 };
+        }
+      }
+    } else {
+      const si = adjacentSpanIndex(project, axisIndex, side);
+      if (si != null) {
+        const l0 = clearSpanMm(project, si);
+        if (l0 > 0) {
+          const off = hoggingExtraExtensionMm(l0);
           return { x: inner + intoSpan * off, hook: 0 };
         }
       }
@@ -227,23 +286,54 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
   let hookEnd: number;
 
   if (leftAxis === rightAxis) {
-    const leftL = leftAxis > 0 ? project.spans[leftAxis - 1].L : 0;
-    const rightL = leftAxis < project.spans.length ? project.spans[leftAxis].L : 0;
-    const adj = leftL && rightL ? (leftL + rightL) / 3 : (leftL || rightL) / 3;
-    const len = Math.max(roundTo(adj, 50), 800);
-    const x = xs[leftAxis] ?? 0;
-    if (leftAxis === 0) {
-      x1 = x;
-      x2 = x + len;
-    } else if (leftAxis === last) {
-      x2 = x;
-      x1 = x - len;
+    if (face === "top") {
+      const g = hoggingBarAtSupport(project, leftAxis, leftType, rightType, bar.dia);
+      x1 = g.x1;
+      x2 = g.x2;
+      hookStart = g.hookStart;
+      hookEnd = g.hookEnd;
     } else {
-      x1 = x - len / 2;
-      x2 = x + len / 2;
+      const leftL = leftAxis > 0 ? project.spans[leftAxis - 1].L : 0;
+      const rightL = leftAxis < project.spans.length ? project.spans[leftAxis].L : 0;
+      const adj = leftL && rightL ? (leftL + rightL) / 3 : (leftL || rightL) / 3;
+      const len = Math.max(roundTo(adj, 50), 800);
+      const x = xs[leftAxis] ?? 0;
+      if (leftAxis === 0) {
+        x1 = x;
+        x2 = x + len;
+      } else if (leftAxis === last) {
+        x2 = x;
+        x1 = x - len;
+      } else {
+        x1 = x - len / 2;
+        x2 = x + len / 2;
+      }
+      hookStart = hookLength(bar.dia, leftType);
+      hookEnd = hookLength(bar.dia, rightType);
     }
-    hookStart = hookLength(bar.dia, leftType);
-    hookEnd = hookLength(bar.dia, rightType);
+  } else if (face === "top" && rightAxis === leftAxis + 1) {
+    const leftAnchored = leftType === 2 || leftType === 3 || leftType === 4;
+    const rightAnchored = rightType === 2 || rightType === 3 || rightType === 4;
+    if (leftAnchored && rightType === 1 && !rightAnchored) {
+      const g = hoggingBarAtSupport(project, leftAxis, leftType, 1, bar.dia);
+      x1 = g.x1;
+      x2 = g.x2;
+      hookStart = g.hookStart;
+      hookEnd = g.hookEnd;
+    } else if (rightAnchored && leftType === 1 && !leftAnchored) {
+      const g = hoggingBarAtSupport(project, rightAxis, 1, rightType, bar.dia);
+      x1 = g.x1;
+      x2 = g.x2;
+      hookStart = g.hookStart;
+      hookEnd = g.hookEnd;
+    } else {
+      const leftT = extraTermination(project, leftAxis, leftType, "left", bar.dia, face);
+      const rightT = extraTermination(project, rightAxis, rightType, "right", bar.dia, face);
+      x1 = leftT.x;
+      x2 = rightT.x;
+      hookStart = leftT.hook;
+      hookEnd = rightT.hook;
+    }
   } else {
     const leftT = extraTermination(project, leftAxis, leftType, "left", bar.dia, face);
     const rightT = extraTermination(project, rightAxis, rightType, "right", bar.dia, face);
@@ -279,7 +369,19 @@ export function extraBarLength(
   bar: ExtraBar,
   face: "top" | "bottom",
 ): number {
-  return Math.round(extraBarGeometry(project, bar, face).cutLength);
+  const rs = resolveExtraBars(project, [bar], face);
+  return Math.round(rs.reduce((s, b) => s + b.cutLength, 0));
+}
+
+export function extraBarLengthHint(
+  project: BeamProject,
+  bar: ExtraBar,
+  face: "top" | "bottom",
+) {
+  if (bar.lengthOverride && bar.lengthOverride > 0) return `L=${bar.lengthOverride}`;
+  const rs = resolveExtraBars(project, [bar], face);
+  if (rs.length === 0) return "L≈0";
+  return `L≈${rs.map((b) => Math.round(b.cutLength)).join("+")}`;
 }
 
 export function resolveMainBars(
@@ -326,24 +428,62 @@ export function resolveExtraBars(
   bars: ExtraBar[],
   face: "top" | "bottom",
 ): ResolvedBar[] {
-  return bars.map((b) => {
+  return bars.flatMap((b) => {
+    if (face === "top") {
+      const last = project.spans.length;
+      const s = Math.max(0, Math.min(b.startAxis, last));
+      const e = Math.max(0, Math.min(b.endAxis, last));
+      const leftAxis = Math.min(s, e);
+      const rightAxis = Math.max(s, e);
+      const leftType = normalizeEndType(s <= e ? b.startType : b.endType);
+      const rightType = normalizeEndType(s <= e ? b.endType : b.startType);
+      if (leftAxis !== rightAxis && leftType === 1 && rightType === 1) {
+        const out: ResolvedBar[] = [];
+        for (let axis = leftAxis; axis <= rightAxis; axis++) {
+          const g = extraBarGeometry(
+            project,
+            { ...b, startAxis: axis, endAxis: axis, startType: 1, endType: 1 },
+            "top",
+          );
+          out.push({
+            sourceId: b.id,
+            face,
+            kind: "extra",
+            layer: b.layer,
+            dia: b.dia,
+            qty: b.qty,
+            x1: g.x1,
+            x2: g.x2,
+            startType: g.startType,
+            endType: g.endType,
+            hookStart: g.hookStart,
+            hookEnd: g.hookEnd,
+            straight: g.straight,
+            cutLength: g.cutLength,
+          });
+        }
+        return out;
+      }
+    }
     const g = extraBarGeometry(project, b, face);
-    return {
-      sourceId: b.id,
-      face,
-      kind: "extra" as const,
-      layer: b.layer,
-      dia: b.dia,
-      qty: b.qty,
-      x1: g.x1,
-      x2: g.x2,
-      startType: g.startType,
-      endType: g.endType,
-      hookStart: g.hookStart,
-      hookEnd: g.hookEnd,
-      straight: g.straight,
-      cutLength: g.cutLength,
-    };
+    return [
+      {
+        sourceId: b.id,
+        face,
+        kind: "extra" as const,
+        layer: b.layer,
+        dia: b.dia,
+        qty: b.qty,
+        x1: g.x1,
+        x2: g.x2,
+        startType: g.startType,
+        endType: g.endType,
+        hookStart: g.hookStart,
+        hookEnd: g.hookEnd,
+        straight: g.straight,
+        cutLength: g.cutLength,
+      },
+    ];
   });
 }
 
