@@ -27,14 +27,16 @@ export function BeamPreview({
   const [hoverSupport, setHoverSupport] = useState<number | null>(null);
   const padL = 56;
   const padR = 24;
-  const padT = 36;
+  const padT = 58;
   const beamH = 70;
   const W = 1100;
-  const H = 160;
+  const H = 186;
   const scale = model.total > 0 ? (W - padL - padR) / model.total : 1;
   const x = (mm: number) => padL + mm * scale;
   const y0 = padT;
   const y1 = padT + beamH;
+  const axisCy = 13;
+  const axisR = 9;
   const selectSupports = tab === "supports";
 
   return (
@@ -109,7 +111,7 @@ export function BeamPreview({
               />
               <line
                 x1={cx}
-                y1={8}
+                y1={2}
                 x2={cx}
                 y2={y1 + 18}
                 stroke="#a3e635"
@@ -137,10 +139,18 @@ export function BeamPreview({
                 strokeWidth={1.2}
                 pointerEvents="none"
               />
-              <circle cx={cx} cy={14} r={9} fill="#1a1a1a" stroke={active ? "#60a5fa" : "#facc15"} strokeWidth={1.2} pointerEvents="none" />
+              <circle
+                cx={cx}
+                cy={axisCy}
+                r={axisR}
+                fill="#1a1a1a"
+                stroke={active ? "#60a5fa" : "#facc15"}
+                strokeWidth={1.2}
+                pointerEvents="none"
+              />
               <text
                 x={cx}
-                y={18}
+                y={axisCy + 4}
                 textAnchor="middle"
                 fill={active ? "#93c5fd" : "#facc15"}
                 fontSize={10}
@@ -236,7 +246,7 @@ export function BeamPreview({
           <text
             key={`L-${sp.id}`}
             x={(x(model.xs[i]) + x(model.xs[i + 1])) / 2}
-            y={y0 - 20}
+            y={axisCy + 4}
             textAnchor="middle"
             fill="#d4d4d8"
             fontSize={10}
