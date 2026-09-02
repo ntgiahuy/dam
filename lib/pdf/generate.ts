@@ -852,10 +852,12 @@ function drawCrossSection(
   }
 
   const titleY = boxY + H + 42;
-  textSimple(ctx, title, cx + W / 2, titleY, 10, true, "center");
-  line(ctx, cx + W / 2 - 16, titleY + 2, cx + W / 2 + 16, titleY + 2, 0.95);
-  line(ctx, cx + W / 2 - 16, titleY + 4.2, cx + W / 2 + 16, titleY + 4.2, 0.55);
-  textSimple(ctx, "TL: 1/25", cx + W / 2, titleY + 16, 7, false, "center");
+  const titleSize = 10;
+  textSimple(ctx, title, cx + W / 2, titleY, titleSize, true, "center");
+  const titleW = ctx.fontBold.widthOfTextAtSize(title, titleSize);
+  const underlineY = titleY + titleSize * 0.95;
+  line(ctx, cx + W / 2 - titleW / 2 - 1, underlineY, cx + W / 2 + titleW / 2 + 1, underlineY, 0.9);
+  textSimple(ctx, "TL: 1/25", cx + W / 2, underlineY + 6, 7, false, "center");
 }
 
 function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | undefined) {
@@ -942,8 +944,9 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
   const rowH = Math.min(29, Math.max(16, (avail - headerH - 8) / Math.max(rows.length, 1)));
   const h = headerH + rows.length * rowH;
   textSimple(ctx, "BẢNG THỐNG KÊ CỐT THÉP", x + w / 2, y + 2, 10.5, true, "center");
-  line(ctx, x + w / 2 - 92, y + 14, x + w / 2 + 92, y + 14, 0.7);
-  const ty0 = y + 18;
+  const schedTitleW = ctx.fontBold.widthOfTextAtSize("BẢNG THỐNG KÊ CỐT THÉP", 10.5);
+  line(ctx, x + w / 2 - schedTitleW / 2, y + 10.5 * 0.95, x + w / 2 + schedTitleW / 2, y + 10.5 * 0.95, 0.7);
+  const ty0 = y + 20;
   rect(ctx, x, ty0, w, h, 0.9);
   const colX: number[] = [];
   let cx = x;
@@ -1007,34 +1010,37 @@ function drawSummaryTable(ctx: Ctx, x: number, y: number) {
   const nRows = 4;
   const gridH = nRows * rowH;
   const h = gridH + 52;
-  textSimple(ctx, "TỔNG HỢP CỐT THÉP", x + w / 2, y + 2, 10.5, true, "center");
-  line(ctx, x + w / 2 - 78, y + 14, x + w / 2 + 78, y + 14, 0.7);
-  const ty0 = y + 18;
+  const titleSize = 10.5;
+  textSimple(ctx, "TỔNG HỢP CỐT THÉP", x + w / 2, y + 2, titleSize, true, "center");
+  const titleW = ctx.fontBold.widthOfTextAtSize("TỔNG HỢP CỐT THÉP", titleSize);
+  line(ctx, x + w / 2 - titleW / 2, y + titleSize * 0.95, x + w / 2 + titleW / 2, y + titleSize * 0.95, 0.7);
+  const ty0 = y + 20;
   rect(ctx, x, ty0, w, h, 0.9);
   line(ctx, x + labW, ty0, x + labW, ty0 + gridH, 0.45);
   for (let i = 1; i < Math.max(dias.length, 1); i++) {
     line(ctx, x + labW + i * colW, ty0, x + labW + i * colW, ty0 + gridH, 0.4);
   }
   const labels = ["ĐƯỜNG KÍNH (mm):", "CHIỀU DÀI (m):", "TRỌNG LƯỢNG (kg):", "SỐ THANH 11.7m:"];
+  const textTop = (row: number, size = 7.5) => ty0 + row * rowH + (rowH - size * 0.78) / 2;
   labels.forEach((lb, i) => {
     if (i > 0) line(ctx, x, ty0 + i * rowH, x + w, ty0 + i * rowH, 0.35);
-    textSimple(ctx, lb, x + 8, ty0 + i * rowH + 16, 7);
+    textSimple(ctx, lb, x + 8, textTop(i, 7), 7);
   });
   dias.forEach((d, i) => {
     const cx = x + labW + i * colW + colW / 2;
-    textSimple(ctx, `Ø${d.dia}`, cx, ty0 + 16, 8, true, "center");
-    textSimple(ctx, fmtNum(d.lengthM), cx, ty0 + rowH + 16, 7.5, false, "center");
-    textSimple(ctx, fmtNum(d.weight), cx, ty0 + rowH * 2 + 16, 7.5, false, "center");
+    textSimple(ctx, `Ø${d.dia}`, cx, textTop(0, 8), 8, true, "center");
+    textSimple(ctx, fmtNum(d.lengthM), cx, textTop(1), 7.5, false, "center");
+    textSimple(ctx, fmtNum(d.weight), cx, textTop(2), 7.5, false, "center");
     const stock = d.dia <= 10 ? "—" : String(Math.ceil(d.lengthM / STOCK_M));
-    textSimple(ctx, stock, cx, ty0 + rowH * 3 + 16, 7.5, false, "center");
+    textSimple(ctx, stock, cx, textTop(3), 7.5, false, "center");
   });
   if (dias.length === 0) {
-    textSimple(ctx, "—", x + labW + colW / 2, ty0 + 16, 8, false, "center");
+    textSimple(ctx, "—", x + labW + colW / 2, textTop(0, 8), 8, false, "center");
   }
   const g1 = dias.filter((d) => d.dia <= 10).reduce((s, d) => s + d.weight, 0);
   const g2 = dias.filter((d) => d.dia > 10 && d.dia <= 18).reduce((s, d) => s + d.weight, 0);
   const g3 = dias.filter((d) => d.dia > 18).reduce((s, d) => s + d.weight, 0);
-  const fy = ty0 + gridH + 14;
+  const fy = ty0 + gridH + 12;
   textSimple(ctx, `NHÓM Ø<=10 (kg):    ${fmtNum(g1)}`, x + 8, fy, 7.5);
   textSimple(ctx, `NHÓM 10<Ø<=18 (kg):    ${fmtNum(g2)}`, x + 8, fy + 16, 7.5);
   if (g3 > 0) textSimple(ctx, `NHÓM Ø>18 (kg):    ${fmtNum(g3)}`, x + 8, fy + 32, 7.5);
@@ -1109,7 +1115,7 @@ export async function generateBeamPdf(
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
 
-  const tableY = Math.min(sectTop + boxH + 78, 680);
+  const tableY = Math.min(sectTop + boxH + 92, PAGE_H - 240);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
