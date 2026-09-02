@@ -296,6 +296,8 @@ export function BeamApp() {
         {TABS.map((t) => (
           <button
             key={t.id}
+            type="button"
+            data-tab={t.id}
             onClick={() => setTab(t.id)}
             className={`shrink-0 rounded-t px-2.5 py-1.5 text-[12px] ${
               tab === t.id
@@ -402,34 +404,46 @@ export function BeamApp() {
                       ))}
                     </Select>
                   </Field>
-                  <Field label="Chiều dày sàn Hsl (mm)">
-                    <Input
-                      type="number"
-                      value={span.Hsl}
-                      onChange={(e) => patchSpan({ Hsl: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
-                  <Field label="Khoảng cách Hl (mm)">
-                    <Input
-                      type="number"
-                      value={span.Hl}
-                      onChange={(e) => patchSpan({ Hl: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
-                  <Field label="Chiều dày sàn Hsr (mm)">
-                    <Input
-                      type="number"
-                      value={span.Hsr}
-                      onChange={(e) => patchSpan({ Hsr: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
-                  <Field label="Khoảng cách Hr (mm)">
-                    <Input
-                      type="number"
-                      value={span.Hr}
-                      onChange={(e) => patchSpan({ Hr: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
+                  {(span.slabType === 1 || span.slabType === 2) && (
+                    <>
+                      <Field label="Chiều dày sàn HSL (mm)">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={span.Hsl}
+                          onChange={(e) => patchSpan({ Hsl: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                      <Field label="Lệch đỉnh dầm HL (mm)">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={span.Hl}
+                          onChange={(e) => patchSpan({ Hl: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                    </>
+                  )}
+                  {(span.slabType === 1 || span.slabType === 3) && (
+                    <>
+                      <Field label="Chiều dày sàn HSR (mm)">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={span.Hsr}
+                          onChange={(e) => patchSpan({ Hsr: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                      <Field label="Lệch đỉnh dầm HR (mm)">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={span.Hr}
+                          onChange={(e) => patchSpan({ Hr: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                    </>
+                  )}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-zinc-500">Nhịp đang chọn: {selectedSpan + 1}</span>
