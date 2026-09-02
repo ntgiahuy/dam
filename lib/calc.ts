@@ -442,19 +442,42 @@ export function barNotation(qty: number, dia: number) {
   return `${qty}Ø${dia}`;
 }
 
+/** B / B1 trên tab nhịp và tab gối là cùng một số liệu — ghi vào cả hai. */
+export function syncSpanSupportGeometry(
+  project: BeamProject,
+  spanIndex: number,
+  supportIndex: number,
+  patch: { B?: number; B1?: number },
+): BeamProject {
+  const hasB = patch.B !== undefined;
+  const hasB1 = patch.B1 !== undefined;
+  if (!hasB && !hasB1) return project;
+  const geo = {
+    ...(hasB ? { B: patch.B as number } : {}),
+    ...(hasB1 ? { B1: patch.B1 as number } : {}),
+  };
+  const spanIdx = Math.max(0, Math.min(spanIndex, project.spans.length - 1));
+  const supIdx = Math.max(0, Math.min(supportIndex, project.supports.length - 1));
+  return {
+    ...project,
+    spans: project.spans.map((s, i) => (i === spanIdx ? { ...s, ...geo } : s)),
+    supports: project.supports.map((s, i) => (i === supIdx ? { ...s, ...geo } : s)),
+  };
+}
+
 export function applySpanParams(project: BeamProject, fromIndex: number, fields: (keyof Span)[]): BeamProject {
   const src = project.spans[fromIndex];
   if (!src) return project;
-  return {
+  let next: BeamProject = {
     ...project,
     spans: project.spans.map((s, i) => {
       if (i === fromIndex) return s;
-      const next = { ...s };
+      const copy = { ...s };
       for (const f of fields) {
         // @ts-expect-error indexed assign
-        next[f] = src[f];
+        copy[f] = src[f];
       }
-      return next;
+      return copy;
     }),
     stirrups: project.stirrups.map((st, i) => {
       if (i === fromIndex) return st;
@@ -465,6 +488,17 @@ export function applySpanParams(project: BeamProject, fromIndex: number, fields:
       return st;
     }),
   };
+  if (fields.includes("B") || fields.includes("B1")) {
+    next = {
+      ...next,
+      supports: next.supports.map((s) => ({
+        ...s,
+        ...(fields.includes("B") ? { B: src.B } : {}),
+        ...(fields.includes("B1") ? { B1: src.B1 } : {}),
+      })),
+    };
+  }
+  return next;
 }
 
 export function applySupportToAll(project: BeamProject, fromIndex: number): BeamProject {
@@ -475,5 +509,6 @@ export function applySupportToAll(project: BeamProject, fromIndex: number): Beam
     supports: project.supports.map((s, i) =>
       i === fromIndex ? s : { ...s, type: src.type, B: src.B, B1: src.B1, H: src.H },
     ),
+    spans: project.spans.map((s) => ({ ...s, B: src.B, B1: src.B1 })),
   };
 }

@@ -23,6 +23,7 @@ import {
   applySupportToAll,
   computeModel,
   extraBarLength,
+  syncSpanSupportGeometry,
 } from "@/lib/calc";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import { createEmptyProject, createSampleD1, defaultStirrupsForLength, syncGeometry } from "@/lib/sample";
@@ -95,18 +96,39 @@ export function BeamApp() {
   const span = project.spans[selectedSpan] ?? project.spans[0];
   const support = project.supports[selectedSupport] ?? project.supports[0];
 
+  function selectSpan(i: number) {
+    setSelectedSpan(i);
+    setSelectedSupport(Math.max(0, Math.min(i, project.supports.length - 1)));
+  }
+
+  function selectSupport(i: number) {
+    setSelectedSupport(i);
+    if (i < project.spans.length) setSelectedSpan(i);
+    else setSelectedSpan(Math.max(0, project.spans.length - 1));
+  }
+
   function patchSpan(partial: Partial<typeof span>) {
-    persist({
-      ...project,
-      spans: project.spans.map((s, i) => (i === selectedSpan ? { ...s, ...partial } : s)),
-    });
+    const spans = project.spans.map((s, i) => (i === selectedSpan ? { ...s, ...partial } : s));
+    let next = { ...project, spans };
+    if (partial.B !== undefined || partial.B1 !== undefined) {
+      next = syncSpanSupportGeometry(next, selectedSpan, selectedSupport, {
+        B: partial.B,
+        B1: partial.B1,
+      });
+    }
+    persist(next);
   }
 
   function patchSupport(partial: Partial<typeof support>) {
-    persist({
-      ...project,
-      supports: project.supports.map((s, i) => (i === selectedSupport ? { ...s, ...partial } : s)),
-    });
+    const supports = project.supports.map((s, i) => (i === selectedSupport ? { ...s, ...partial } : s));
+    let next = { ...project, supports };
+    if (partial.B !== undefined || partial.B1 !== undefined) {
+      next = syncSpanSupportGeometry(next, selectedSpan, selectedSupport, {
+        B: partial.B,
+        B1: partial.B1,
+      });
+    }
+    persist(next);
   }
 
   async function exportPdf() {
@@ -295,6 +317,7 @@ export function BeamApp() {
                   <Field label="Lệch trục B1 (mm)">
                     <Input
                       type="number"
+                      min={0}
                       value={span.B1}
                       onChange={(e) => patchSpan({ B1: Number(e.target.value) || 0 })}
                     />
@@ -309,6 +332,7 @@ export function BeamApp() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-zinc-500">Nhịp đang chọn: {selectedSpan + 1}</span>
+                  <span className="text-xs text-zinc-600">B và B1 dùng chung với gối đỡ.</span>
                   <Button
                     variant="success"
                     size="sm"
@@ -449,9 +473,7 @@ export function BeamApp() {
                         title="Gối tiếp theo"
                         onClick={() => {
                           const next = (selectedSupport + 1) % project.supports.length;
-                          setSelectedSupport(next);
-                          if (next < project.spans.length) setSelectedSpan(next);
-                          else setSelectedSpan(Math.max(0, project.spans.length - 1));
+                          selectSupport(next);
                         }}
                       >
                         <ChevronRight />
@@ -465,6 +487,7 @@ export function BeamApp() {
                       >
                         <Check /> Áp dụng cho các nhịp
                       </Button>
+                      <p className="mt-1 text-[11px] text-zinc-600">B và B1 dùng chung với số liệu nhịp dầm.</p>
                     </div>
                   </div>
                   <SupportSketch B={support.B} B1={support.B1} />
@@ -524,7 +547,7 @@ export function BeamApp() {
                 <Field label="Nhịp đang chọn">
                   <Select
                     value={selectedSpan}
-                    onChange={(e) => setSelectedSpan(Number(e.target.value))}
+                    onChange={(e) => selectSpan(Number(e.target.value))}
                   >
                     {project.spans.map((_, i) => (
                       <option key={i} value={i}>
@@ -702,12 +725,8 @@ export function BeamApp() {
           tab={tab}
           selectedSpan={selectedSpan}
           selectedSupport={selectedSupport}
-          onSelectSpan={setSelectedSpan}
-          onSelectSupport={(i) => {
-            setSelectedSupport(i);
-            if (i < project.spans.length) setSelectedSpan(i);
-            else setSelectedSpan(Math.max(0, project.spans.length - 1));
-          }}
+          onSelectSpan={selectSpan}
+          onSelectSupport={selectSupport}
         />
       </div>
 
@@ -735,11 +754,28 @@ function SectionSketch({
   H: number;
   slab?: boolean;
 }) {
+  const width = Math.max(B || 200, 1);
+  const leftToAxis = Number.isFinite(B1) ? B1 : width / 2;
+  const boxW = 36;
+  const boxX = 42;
+  const boxY = 18;
+  const boxH = 90;
+  const axisX = boxX + (leftToAxis / width) * boxW;
+
   return (
     <Panel title="Tiết diện" className="w-44 shrink-0">
       <svg viewBox="0 0 120 140" className="h-32 w-full">
         {slab && <rect x={58} y={18} width={50} height={14} fill="#93c5fd" stroke="#e5e7eb" />}
-        <rect x={40} y={18} width={36} height={90} fill="#1d4ed8" stroke="#e5e7eb" />
+        <rect x={boxX} y={boxY} width={boxW} height={boxH} fill="#1d4ed8" stroke="#e5e7eb" />
+        <line
+          x1={axisX}
+          y1={8}
+          x2={axisX}
+          y2={boxY + boxH + 8}
+          stroke="#a3e635"
+          strokeDasharray="3 2"
+          strokeWidth={1}
+        />
         <text x={78} y={70} fill="#e5e7eb" fontSize={9}>
           H={H}
         </text>
