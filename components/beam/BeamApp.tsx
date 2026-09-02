@@ -18,7 +18,6 @@ import { Field, Panel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { BeamPreview } from "@/components/beam/BeamPreview";
-import { ExtraShapeSketch } from "@/components/beam/ExtraShapeSketch";
 import { SectionSketch } from "@/components/beam/SectionSketch";
 import { SupportSketch } from "@/components/beam/SupportSketch";
 import {
@@ -26,7 +25,6 @@ import {
   applySupportToAll,
   canShiftAxisRange,
   computeModel,
-  hoggingEdgeHookMm,
   placeAxisRange,
   shiftAxisRange,
   syncSpanSupportGeometry,
@@ -52,7 +50,7 @@ import {
   TABS,
   CONNECTION_TYPES,
 } from "@/lib/types";
-import { CONCRETE_GRADES, STEEL_GRADES, hook90ExtensionMm } from "@/lib/tcvn5574";
+import { CONCRETE_GRADES, STEEL_GRADES } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
 const STORE_KEY = "thep-dam-project-v3";
@@ -658,7 +656,6 @@ export function BeamApp() {
                 void end;
               }}
               face={tab === "extraTop" ? "top" : "bottom"}
-              project={project}
             />
           )}
 
@@ -1084,7 +1081,6 @@ function ExtraBarPanel({
   onDelete,
   onRegionMove,
   face,
-  project,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -1098,23 +1094,8 @@ function ExtraBarPanel({
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
   face: "top" | "bottom";
-  project: BeamProject;
 }) {
   const endTypeOpts = extraEndTypeOptions(face);
-  const edgeHookStart = hoggingEdgeHookMm(project.spans[0]?.H ?? 500);
-  const edgeHookEnd = hoggingEdgeHookMm(project.spans[project.spans.length - 1]?.H ?? 500);
-  const startHook =
-    face === "top" && form.startAxis === 0
-      ? edgeHookStart
-      : form.startType === 4
-        ? hook90ExtensionMm(form.dia)
-        : 0;
-  const endHook =
-    face === "top" && form.endAxis === lastAxis
-      ? edgeHookEnd
-      : form.endType === 4
-        ? hook90ExtensionMm(form.dia)
-        : 0;
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">
@@ -1217,16 +1198,6 @@ function ExtraBarPanel({
         </div>
       </Panel>
       <div className="flex w-56 shrink-0 flex-col gap-2">
-        <ExtraShapeSketch
-          startType={form.startType}
-          endType={form.endType}
-          face={face}
-          startHook={startHook}
-          endHook={endHook}
-          startAxis={form.startAxis}
-          endAxis={form.endAxis}
-          lastAxis={lastAxis}
-        />
         <Panel title="Danh sách thép">
         <ul className="max-h-36 overflow-auto text-sm">
           {bars.length === 0 && <li className="text-zinc-500">Chưa có thanh thép</li>}
