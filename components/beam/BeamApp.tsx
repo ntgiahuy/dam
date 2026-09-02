@@ -763,6 +763,7 @@ export function BeamApp() {
           selectedSupport={selectedSupport}
           highlightStart={highlightStart}
           highlightEnd={highlightEnd}
+          extraDraft={tab === "extraBottom" || tab === "extraTop" ? extraForm : null}
           onSelectSpan={barRegion ? moveBarRegionToSpan : selectSpan}
           onSelectSupport={selectSupport}
         />

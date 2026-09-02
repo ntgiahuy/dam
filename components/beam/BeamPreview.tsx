@@ -1,8 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { BeamProject, TabId } from "@/lib/types";
-import { computeModel, supportWidthLabel, barNotation, supportGeometry, type ResolvedBar } from "@/lib/calc";
+import type { BeamProject, ExtraBar, TabId } from "@/lib/types";
+import {
+  computeModel,
+  resolveExtraBars,
+  supportWidthLabel,
+  barNotation,
+  supportGeometry,
+  type ResolvedBar,
+} from "@/lib/calc";
 
 export function BeamPreview({
   project,
@@ -11,6 +18,7 @@ export function BeamPreview({
   selectedSupport,
   highlightStart,
   highlightEnd,
+  extraDraft,
   onSelectSpan,
   onSelectSupport,
 }: {
@@ -20,10 +28,16 @@ export function BeamPreview({
   selectedSupport: number;
   highlightStart: number;
   highlightEnd: number;
+  extraDraft: ExtraBar | null;
   onSelectSpan: (i: number) => void;
   onSelectSupport: (i: number) => void;
 }) {
   const model = useMemo(() => computeModel(project), [project]);
+  const extraFace = tab === "extraTop" ? "top" : "bottom";
+  const sample = useMemo(() => {
+    if (!extraDraft || (tab !== "extraBottom" && tab !== "extraTop")) return null;
+    return resolveExtraBars(project, [extraDraft], extraFace)[0] ?? null;
+  }, [extraDraft, extraFace, project, tab]);
   const [hoverSupport, setHoverSupport] = useState<number | null>(null);
   const padL = 56;
   const padR = 24;
@@ -175,6 +189,7 @@ export function BeamPreview({
             face="bottom"
             color="#f87171"
             width={1.7}
+            opacity={tab === "extraBottom" ? 0.4 : 1}
           />
         ))}
         {model.mainTop.map((b) => (
@@ -189,8 +204,21 @@ export function BeamPreview({
             face="top"
             color="#f87171"
             width={1.7}
+            opacity={tab === "extraTop" ? 0.4 : 1}
           />
         ))}
+        {sample && extraFace === "bottom" && (
+          <g>
+            <RebarMark b={sample} x={x} y={y1 - 14} face="bottom" color="#ef4444" width={2.2} />
+            <RebarMark b={sample} x={x} y={y1 - 28} face="top" color="#ef4444" width={2.2} />
+          </g>
+        )}
+        {sample && extraFace === "top" && (
+          <g>
+            <RebarMark b={sample} x={x} y={y0 + 14} face="top" color="#ef4444" width={2.2} />
+            <RebarMark b={sample} x={x} y={y0 + 28} face="bottom" color="#ef4444" width={2.2} />
+          </g>
+        )}
 
         {model.stirrups.ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
           <line
@@ -254,6 +282,7 @@ function RebarMark({
   face,
   color,
   width,
+  opacity = 1,
 }: {
   b: ResolvedBar;
   x: (mm: number) => number;
@@ -261,8 +290,9 @@ function RebarMark({
   face: "top" | "bottom";
   color: string;
   width: number;
+  opacity?: number;
 }) {
-  const hookPx = 14;
+  const hookPx = 16;
   const dir = face === "bottom" ? -1 : 1;
   const x1 = x(b.x1);
   const x2 = x(b.x2);
@@ -278,6 +308,7 @@ function RebarMark({
       strokeWidth={width}
       strokeLinecap="square"
       strokeLinejoin="miter"
+      opacity={opacity}
       pointerEvents="none"
     />
   );
