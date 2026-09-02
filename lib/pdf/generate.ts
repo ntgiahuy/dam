@@ -83,6 +83,27 @@ function textSimple(
   return width;
 }
 
+const CAP_RATIO = 0.72;
+
+function textCentered(
+  ctx: Ctx,
+  str: string,
+  cx: number,
+  cy: number,
+  size: number,
+  bold = false,
+) {
+  const font = bold ? ctx.fontBold : ctx.font;
+  const width = font.widthOfTextAtSize(str, size);
+  ctx.page.drawText(str, {
+    x: cx - width / 2,
+    y: ty(cy) - size * (CAP_RATIO / 2),
+    size,
+    font,
+    color: BLACK,
+  });
+}
+
 function textVertical(ctx: Ctx, str: string, cx: number, yMid: number, size = 11, bold = true) {
   const font = bold ? ctx.fontBold : ctx.font;
   const tw = font.widthOfTextAtSize(str, size);
@@ -97,30 +118,36 @@ function textVertical(ctx: Ctx, str: string, cx: number, yMid: number, size = 11
 }
 
 function circle(ctx: Ctx, cx: number, cy: number, r: number, fill = false) {
-  ctx.page.drawCircle({
+  ctx.page.drawEllipse({
     x: cx,
     y: ty(cy),
-    size: r,
+    xScale: r,
+    yScale: r,
     borderColor: BLACK,
     borderWidth: fill ? 0 : 0.6,
     color: fill ? BLACK : undefined,
+    rotate: degrees(0),
   });
 }
 
 function bubble(ctx: Ctx, cx: number, cy: number, r = 8) {
-  ctx.page.drawCircle({
+  ctx.page.drawEllipse({
     x: cx,
     y: ty(cy),
-    size: r,
+    xScale: r,
+    yScale: r,
     color: WHITE,
     borderColor: BLACK,
-    borderWidth: 0.7,
+    borderWidth: 0.75,
+    rotate: degrees(0),
   });
 }
 
 function markCircle(ctx: Ctx, cx: number, cy: number, mark: string, r = 7) {
-  bubble(ctx, cx, cy, r);
-  textSimple(ctx, mark, cx, cy + 2.5, mark.length > 2 ? 5.5 : 7.5, false, "center");
+  const rr = Math.max(r, mark.length > 2 ? 8 : 6.4);
+  bubble(ctx, cx, cy, rr);
+  const size = Math.min(mark.length > 2 ? rr * 0.78 : rr * 0.95, 8.2);
+  textCentered(ctx, mark, cx, cy, size);
 }
 
 function dimH(ctx: Ctx, x1: number, x2: number, y: number, label: string, size = 6.5) {
@@ -407,7 +434,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     rect(ctx, left, y1, Math.max(right - left, 2), colH, 0.7);
     dashV(ctx, ax, y0 - 52, y1 + 54, 3.1, 2.3, 0.28);
     bubble(ctx, ax, y1 + 66, 8.5);
-    textSimple(ctx, sup.axisName || String(i), ax, y1 + 69, 8, true, "center");
+    textCentered(ctx, sup.axisName || String(i), ax, y1 + 66, 8, true);
   });
 
   const dimY = y0 - 28;
