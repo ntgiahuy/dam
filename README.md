@@ -1,0 +1,45 @@
+# Blogger thép bê tông PDF
+
+Công cụ nhập số liệu dầm bê tông cốt thép (theo quy trình shop thép dầm) và **xuất bản vẽ PDF** gồm:
+
+- Shop thép lớp trên / lớp dưới (thanh chủ + bổ sung, móc neo)
+- Mặt cắt dọc dầm, gối, đai, ghi kích thước nhịp
+- Mặt cắt ngang **MC 1-1** (vùng gối) và **MC 2-2** (giữa nhịp)
+- **Bảng thống kê cốt thép**: hình dạng, đường kính, chiều dài, số lượng 1 CK / toàn bộ, trọng lượng
+
+Trọng lượng tính theo `d² / 162.2` (kg/m), nhân với số lượng dầm (SL).
+
+## Địa chỉ
+
+- Trên web: [https://dam.giahuy.net/](https://dam.giahuy.net/)
+- Mã nguồn GitHub: [ntgiahuy/dam](https://github.com/ntgiahuy/dam)
+
+## Chạy local
+
+```bash
+npm install
+npm run dev
+```
+
+Mở trình duyệt tại cổng dev (mặc định in ra terminal). Ứng dụng đã nạp sẵn mẫu **dầm D1** (5 nhịp, SL = 2) giống file PDF mẫu.
+
+Xuất site tĩnh cho GitHub Pages:
+
+```bash
+npm run build
+```
+
+Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hành.
+
+## Cách dùng
+
+1. Khai báo **số liệu nhịp**, **sàn**, **gối đỡ**.
+2. Khai báo thép chủ / bổ sung lớp trên và lớp dưới (Thêm / Sửa / Xóa).
+3. Khai báo **thép đai** theo 3 vùng mỗi nhịp (gối trái – giữa – gối phải).
+4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
+5. Điền **thông tin dầm** (tên, số lượng, cao độ).
+6. Bấm **Xuất PDF** — file A2 ngang, tiêu đề `KẾT CẤU DẦM …`.
+
+Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Mẫu D1** khôi phục bộ số liệu demo.
+
+Nhấp vào nhịp hoặc gối trên bản vẽ preview để chọn đối tượng đang sửa.
