@@ -45,8 +45,15 @@ export function BeamPreview({
   const beamH = 70;
   const W = 1100;
   const H = 186;
-  const scale = model.total > 0 ? (W - padL - padR) / model.total : 1;
-  const x = (mm: number) => padL + mm * scale;
+  const focusExtra = tab === "extraBottom" || tab === "extraTop";
+  const viewA = Math.max(0, Math.min(highlightStart, model.xs.length - 1));
+  const viewB = Math.max(viewA + 1, Math.min(highlightEnd, model.xs.length - 1));
+  const padMm = 280;
+  const viewX0 = focusExtra ? (model.xs[viewA] ?? 0) - padMm : 0;
+  const viewX1 = focusExtra ? (model.xs[viewB] ?? model.total) + padMm : model.total;
+  const viewW = Math.max(viewX1 - viewX0, 1);
+  const scale = (W - padL - padR) / viewW;
+  const x = (mm: number) => padL + (mm - viewX0) * scale;
   const y0 = padT;
   const y1 = padT + beamH;
   const axisCy = 13;
@@ -178,7 +185,16 @@ export function BeamPreview({
         })}
 
         {model.mainBottom.map((b) => (
-          <RebarMark key={b.sourceId} b={b} x={x} y={y1 - 10} face="bottom" color="#ef4444" width={2} />
+          <RebarMark
+            key={b.sourceId}
+            b={b}
+            x={x}
+            y={y1 - 10}
+            face="bottom"
+            color="#ef4444"
+            width={2}
+            opacity={focusExtra ? 0.2 : 1}
+          />
         ))}
         {model.extraBottom.map((b) => (
           <RebarMark
@@ -193,7 +209,16 @@ export function BeamPreview({
           />
         ))}
         {model.mainTop.map((b) => (
-          <RebarMark key={b.sourceId} b={b} x={x} y={y0 + 10} face="top" color="#ef4444" width={2} />
+          <RebarMark
+            key={b.sourceId}
+            b={b}
+            x={x}
+            y={y0 + 10}
+            face="top"
+            color="#ef4444"
+            width={2}
+            opacity={focusExtra ? 0.2 : 1}
+          />
         ))}
         {model.extraTop.map((b) => (
           <RebarMark
@@ -204,23 +229,12 @@ export function BeamPreview({
             face="top"
             color="#f87171"
             width={1.7}
-            opacity={tab === "extraTop" ? 0.4 : 1}
+            opacity={tab === "extraTop" ? 0.35 : 1}
           />
         ))}
-        {sample && extraFace === "bottom" && (
-          <g>
-            <RebarMark b={sample} x={x} y={y1 - 14} face="bottom" color="#ef4444" width={2.2} />
-            <RebarMark b={sample} x={x} y={y1 - 28} face="top" color="#ef4444" width={2.2} />
-          </g>
-        )}
-        {sample && extraFace === "top" && (
-          <g>
-            <RebarMark b={sample} x={x} y={y0 + 14} face="top" color="#ef4444" width={2.2} />
-            <RebarMark b={sample} x={x} y={y0 + 28} face="bottom" color="#ef4444" width={2.2} />
-          </g>
-        )}
 
-        {model.stirrups.ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
+        {!focusExtra &&
+          model.stirrups.ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
           <line
             key={i}
             x1={x(t.x)}
@@ -263,13 +277,48 @@ export function BeamPreview({
             L={sp.L}
           </text>
         ))}
+
+        {sample && extraFace === "bottom" && (
+          <g>
+            <RebarMark b={sample} x={x} y={y1 - 16} face="bottom" color="#ef4444" width={2.6} />
+            <RebarMark b={sample} x={x} y={y1 - 30} face="top" color="#ef4444" width={2.6} />
+            <text
+              x={(x(sample.x1) + x(sample.x2)) / 2}
+              y={y1 - 36}
+              textAnchor="middle"
+              fill="#fca5a5"
+              fontSize={9}
+              pointerEvents="none"
+            >
+              mẫu {sample.startType}→{sample.endType}
+            </text>
+          </g>
+        )}
+        {sample && extraFace === "top" && (
+          <g>
+            <RebarMark b={sample} x={x} y={y0 + 16} face="top" color="#ef4444" width={2.6} />
+            <RebarMark b={sample} x={x} y={y0 + 30} face="bottom" color="#ef4444" width={2.6} />
+            <text
+              x={(x(sample.x1) + x(sample.x2)) / 2}
+              y={y0 + 44}
+              textAnchor="middle"
+              fill="#fca5a5"
+              fontSize={9}
+              pointerEvents="none"
+            >
+              mẫu {sample.startType}→{sample.endType}
+            </text>
+          </g>
+        )}
       </svg>
       <div className="pointer-events-none absolute bottom-1 left-2 text-[10px] text-zinc-500">
-        {project.info.name} · {project.spans.length} nhịp
-        {project.mainBottom[0]
-          ? ` · ${barNotation(project.mainBottom[0].qty, project.mainBottom[0].dia)} dưới`
-          : " · chưa có thép chủ"}{" "}
-        · {supportWidthLabel(project, selectedSupport)} gối {selectSupports ? selectedSupport : selectedSpan}
+        {focusExtra
+          ? "Thanh đỏ: mẫu theo Dạng bắt đầu / kết thúc — chưa cần Thêm"
+          : `${project.info.name} · ${project.spans.length} nhịp${
+              project.mainBottom[0]
+                ? ` · ${barNotation(project.mainBottom[0].qty, project.mainBottom[0].dia)} dưới`
+                : " · chưa có thép chủ"
+            } · ${supportWidthLabel(project, selectedSupport)} gối ${selectSupports ? selectedSupport : selectedSpan}`}
       </div>
     </div>
   );

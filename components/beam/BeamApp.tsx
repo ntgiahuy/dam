@@ -18,6 +18,7 @@ import { Field, Panel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { BeamPreview } from "@/components/beam/BeamPreview";
+import { ExtraShapeSketch } from "@/components/beam/ExtraShapeSketch";
 import { SupportSketch } from "@/components/beam/SupportSketch";
 import {
   applySpanParams,
@@ -574,6 +575,7 @@ export function BeamApp() {
                 selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
                 void end;
               }}
+              face={tab === "extraTop" ? "top" : "bottom"}
             />
           )}
 
@@ -1015,6 +1017,7 @@ function ExtraBarPanel({
   onEdit,
   onDelete,
   onRegionMove,
+  face,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -1028,6 +1031,7 @@ function ExtraBarPanel({
   onEdit: () => void;
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
+  face: "top" | "bottom";
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -1144,7 +1148,9 @@ function ExtraBarPanel({
           <span className="text-xs text-zinc-500">{hint}</span>
         </div>
       </Panel>
-      <Panel title="Danh sách thép" className="w-56">
+      <div className="flex w-56 shrink-0 flex-col gap-2">
+        <ExtraShapeSketch startType={form.startType} endType={form.endType} face={face} />
+        <Panel title="Danh sách thép">
         <ul className="max-h-36 overflow-auto text-sm">
           {bars.length === 0 && <li className="text-zinc-500">Chưa có thanh thép</li>}
           {bars.map((b) => (
@@ -1160,7 +1166,8 @@ function ExtraBarPanel({
             </li>
           ))}
         </ul>
-      </Panel>
+        </Panel>
+      </div>
     </div>
   );
 }
