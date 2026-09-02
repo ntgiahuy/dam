@@ -648,8 +648,7 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
 }
 
 export function stirrupLayoutFraction(layout: StirrupLayout | undefined) {
-  if (layout === "1/3") return 1 / 3;
-  if (layout === "1/5") return 1 / 5;
+  if (layout === "dieu") return 0;
   return 1 / 4;
 }
 
@@ -699,8 +698,18 @@ export function stirrupZonesForSpan(
   const dia = raw?.dia ?? 6;
   const a1 = raw?.a1 ?? 150;
   const a2 = raw?.a2 ?? 200;
-  const layout: StirrupLayout = raw?.layout === "1/3" || raw?.layout === "1/5" ? raw.layout : "1/4";
+  const layout: StirrupLayout = raw?.layout === "dieu" ? "dieu" : "1/4";
   const kind: StirrupKind = raw?.kind === "kep" ? "kep" : "don";
+  if (layout === "dieu") {
+    return {
+      dia,
+      kind,
+      layout,
+      left: { length: 0, spacing: a1, count: 0 },
+      mid: { length: L, spacing: a1, count: zoneCount(L, a1) },
+      right: { length: 0, spacing: a1, count: 0 },
+    };
+  }
   const extras = extrasTop ?? resolveExtraBars(project, project.extraTop, "top");
   const l0 = clearSpanMm(project, spanIndex);
   const byLayout = roundTo(Math.max(l0, 0) * stirrupLayoutFraction(layout), 50);

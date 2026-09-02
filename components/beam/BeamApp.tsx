@@ -815,7 +815,7 @@ export function BeamApp() {
                   </Field>
                   <Field label="Cách bố trí đai">
                     <Select
-                      value={project.stirrups[selectedSpan]?.layout ?? "1/4"}
+                      value={project.stirrups[selectedSpan]?.layout === "dieu" ? "dieu" : "1/4"}
                       onChange={(e) => patchStirrup({ layout: e.target.value as StirrupLayout })}
                     >
                       {STIRRUP_LAYOUTS.map((d) => (
@@ -825,22 +825,35 @@ export function BeamApp() {
                       ))}
                     </Select>
                   </Field>
-                  <Field label="Khoảng cách đai A1 (mm)">
-                    <Input
-                      type="number"
-                      min={50}
-                      value={project.stirrups[selectedSpan]?.a1 ?? 150}
-                      onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
-                  <Field label="Khoảng cách đai A2 (mm)">
-                    <Input
-                      type="number"
-                      min={50}
-                      value={project.stirrups[selectedSpan]?.a2 ?? 200}
-                      onChange={(e) => patchStirrup({ a2: Number(e.target.value) || 0 })}
-                    />
-                  </Field>
+                  {project.stirrups[selectedSpan]?.layout === "dieu" ? (
+                    <Field label="Khoảng cách đai (mm)">
+                      <Input
+                        type="number"
+                        min={50}
+                        value={project.stirrups[selectedSpan]?.a1 ?? 150}
+                        onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
+                      />
+                    </Field>
+                  ) : (
+                    <>
+                      <Field label="Khoảng cách đai A1 (mm)">
+                        <Input
+                          type="number"
+                          min={50}
+                          value={project.stirrups[selectedSpan]?.a1 ?? 150}
+                          onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                      <Field label="Khoảng cách đai A2 (mm)">
+                        <Input
+                          type="number"
+                          min={50}
+                          value={project.stirrups[selectedSpan]?.a2 ?? 200}
+                          onChange={(e) => patchStirrup({ a2: Number(e.target.value) || 0 })}
+                        />
+                      </Field>
+                    </>
+                  )}
                   <Field label="Kiểu đai">
                     <Select
                       value={project.stirrups[selectedSpan]?.kind ?? "don"}
@@ -856,12 +869,20 @@ export function BeamApp() {
                 </div>
                 {(() => {
                   const z = stirrupZonesForSpan(project, selectedSpan);
+                  if (z.layout === "dieu") {
+                    return (
+                      <p className="mt-2 text-[11px] leading-snug text-zinc-400">
+                        Nhịp {selectedSpan + 1}: đai điều từ gối đến gối, {z.mid.length} mm ({z.mid.count}Ø{z.dia}a
+                        {z.mid.spacing}) — một khoảng trên cả nhịp.
+                      </p>
+                    );
+                  }
                   return (
                     <p className="mt-2 text-[11px] leading-snug text-zinc-400">
                       Nhịp {selectedSpan + 1}: gối trái {z.left.length} mm ({z.left.count}Ø{z.dia}a{z.left.spacing})
                       · giữa {z.mid.length} mm ({z.mid.count}Ø{z.dia}a{z.mid.spacing}) · gối phải {z.right.length} mm
                       ({z.right.count}Ø{z.dia}a{z.right.spacing}). Chiều dài vùng gối = thép tăng cường M- (không có
-                      thì theo cách bố trí {z.layout} nhịp). Ø và A1/A2 chỉ cần đổi khi đổi nhịp hoặc kích thước dầm.
+                      thì l₀/4).
                     </p>
                   );
                 })()}

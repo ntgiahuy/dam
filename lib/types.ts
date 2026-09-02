@@ -63,13 +63,12 @@ export interface ExtraBar {
   lengthOverride?: number;
 }
 
-export type StirrupLayout = "1/5" | "1/4" | "1/3";
+export type StirrupLayout = "1/4" | "dieu";
 export type StirrupKind = "don" | "kep";
 
 export const STIRRUP_LAYOUTS: { value: StirrupLayout; label: string }[] = [
-  { value: "1/5", label: "1/5" },
   { value: "1/4", label: "1/4" },
-  { value: "1/3", label: "1/3" },
+  { value: "dieu", label: "Đai điều" },
 ];
 
 export const STIRRUP_KINDS: { value: StirrupKind; label: string }[] = [

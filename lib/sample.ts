@@ -95,7 +95,7 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   const r = raw as Record<string, unknown> | null;
   const fallback = defaultSpanStirrups();
   if (!r || typeof r !== "object") return fallback;
-  const layout = r.layout === "1/3" || r.layout === "1/5" || r.layout === "1/4" ? r.layout : "1/4";
+  const layout: StirrupLayout = r.layout === "dieu" ? "dieu" : "1/4";
   const kind = r.kind === "kep" ? "kep" : "don";
   if (typeof r.a1 === "number" || typeof r.a2 === "number") {
     return {

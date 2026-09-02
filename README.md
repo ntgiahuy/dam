@@ -41,7 +41,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
    - Thép bổ sung **lớp dưới**: vị trí **0→1, 1→2, 2→3…** (một nhịp). Bấm **Thêm** tự chuyển sang nhịp kế.
    - Thép bổ sung **lớp trên**: dạng **1** — M- tại gối, đoạn thẳng **l₀/4** làm tròn 50 mm (l₀=9825 → **2450**). **Gối biên** bẻ móc 2/3H (H=500 → 350); đoạn thẳng **không cộng** bề rộng cột. Dạng **2** — tới tim cột.
    - Thép bổ sung **lớp dưới**, dạng 1 (**M+ giữa nhịp**): chiều dài `l₀/2 + 2·max(h₀, 15d, l₀/16)`, dư 50 mm mỗi đầu rồi làm tròn 50 mm. Dạng 2–4 (mép gối / tim cột / móc 90°) giữ nguyên.
-3. Khai báo **thép đai**: Ø, cách bố trí (1/4…), khoảng A1 (gối) / A2 (giữa nhịp), kiểu đai đơn/kép. Chiều dài vùng gối **tự bằng thép tăng cường M-** (không có thì theo 1/4 nhịp). Ø và A1/A2 chỉ cần đổi khi đổi nhịp hoặc kích thước dầm.
+3. Khai báo **thép đai**: Ø, cách bố trí (**1/4** hoặc **Đai điều**), khoảng A1/A2 (1/4) hoặc một khoảng (đai điều), kiểu đai đơn/kép. Với 1/4, chiều dài vùng gối **tự bằng thép tăng cường M-** (không có thì l₀/4).
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
 6. Bấm **Xuất PDF** — file A2 ngang, tiêu đề `KẾT CẤU DẦM …`.
