@@ -233,16 +233,34 @@ function drawLongitudinal(ctx: Ctx, yTop: number, beamH: number) {
   const topY = y0 + 8;
   const botY = y1 - 8;
   for (const b of model.mainTop) {
-    line(ctx, xAt(ctx, b.x1), topY, xAt(ctx, b.x2), topY, 0.9);
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY, b.hookStart, b.hookEnd, 1, 0.9);
   }
   for (const b of model.mainBottom) {
-    line(ctx, xAt(ctx, b.x1), botY, xAt(ctx, b.x2), botY, 0.9);
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.9);
   }
   for (const b of model.extraTop) {
-    line(ctx, xAt(ctx, b.x1), topY + 7, xAt(ctx, b.x2), topY + 7, 0.9);
+    drawHookedBar(
+      ctx,
+      xAt(ctx, b.x1),
+      xAt(ctx, b.x2),
+      topY + 7 + (b.layer - 1) * 5,
+      b.hookStart,
+      b.hookEnd,
+      1,
+      0.9,
+    );
   }
   for (const b of model.extraBottom) {
-    line(ctx, xAt(ctx, b.x1), botY - 7, xAt(ctx, b.x2), botY - 7, 0.9);
+    drawHookedBar(
+      ctx,
+      xAt(ctx, b.x1),
+      xAt(ctx, b.x2),
+      botY - 7 - (b.layer - 1) * 5,
+      b.hookStart,
+      b.hookEnd,
+      -1,
+      0.9,
+    );
   }
 
   // stirrup ticks

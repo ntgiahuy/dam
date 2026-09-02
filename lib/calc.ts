@@ -8,9 +8,40 @@ export function unitWeight(dia: number) {
 
 export function hookLength(dia: number, type: number, override?: number) {
   if (override && override > 0) return override;
-  if (type === 1) return Math.max(20 * dia, 200);
-  if (type === 2) return Math.max(12 * dia, 200);
+  if (type === 3) return Math.max(20 * dia, 200);
   return 0;
+}
+
+function supportFaces(project: BeamProject, axisIndex: number) {
+  const xs = axisPositions(project.spans);
+  const last = Math.max(0, xs.length - 1);
+  const i = Math.max(0, Math.min(axisIndex, last));
+  const axis = xs[i] ?? 0;
+  const sup = project.supports[i] ?? project.supports[0];
+  const { width, leftToAxis } = supportGeometry(sup?.B ?? 200, sup?.B1 ?? 100);
+  const left = axis - leftToAxis;
+  return { axis, left, right: left + width };
+}
+
+/**
+ * Dạng đầu thanh bổ sung (theo shop dầm):
+ * 0 — cắt tại tim trục
+ * 1 — cắt thẳng tại mép trong gối (không vào cột)
+ * 2 — neo vào gối (kéo tới mép ngoài)
+ * 3 — móc 90° tại tim trục
+ */
+export function extraTermination(
+  project: BeamProject,
+  axisIndex: number,
+  type: number,
+  side: "left" | "right",
+  dia: number,
+) {
+  const f = supportFaces(project, axisIndex);
+  const hook = type === 3 ? hookLength(dia, 3) : 0;
+  if (type === 1) return { x: side === "left" ? f.right : f.left, hook };
+  if (type === 2) return { x: side === "left" ? f.left : f.right, hook };
+  return { x: f.axis, hook };
 }
 
 export function axisPositions(spans: Span[]): number[] {
@@ -67,23 +98,76 @@ export interface ResolvedBar {
   cutLength: number;
 }
 
+export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top" | "bottom") {
+  const xs = axisPositions(project.spans);
+  const last = project.spans.length;
+  const s = Math.max(0, Math.min(bar.startAxis, last));
+  const e = Math.max(0, Math.min(bar.endAxis, last));
+  const leftAxis = Math.min(s, e);
+  const rightAxis = Math.max(s, e);
+  const leftType = s <= e ? bar.startType : bar.endType;
+  const rightType = s <= e ? bar.endType : bar.startType;
+
+  let x1: number;
+  let x2: number;
+  let hookStart: number;
+  let hookEnd: number;
+
+  if (leftAxis === rightAxis) {
+    const leftL = leftAxis > 0 ? project.spans[leftAxis - 1].L : 0;
+    const rightL = leftAxis < project.spans.length ? project.spans[leftAxis].L : 0;
+    const adj = leftL && rightL ? (leftL + rightL) / 3 : (leftL || rightL) / 3;
+    const len = Math.max(roundTo(adj, 50), 800);
+    const x = xs[leftAxis] ?? 0;
+    if (leftAxis === 0) {
+      x1 = x;
+      x2 = x + len;
+    } else if (leftAxis === last) {
+      x2 = x;
+      x1 = x - len;
+    } else {
+      x1 = x - len / 2;
+      x2 = x + len / 2;
+    }
+    hookStart = hookLength(bar.dia, leftType);
+    hookEnd = hookLength(bar.dia, rightType);
+  } else {
+    const leftT = extraTermination(project, leftAxis, leftType, "left", bar.dia);
+    const rightT = extraTermination(project, rightAxis, rightType, "right", bar.dia);
+    x1 = leftT.x;
+    x2 = rightT.x;
+    hookStart = leftT.hook;
+    hookEnd = rightT.hook;
+  }
+
+  let startType = leftType;
+  let endType = rightType;
+
+  if (x2 < x1) {
+    const t = x1;
+    x1 = x2;
+    x2 = t;
+    const h = hookStart;
+    hookStart = hookEnd;
+    hookEnd = h;
+    const tp = startType;
+    startType = endType;
+    endType = tp;
+  }
+
+  const straight = x2 - x1;
+  const cutLength =
+    bar.lengthOverride && bar.lengthOverride > 0 ? bar.lengthOverride : straight + hookStart + hookEnd;
+  void face;
+  return { x1, x2, hookStart, hookEnd, straight, cutLength, startType, endType };
+}
+
 export function extraBarLength(
   project: BeamProject,
   bar: ExtraBar,
   face: "top" | "bottom",
 ): number {
-  if (bar.lengthOverride && bar.lengthOverride > 0) return bar.lengthOverride;
-  const xs = axisPositions(project.spans);
-  if (bar.startAxis === bar.endAxis) {
-    const i = bar.startAxis;
-    const leftL = i > 0 ? project.spans[i - 1].L : 0;
-    const rightL = i < project.spans.length ? project.spans[i].L : 0;
-    const adj = leftL && rightL ? (leftL + rightL) / 3 : (leftL || rightL) / 3;
-    return Math.max(roundTo(adj, 50), 800);
-  }
-  const L = Math.abs(xs[bar.endAxis] - xs[bar.startAxis]);
-  const factor = face === "bottom" ? 0.7 : 1;
-  return Math.max(roundTo(L * factor, 50), 600);
+  return Math.round(extraBarGeometry(project, bar, face).cutLength);
 }
 
 export function resolveMainBars(
@@ -98,8 +182,8 @@ export function resolveMainBars(
     const x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
     const atStart = b.startAxis === 0;
     const atEnd = b.endAxis === project.spans.length;
-    const startType = atStart ? 1 : 0;
-    const endType = atEnd ? 1 : 0;
+    const startType = atStart ? 3 : 0;
+    const endType = atEnd ? 3 : 0;
     const hook = face === "top" ? Math.round(H * 0.85) : Math.max(20 * b.dia, 400);
     const hookStart = startType ? hook : 0;
     const hookEnd = endType ? hook : 0;
@@ -130,49 +214,23 @@ export function resolveExtraBars(
   bars: ExtraBar[],
   face: "top" | "bottom",
 ): ResolvedBar[] {
-  const xs = axisPositions(project.spans);
   return bars.map((b) => {
-    const len = extraBarLength(project, b, face);
-    let x1: number;
-    let x2: number;
-    if (b.startAxis === b.endAxis) {
-      const x = xs[b.startAxis] ?? 0;
-      if (b.startAxis === 0) {
-        x1 = x;
-        x2 = x + len;
-      } else if (b.startAxis === project.spans.length) {
-        x2 = x;
-        x1 = x - len;
-      } else {
-        x1 = x - len / 2;
-        x2 = x + len / 2;
-      }
-    } else {
-      const a = xs[b.startAxis] ?? 0;
-      const c = xs[b.endAxis] ?? a;
-      const mid = (a + c) / 2;
-      x1 = mid - len / 2;
-      x2 = mid + len / 2;
-    }
-    const hookStart = hookLength(b.dia, b.startType);
-    const hookEnd = hookLength(b.dia, b.endType);
-    const straight = Math.abs(x2 - x1);
-    const cutLength = straight + hookStart + hookEnd;
+    const g = extraBarGeometry(project, b, face);
     return {
       sourceId: b.id,
       face,
-      kind: "extra",
+      kind: "extra" as const,
       layer: b.layer,
       dia: b.dia,
       qty: b.qty,
-      x1,
-      x2,
-      startType: b.startType,
-      endType: b.endType,
-      hookStart,
-      hookEnd,
-      straight,
-      cutLength,
+      x1: g.x1,
+      x2: g.x2,
+      startType: g.startType,
+      endType: g.endType,
+      hookStart: g.hookStart,
+      hookEnd: g.hookEnd,
+      straight: g.straight,
+      cutLength: g.cutLength,
     };
   });
 }

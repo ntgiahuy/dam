@@ -180,8 +180,8 @@ export function BeamApp() {
     qty: 2,
     startAxis: 0,
     endAxis: 1,
-    startType: 0,
-    endType: 0,
+    startType: 1,
+    endType: 2,
   }));
 
   const barRegion =

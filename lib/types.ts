@@ -18,7 +18,7 @@ export const CONNECTION_TYPES: { value: ConnectionType; label: string }[] = [
 ];
 export type SecondaryKind = "dam-phu" | "tru";
 export type ShearKind = "dai" | "treo";
-export type EndType = 0 | 1 | 2;
+export type EndType = 0 | 1 | 2 | 3;
 
 export interface Span {
   id: string;
@@ -137,9 +137,10 @@ export const DIAMETERS = [6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32];
 export const QTY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 export const LAYER_OPTIONS = [1, 2, 3];
 export const END_TYPE_OPTIONS = [
-  { value: 0, label: "0 — Cắt thẳng" },
-  { value: 1, label: "1 — Móc 90°" },
+  { value: 0, label: "0 — Cắt tại tim trục" },
+  { value: 1, label: "1 — Cắt thẳng (mép gối)" },
   { value: 2, label: "2 — Neo vào gối" },
+  { value: 3, label: "3 — Móc 90°" },
 ];
 
 export const SLAB_TYPES = [

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BeamProject, TabId } from "@/lib/types";
-import { computeModel, supportWidthLabel, barNotation, supportGeometry } from "@/lib/calc";
+import { computeModel, supportWidthLabel, barNotation, supportGeometry, type ResolvedBar } from "@/lib/calc";
 
 export function BeamPreview({
   project,
@@ -164,51 +164,31 @@ export function BeamPreview({
         })}
 
         {model.mainBottom.map((b) => (
-          <line
-            key={b.sourceId}
-            x1={x(b.x1)}
-            x2={x(b.x2)}
-            y1={y1 - 10}
-            y2={y1 - 10}
-            stroke="#ef4444"
-            strokeWidth={2}
-            pointerEvents="none"
-          />
+          <RebarMark key={b.sourceId} b={b} x={x} y={y1 - 10} face="bottom" color="#ef4444" width={2} />
         ))}
         {model.extraBottom.map((b) => (
-          <line
+          <RebarMark
             key={b.sourceId}
-            x1={x(b.x1)}
-            x2={x(b.x2)}
-            y1={y1 - 18}
-            y2={y1 - 18}
-            stroke="#f87171"
-            strokeWidth={1.6}
-            pointerEvents="none"
+            b={b}
+            x={x}
+            y={y1 - 10 - b.layer * 7}
+            face="bottom"
+            color="#f87171"
+            width={1.7}
           />
         ))}
         {model.mainTop.map((b) => (
-          <line
-            key={b.sourceId}
-            x1={x(b.x1)}
-            x2={x(b.x2)}
-            y1={y0 + 10}
-            y2={y0 + 10}
-            stroke="#ef4444"
-            strokeWidth={2}
-            pointerEvents="none"
-          />
+          <RebarMark key={b.sourceId} b={b} x={x} y={y0 + 10} face="top" color="#ef4444" width={2} />
         ))}
         {model.extraTop.map((b) => (
-          <line
+          <RebarMark
             key={b.sourceId}
-            x1={x(b.x1)}
-            x2={x(b.x2)}
-            y1={y0 + 18}
-            y2={y0 + 18}
-            stroke="#f87171"
-            strokeWidth={1.6}
-            pointerEvents="none"
+            b={b}
+            x={x}
+            y={y0 + 10 + b.layer * 7}
+            face="top"
+            color="#f87171"
+            width={1.7}
           />
         ))}
 
@@ -264,5 +244,41 @@ export function BeamPreview({
         · {supportWidthLabel(project, selectedSupport)} gối {selectSupports ? selectedSupport : selectedSpan}
       </div>
     </div>
+  );
+}
+
+function RebarMark({
+  b,
+  x,
+  y,
+  face,
+  color,
+  width,
+}: {
+  b: ResolvedBar;
+  x: (mm: number) => number;
+  y: number;
+  face: "top" | "bottom";
+  color: string;
+  width: number;
+}) {
+  const hookPx = 14;
+  const dir = face === "bottom" ? -1 : 1;
+  const x1 = x(b.x1);
+  const x2 = x(b.x2);
+  const parts = [`M ${x1} ${b.hookStart > 0 ? y + dir * hookPx : y}`];
+  if (b.hookStart > 0) parts.push(`L ${x1} ${y}`);
+  parts.push(`L ${x2} ${y}`);
+  if (b.hookEnd > 0) parts.push(`L ${x2} ${y + dir * hookPx}`);
+  return (
+    <path
+      d={parts.join(" ")}
+      fill="none"
+      stroke={color}
+      strokeWidth={width}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      pointerEvents="none"
+    />
   );
 }
