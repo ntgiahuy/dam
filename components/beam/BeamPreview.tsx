@@ -46,11 +46,8 @@ export function BeamPreview({
   const W = 1100;
   const H = 186;
   const focusExtra = tab === "extraBottom" || tab === "extraTop";
-  const viewA = Math.max(0, Math.min(highlightStart, model.xs.length - 1));
-  const viewB = Math.max(viewA + 1, Math.min(highlightEnd, model.xs.length - 1));
-  const padMm = 280;
-  const viewX0 = focusExtra ? (model.xs[viewA] ?? 0) - padMm : 0;
-  const viewX1 = focusExtra ? (model.xs[viewB] ?? model.total) + padMm : model.total;
+  const viewX0 = 0;
+  const viewX1 = model.total;
   const viewW = Math.max(viewX1 - viewX0, 1);
   const scale = (W - padL - padR) / viewW;
   const x = (mm: number) => padL + (mm - viewX0) * scale;
