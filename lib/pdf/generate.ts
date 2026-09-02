@@ -203,10 +203,27 @@ function dimV(ctx: Ctx, x: number, y1: number, y2: number, label: string, size =
   const a = Math.min(y1, y2);
   const b = Math.max(y1, y2);
   if (b - a < 2) return;
-  line(ctx, x, a, x, b, 0.35);
+  const mid = (a + b) / 2;
+  const font = ctx.font;
+  const tw = font.widthOfTextAtSize(label, size);
+  const gap = size * 0.62;
   line(ctx, x - 2.4, a, x + 2.4, a, 0.35);
   line(ctx, x - 2.4, b, x + 2.4, b, 0.35);
-  textSimple(ctx, label, x + 4, (a + b) / 2 + 2.5, size);
+  if (b - a > gap * 2 + 6) {
+    line(ctx, x, a, x, mid - gap, 0.35);
+    line(ctx, x, mid + gap, x, b, 0.35);
+  } else {
+    line(ctx, x, a, x, b, 0.35);
+  }
+  const tx = x + 3.6;
+  ctx.page.drawRectangle({
+    x: tx - 1.1,
+    y: ty(mid + size * 0.42),
+    width: tw + 2.2,
+    height: size * 0.92,
+    color: WHITE,
+  });
+  textSimple(ctx, label, tx, mid - size * 0.18, size);
 }
 
 function dashV(ctx: Ctx, x: number, y1: number, y2: number, on = 3.2, off = 2.4, w = 0.32) {
@@ -625,29 +642,6 @@ function extraLayerXs(left: number, right: number, qty: number) {
   return barXs(left, right, n);
 }
 
-function textMid(
-  ctx: Ctx,
-  str: string,
-  x: number,
-  cy: number,
-  size: number,
-  align: "left" | "center" | "right" = "left",
-  bold = false,
-) {
-  const font = bold ? ctx.fontBold : ctx.font;
-  const width = font.widthOfTextAtSize(str, size);
-  let tx = x;
-  if (align === "center") tx = x - width / 2;
-  if (align === "right") tx = x - width;
-  ctx.page.drawText(str, {
-    x: tx,
-    y: ty(cy) - size * (CAP_RATIO / 2),
-    size,
-    font,
-    color: BLACK,
-  });
-}
-
 function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number) {
   rect(ctx, x, y, w, h, 0.7);
   const hx = x + w;
@@ -665,13 +659,20 @@ function drawLayerCallout(
   tickX: number,
   side: "left" | "right",
 ) {
+  const size = 6.6;
+  const tw = ctx.font.widthOfTextAtSize(text, size);
+  const pad = 2.4;
   markCircle(ctx, bubbleX, y, mark, 6.4);
   if (side === "left") {
-    textMid(ctx, text, bubbleX + 9, y, 6.6, "left");
-    line(ctx, bubbleX + 6.4, y, tickX, y, 0.4);
+    const tx = bubbleX + 9;
+    line(ctx, bubbleX + 6.4, y, tx - 0.6, y, 0.4);
+    line(ctx, tx + tw + pad, y, tickX, y, 0.4);
+    textAboveLine(ctx, text, tx, y, size, "left", false, 3.2);
   } else {
-    textMid(ctx, text, bubbleX - 9, y, 6.6, "right");
-    line(ctx, bubbleX - 6.4, y, tickX, y, 0.4);
+    const tx = bubbleX - 9;
+    line(ctx, tickX, y, tx - tw - pad, y, 0.4);
+    line(ctx, tx + 0.6, y, bubbleX - 6.4, y, 0.4);
+    textAboveLine(ctx, text, tx, y, size, "right", false, 3.2);
   }
   line(ctx, tickX, y - 5, tickX, y + 5, 0.45);
 }
@@ -739,7 +740,6 @@ function drawCrossSection(
     drawnBotExtras.push({ y, bar: b });
   }
 
-  dimV(ctx, cx - 16, boxY, boxY + H, String(model.H), 6.2);
   dimH(ctx, cx, cx + W / 2, boxY + H + 12, String(model.B1 || Math.round(model.B / 2)), 5.8);
   dimH(ctx, cx + W / 2, cx + W, boxY + H + 12, String(model.B - (model.B1 || Math.round(model.B / 2))), 5.8);
   dimH(ctx, cx, cx + W, boxY + H + 24, String(model.B), 6.4);
@@ -748,15 +748,20 @@ function drawCrossSection(
   const mb = model.schedule.find((r) => r.family === "B1");
   const st = model.schedule.find((r) => r.family === "D");
   const leftX = ox + 10;
+  const dimX = cx - 16;
   if (mt && model.mainTop[0] && topN) {
     drawLayerCallout(ctx, leftX, topY, String(mt.markNum), barNotation(model.mainTop[0].qty, model.mainTop[0].dia), cx, "left");
   }
   if (st) {
-    drawLayerCallout(ctx, leftX, boxY + H / 2, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, cx + inset, "left");
+    const hy = boxY + H / 2;
+    drawLayerCallout(ctx, leftX, hy, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, dimX - 4, "left");
+    line(ctx, dimX + 20, hy, cx + inset, hy, 0.4);
+    line(ctx, cx + inset, hy - 5, cx + inset, hy + 5, 0.45);
   }
   if (mb && model.mainBottom[0] && botN) {
     drawLayerCallout(ctx, leftX, botY, String(mb.markNum), barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), cx, "left");
   }
+  dimV(ctx, dimX, boxY, boxY + H, String(model.H), 6.2);
 
   const rightX = cx + W + 28;
   const rightTick = cx + W;
