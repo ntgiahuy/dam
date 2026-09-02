@@ -8,6 +8,7 @@ import {
   supportWidthLabel,
   barNotation,
   supportGeometry,
+  extraLayerOffsetMm,
   type ResolvedBar,
 } from "@/lib/calc";
 
@@ -53,6 +54,7 @@ export function BeamPreview({
   const x = (mm: number) => padL + (mm - viewX0) * scale;
   const y0 = padT;
   const y1 = padT + beamH;
+  const planes = barPlanes(y0, y1, beamH, model.H, project.info.cover);
   const axisCy = 13;
   const axisR = 9;
   const selectSupports = tab === "supports";
@@ -181,54 +183,90 @@ export function BeamPreview({
           );
         })}
 
-        {model.mainBottom.map((b) => (
-          <RebarMark
-            key={b.sourceId}
-            b={b}
-            x={x}
-            y={y1 - 10}
-            face="bottom"
-            color="#ef4444"
-            width={2}
-            opacity={focusExtra ? 0.2 : 1}
-          />
-        ))}
-        {model.extraBottom.map((b) => (
-          <RebarMark
-            key={b.sourceId}
-            b={b}
-            x={x}
-            y={y1 - 10 - b.layer * 7}
-            face="bottom"
-            color="#f87171"
-            width={1.7}
-            opacity={tab === "extraBottom" ? 0.4 : 1}
-          />
-        ))}
-        {model.mainTop.map((b) => (
-          <RebarMark
-            key={b.sourceId}
-            b={b}
-            x={x}
-            y={y0 + 10}
-            face="top"
-            color="#ef4444"
-            width={2}
-            opacity={focusExtra ? 0.2 : 1}
-          />
-        ))}
-        {model.extraTop.map((b) => (
-          <RebarMark
-            key={b.sourceId}
-            b={b}
-            x={x}
-            y={y0 + 10 + b.layer * 7}
-            face="top"
-            color="#f87171"
-            width={1.7}
-            opacity={tab === "extraTop" ? 0.35 : 1}
-          />
-        ))}
+        {model.mainBottom.map((b) =>
+          mainPlaneYs("bottom", b.qty, planes).map((yy, k) => (
+            <RebarMark
+              key={`${b.sourceId}-${k}`}
+              b={b}
+              x={x}
+              y={yy}
+              face="bottom"
+              color="#ef4444"
+              width={2}
+              opacity={focusExtra ? 0.22 : 1}
+            />
+          )),
+        )}
+        {focusExtra && extraFace === "bottom" && model.mainBottom.length === 0 &&
+          mainPlaneYs("bottom", 2, planes).map((yy, k) => (
+            <line
+              key={`ghost-bot-${k}`}
+              x1={x(0)}
+              x2={x(model.total)}
+              y1={yy}
+              y2={yy}
+              stroke="#ef4444"
+              strokeWidth={1.5}
+              opacity={0.22}
+              pointerEvents="none"
+            />
+          ))}
+        {model.extraBottom.map((b) =>
+          barPlaneYs("bottom", b.layer, b.qty, planes).map((yy, k) => (
+            <RebarMark
+              key={`${b.sourceId}-${k}`}
+              b={b}
+              x={x}
+              y={yy}
+              face="bottom"
+              color="#f87171"
+              width={1.7}
+              opacity={tab === "extraBottom" ? 0.4 : 1}
+            />
+          )),
+        )}
+        {model.mainTop.map((b) =>
+          mainPlaneYs("top", b.qty, planes).map((yy, k) => (
+            <RebarMark
+              key={`${b.sourceId}-${k}`}
+              b={b}
+              x={x}
+              y={yy}
+              face="top"
+              color="#ef4444"
+              width={2}
+              opacity={focusExtra ? 0.22 : 1}
+            />
+          )),
+        )}
+        {focusExtra && extraFace === "top" && model.mainTop.length === 0 &&
+          mainPlaneYs("top", 2, planes).map((yy, k) => (
+            <line
+              key={`ghost-top-${k}`}
+              x1={x(0)}
+              x2={x(model.total)}
+              y1={yy}
+              y2={yy}
+              stroke="#ef4444"
+              strokeWidth={1.5}
+              opacity={0.22}
+              pointerEvents="none"
+            />
+          ))}
+        {model.extraTop.map((b) =>
+          barPlaneYs("top", b.layer, b.qty, planes).map((yy, k) => (
+            <RebarMark
+              key={`${b.sourceId}-${k}`}
+              b={b}
+              x={x}
+              y={yy}
+              face="top"
+              color="#f87171"
+              width={1.7}
+              opacity={tab === "extraTop" ? 0.35 : 1}
+            />
+          )),
+        )}
 
         {!focusExtra &&
           model.stirrups.ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
@@ -277,33 +315,35 @@ export function BeamPreview({
 
         {sample && extraFace === "bottom" && (
           <g>
-            <RebarMark b={sample} x={x} y={y1 - 16} face="bottom" color="#ef4444" width={2.6} />
-            <RebarMark b={sample} x={x} y={y1 - 30} face="top" color="#ef4444" width={2.6} />
+            {barPlaneYs("bottom", extraDraft?.layer ?? 1, extraDraft?.qty ?? 2, planes).map((yy, k) => (
+              <RebarMark key={`sample-b-${k}`} b={sample} x={x} y={yy} face="bottom" color="#ef4444" width={2.6} />
+            ))}
             <text
               x={(x(sample.x1) + x(sample.x2)) / 2}
-              y={y1 - 36}
+              y={Math.min(...barPlaneYs("bottom", extraDraft?.layer ?? 1, extraDraft?.qty ?? 2, planes)) - 8}
               textAnchor="middle"
               fill="#fca5a5"
               fontSize={9}
               pointerEvents="none"
             >
-              mẫu {sample.startType}→{sample.endType}
+              mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
             </text>
           </g>
         )}
         {sample && extraFace === "top" && (
           <g>
-            <RebarMark b={sample} x={x} y={y0 + 16} face="top" color="#ef4444" width={2.6} />
-            <RebarMark b={sample} x={x} y={y0 + 30} face="bottom" color="#ef4444" width={2.6} />
+            {barPlaneYs("top", extraDraft?.layer ?? 1, extraDraft?.qty ?? 2, planes).map((yy, k) => (
+              <RebarMark key={`sample-t-${k}`} b={sample} x={x} y={yy} face="top" color="#ef4444" width={2.6} />
+            ))}
             <text
               x={(x(sample.x1) + x(sample.x2)) / 2}
-              y={y0 + 44}
+              y={Math.max(...barPlaneYs("top", extraDraft?.layer ?? 1, extraDraft?.qty ?? 2, planes)) + 12}
               textAnchor="middle"
               fill="#fca5a5"
               fontSize={9}
               pointerEvents="none"
             >
-              mẫu {sample.startType}→{sample.endType}
+              mẫu lớp {extraDraft?.layer ?? 1} · {sample.startType}→{sample.endType}
             </text>
           </g>
         )}
@@ -319,6 +359,30 @@ export function BeamPreview({
       </div>
     </div>
   );
+}
+
+type BarPlanes = { botMain: number; topMain: number; mmToPx: number };
+
+function barPlanes(y0: number, y1: number, beamHpx: number, Hmm: number, coverMm: number): BarPlanes {
+  const mmToPx = beamHpx / Math.max(Hmm || 500, 1);
+  const cover = Math.max(7, (coverMm || 25) * mmToPx);
+  return { botMain: y1 - cover, topMain: y0 + cover, mmToPx };
+}
+
+function mainPlaneYs(face: "top" | "bottom", qty: number, planes: BarPlanes) {
+  const y = face === "bottom" ? planes.botMain : planes.topMain;
+  const n = Math.max(2, Math.min(qty || 2, 4));
+  const pitch = 5.4;
+  return Array.from({ length: n }, (_, i) => y + (i - (n - 1) / 2) * pitch);
+}
+
+function barPlaneYs(face: "top" | "bottom", layer: number, qty: number, planes: BarPlanes) {
+  const inward = extraLayerOffsetMm(layer) * planes.mmToPx;
+  const y = face === "bottom" ? planes.botMain - inward : planes.topMain + inward;
+  const n = Math.max(1, Math.min(qty || 1, 4));
+  if (n === 1) return [y];
+  const pitch = layer <= 1 ? 2.2 : Math.max(3.2, planes.mmToPx * 16);
+  return Array.from({ length: n }, (_, i) => y + (i - (n - 1) / 2) * pitch);
 }
 
 function RebarMark({

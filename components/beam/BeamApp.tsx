@@ -46,7 +46,7 @@ import type {
 import {
   DIAMETERS,
   END_TYPE_OPTIONS,
-  LAYER_OPTIONS,
+  LAYER_LABELS,
   QTY_OPTIONS,
   SLAB_TYPES,
   TABS,
@@ -1028,9 +1028,9 @@ function ExtraBarPanel({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           <Field label="Chọn lớp (Lớp thứ)">
             <Select value={form.layer} onChange={(e) => setForm({ ...form, layer: Number(e.target.value) })}>
-              {LAYER_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {LAYER_LABELS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
                 </option>
               ))}
             </Select>

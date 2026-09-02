@@ -136,6 +136,11 @@ export const TABS: { id: TabId; label: string }[] = [
 export const DIAMETERS = [6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32];
 export const QTY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 export const LAYER_OPTIONS = [1, 2, 3];
+export const LAYER_LABELS = [
+  { value: 1, label: "1 — Giữa 2 thép chủ" },
+  { value: 2, label: "2 — Cách lớp chủ 50mm" },
+  { value: 3, label: "3 — Cách lớp 2 thêm 50mm" },
+];
 export const END_TYPE_OPTIONS = [
   { value: 0, label: "0 — Cắt tại tim trục" },
   { value: 1, label: "1 — Cắt thẳng (mép gối)" },

@@ -4,6 +4,7 @@ import type { BeamProject } from "../types";
 import {
   barNotation,
   computeModel,
+  extraLayerOffsetMm,
   supportGeometry,
   supportWidthLabel,
   type ComputedModel,
@@ -230,20 +231,32 @@ function drawLongitudinal(ctx: Ctx, yTop: number, beamH: number) {
   });
 
   // main bars inside section
-  const topY = y0 + 8;
-  const botY = y1 - 8;
+  const beamHmm = Math.max(model.H, 1);
+  const mmToPt = (y1 - y0) / beamHmm;
+  const coverPt = Math.max(6, (project.info.cover || 25) * mmToPt);
+  const topY = y0 + coverPt;
+  const botY = y1 - coverPt;
+  const mainPitch = 3.2;
   for (const b of model.mainTop) {
-    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY, b.hookStart, b.hookEnd, 1, 0.9);
+    const n = Math.max(2, Math.min(b.qty || 2, 4));
+    for (let k = 0; k < n; k++) {
+      const yy = topY + (k - (n - 1) / 2) * mainPitch;
+      drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), yy, b.hookStart, b.hookEnd, 1, 0.9);
+    }
   }
   for (const b of model.mainBottom) {
-    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.9);
+    const n = Math.max(2, Math.min(b.qty || 2, 4));
+    for (let k = 0; k < n; k++) {
+      const yy = botY + (k - (n - 1) / 2) * mainPitch;
+      drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), yy, b.hookStart, b.hookEnd, -1, 0.9);
+    }
   }
   for (const b of model.extraTop) {
     drawHookedBar(
       ctx,
       xAt(ctx, b.x1),
       xAt(ctx, b.x2),
-      topY + 7 + (b.layer - 1) * 5,
+      topY + extraLayerOffsetMm(b.layer) * mmToPt,
       b.hookStart,
       b.hookEnd,
       1,
@@ -255,7 +268,7 @@ function drawLongitudinal(ctx: Ctx, yTop: number, beamH: number) {
       ctx,
       xAt(ctx, b.x1),
       xAt(ctx, b.x2),
-      botY - 7 - (b.layer - 1) * 5,
+      botY - extraLayerOffsetMm(b.layer) * mmToPt,
       b.hookStart,
       b.hookEnd,
       -1,
@@ -365,11 +378,33 @@ function drawCrossSection(
     const x = cx + pad + ((W - 2 * pad) * i) / Math.max(tcount - 1, 1);
     circle(ctx, x, boxY + H - pad, r, true);
   }
-  // extra mid
-  extra.slice(0, 1).forEach(() => {
-    circle(ctx, cx + pad, boxY + H / 2, r, true);
-    circle(ctx, cx + W - pad, boxY + H / 2, r, true);
-  });
+  // extra bars: layer 1 between the two/three main bars; 2 and 3 step 50 mm inward
+  const extraBot = model.extraBottom;
+  const extraTop = model.extraTop;
+  const placeExtra = (bars: typeof extraBot, fromTop: boolean) => {
+    const byLayer = new Map<number, (typeof bars)[0]>();
+    for (const b of bars) {
+      if (!byLayer.has(b.layer)) byLayer.set(b.layer, b);
+    }
+    for (const [layer, b] of byLayer) {
+      const off = extraLayerOffsetMm(layer) * scale;
+      const y = fromTop ? boxY + pad + off : boxY + H - pad - off;
+      const n = Math.max(1, Math.min(b.qty || 1, 3));
+      if (layer <= 1) {
+        for (let i = 0; i < Math.min(n, tcount - 1); i++) {
+          const x = cx + pad + ((W - 2 * pad) * (i + 0.5)) / Math.max(tcount - 1, 1);
+          circle(ctx, x, y, r, true);
+        }
+      } else {
+        for (let i = 0; i < n; i++) {
+          const x = cx + pad + ((W - 2 * pad) * i) / Math.max(n - 1, 1);
+          circle(ctx, x, y, r, true);
+        }
+      }
+    }
+  };
+  placeExtra(extraBot, false);
+  placeExtra(extraTop, true);
 
   // dimensions
   dimV(ctx, cx + W + 14, boxY, boxY + H, String(model.H), 7);

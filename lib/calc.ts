@@ -6,6 +6,19 @@ export function unitWeight(dia: number) {
   return (dia * dia) / 162.2;
 }
 
+/** Vertical spacing between extra-bar layers, measured from the main steel plane (mm). */
+export const EXTRA_LAYER_SPACING_MM = 50;
+
+/**
+ * Offset from the main-bar plane toward mid-depth.
+ * Layer 1 sits in that plane (between the two main bars).
+ * Layer 2 is 50 mm inward; layer 3 is 50 mm beyond layer 2.
+ */
+export function extraLayerOffsetMm(layer: number) {
+  const n = Math.max(1, Math.round(Number.isFinite(layer) ? layer : 1));
+  return (n - 1) * EXTRA_LAYER_SPACING_MM;
+}
+
 export function hookLength(dia: number, type: number, override?: number) {
   if (override && override > 0) return override;
   if (type === 3) return Math.max(20 * dia, 200);
