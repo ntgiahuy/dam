@@ -383,7 +383,24 @@ export function BeamApp() {
           {tab === "supports" && support && (
             <div className="flex flex-wrap gap-3">
               <Panel title="Thông số gối đỡ" className="flex-1 min-w-[280px]">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+                  <Field label="Chọn gối (trục)">
+                    <Select
+                      value={selectedSupport}
+                      onChange={(e) => {
+                        const i = Number(e.target.value);
+                        setSelectedSupport(i);
+                        if (i < project.spans.length) setSelectedSpan(i);
+                        else setSelectedSpan(Math.max(0, project.spans.length - 1));
+                      }}
+                    >
+                      {project.supports.map((s, i) => (
+                        <option key={s.id} value={i}>
+                          Trục {s.axisName || i}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
                   <Field label="Chọn liên kết">
                     <Select
                       value={support.type}

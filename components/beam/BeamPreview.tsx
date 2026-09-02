@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { BeamProject, TabId } from "@/lib/types";
 import { computeModel, supportWidthLabel, barNotation } from "@/lib/calc";
 
@@ -20,6 +20,7 @@ export function BeamPreview({
   onSelectSupport: (i: number) => void;
 }) {
   const model = useMemo(() => computeModel(project), [project]);
+  const [hoverSupport, setHoverSupport] = useState<number | null>(null);
   const padL = 56;
   const padR = 24;
   const padT = 36;
@@ -59,7 +60,8 @@ export function BeamPreview({
               fill={active ? "rgba(59,130,246,0.12)" : "transparent"}
               stroke={active ? "#3b82f6" : "transparent"}
               strokeWidth={active ? 1.2 : 0}
-              className="cursor-pointer"
+              className={selectSupports ? undefined : "cursor-pointer"}
+              pointerEvents={selectSupports ? "none" : "all"}
               onClick={() => onSelectSpan(i)}
             />
           );
@@ -70,30 +72,74 @@ export function BeamPreview({
           fill="none"
           stroke="#86ef65"
           strokeWidth={1.4}
+          pointerEvents="none"
         />
 
         {project.supports.map((sup, i) => {
           const cx = x(model.xs[i]);
-          const half = ((sup.B || 200) * scale) / 2;
+          const half = Math.max(((sup.B || 200) * scale) / 2, 10);
+          const hitW = Math.max(half * 2 + 12, 32);
           const active = selectSupports && selectedSupport === i;
+          const hovered = selectSupports && hoverSupport === i && !active;
           return (
-            <g key={sup.id} className="cursor-pointer" onClick={() => onSelectSupport(i)}>
-              <line x1={cx} y1={8} x2={cx} y2={y1 + 18} stroke="#a3e635" strokeDasharray="4 3" strokeWidth={0.8} />
-              <rect x={cx - half} y={y1} width={half * 2} height={16} fill="none" stroke="#86ef65" strokeWidth={1.2} />
-              <rect x={cx - half} y={y0 - 16} width={half * 2} height={16} fill="none" stroke="#86ef65" strokeWidth={1.2} />
-              {active && (
-                <rect
-                  x={cx - half - 4}
-                  y={y0 - 20}
-                  width={half * 2 + 8}
-                  height={beamH + 40}
-                  fill="none"
-                  stroke="#60a5fa"
-                  strokeWidth={1.2}
-                />
-              )}
-              <circle cx={cx} cy={14} r={9} fill="#1a1a1a" stroke="#facc15" strokeWidth={1.2} />
-              <text x={cx} y={18} textAnchor="middle" fill="#facc15" fontSize={10} fontFamily="sans-serif">
+            <g key={sup.id}>
+              <rect
+                x={cx - hitW / 2}
+                y={4}
+                width={hitW}
+                height={y1 + 22}
+                fill={active ? "rgba(59,130,246,0.14)" : hovered ? "rgba(96,165,250,0.08)" : "transparent"}
+                stroke={active ? "#60a5fa" : hovered ? "#93c5fd" : "transparent"}
+                strokeWidth={active ? 1.6 : hovered ? 1 : 0}
+                className={selectSupports ? "cursor-pointer" : undefined}
+                pointerEvents={selectSupports ? "all" : "none"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectSupport(i);
+                }}
+                onMouseEnter={() => setHoverSupport(i)}
+                onMouseLeave={() => setHoverSupport((cur) => (cur === i ? null : cur))}
+              />
+              <line
+                x1={cx}
+                y1={8}
+                x2={cx}
+                y2={y1 + 18}
+                stroke="#a3e635"
+                strokeDasharray="4 3"
+                strokeWidth={0.8}
+                pointerEvents="none"
+              />
+              <rect
+                x={cx - half}
+                y={y1}
+                width={half * 2}
+                height={16}
+                fill="none"
+                stroke="#86ef65"
+                strokeWidth={1.2}
+                pointerEvents="none"
+              />
+              <rect
+                x={cx - half}
+                y={y0 - 16}
+                width={half * 2}
+                height={16}
+                fill="none"
+                stroke="#86ef65"
+                strokeWidth={1.2}
+                pointerEvents="none"
+              />
+              <circle cx={cx} cy={14} r={9} fill="#1a1a1a" stroke={active ? "#60a5fa" : "#facc15"} strokeWidth={1.2} pointerEvents="none" />
+              <text
+                x={cx}
+                y={18}
+                textAnchor="middle"
+                fill={active ? "#93c5fd" : "#facc15"}
+                fontSize={10}
+                fontFamily="sans-serif"
+                pointerEvents="none"
+              >
                 {i}
               </text>
             </g>
@@ -109,6 +155,7 @@ export function BeamPreview({
             y2={y1 - 10}
             stroke="#ef4444"
             strokeWidth={2}
+            pointerEvents="none"
           />
         ))}
         {model.extraBottom.map((b) => (
@@ -120,6 +167,7 @@ export function BeamPreview({
             y2={y1 - 18}
             stroke="#f87171"
             strokeWidth={1.6}
+            pointerEvents="none"
           />
         ))}
         {model.mainTop.map((b) => (
@@ -131,6 +179,7 @@ export function BeamPreview({
             y2={y0 + 10}
             stroke="#ef4444"
             strokeWidth={2}
+            pointerEvents="none"
           />
         ))}
         {model.extraTop.map((b) => (
@@ -142,6 +191,7 @@ export function BeamPreview({
             y2={y0 + 18}
             stroke="#f87171"
             strokeWidth={1.6}
+            pointerEvents="none"
           />
         ))}
 
@@ -155,11 +205,12 @@ export function BeamPreview({
             stroke="#fb7185"
             strokeWidth={0.5}
             opacity={0.7}
+            pointerEvents="none"
           />
         ))}
 
         {project.secondary.map((s) => (
-          <g key={s.id}>
+          <g key={s.id} pointerEvents="none">
             <line
               x1={x(s.position)}
               x2={x(s.position)}
@@ -182,6 +233,7 @@ export function BeamPreview({
             textAnchor="middle"
             fill="#d4d4d8"
             fontSize={10}
+            pointerEvents="none"
           >
             L={sp.L}
           </text>
@@ -192,7 +244,7 @@ export function BeamPreview({
         {project.mainBottom[0]
           ? ` · ${barNotation(project.mainBottom[0].qty, project.mainBottom[0].dia)} dưới`
           : " · chưa có thép chủ"}{" "}
-        · {supportWidthLabel(project, 0)} gối đầu
+        · {supportWidthLabel(project, selectedSupport)} gối {selectSupports ? selectedSupport : "đầu"}
       </div>
     </div>
   );
