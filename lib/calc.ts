@@ -250,7 +250,7 @@ export function extraTermination(
   return { x: f.axis, hook: 0 };
 }
 
-function supportFaces(project: BeamProject, axisIndex: number) {
+export function supportFaces(project: BeamProject, axisIndex: number) {
   const xs = axisPositions(project.spans);
   const last = Math.max(0, xs.length - 1);
   const i = Math.max(0, Math.min(axisIndex, last));
@@ -570,15 +570,23 @@ export function resolveExtraBars(
 }
 
 export type BarShape = "straight" | "u-top" | "u-bottom" | "stirrup" | "l-left" | "l-right";
+export type BarFamily = "T1" | "T2" | "B1" | "B2" | "D";
+
+export function barFamilyOf(bar: Pick<ResolvedBar, "face" | "kind">): BarFamily {
+  if (bar.kind === "extra") return bar.face === "top" ? "T2" : "B2";
+  return bar.face === "top" ? "T1" : "B1";
+}
 
 export interface ScheduleRow {
   mark: string;
   markNum: number;
   sub?: number;
+  family: BarFamily;
   shape: BarShape;
   segs: number[];
   dia: number;
   barLength: number;
+  qtyMembers: number;
   qtyEach: number;
   qtyTotal: number;
   totalM: number;
@@ -765,7 +773,7 @@ export interface ComputedModel {
   extraTop: ResolvedBar[];
   stirrups: StirrupResolved;
   schedule: ScheduleRow[];
-  byDia: { dia: number; weight: number }[];
+  byDia: { dia: number; lengthM: number; weight: number }[];
   totalWeight: number;
 }
 
@@ -805,6 +813,7 @@ export function computeModel(project: BeamProject): ComputedModel {
       const totalM = (barLength * qtyTotal) / 1000;
       const weight = totalM * unitWeight(b.dia);
       const shape = shapeFor(b);
+      const family = barFamilyOf(b);
       const segs =
         shape === "u-top" || shape === "u-bottom"
           ? [b.hookStart || b.hookEnd, Math.round(b.straight), b.hookEnd || b.hookStart]
@@ -813,75 +822,52 @@ export function computeModel(project: BeamProject): ComputedModel {
             : shape === "l-right"
               ? [Math.round(b.straight), b.hookEnd]
               : [Math.round(b.straight)];
-      if (b.kind === "main" && b.qty > 1) {
-        for (let i = 0; i < b.qty; i++) {
-          schedule.push({
-            mark: i === 0 ? String(mark) : `${mark}.${i + 1}`,
-            markNum: mark,
-            sub: i + 1,
-            shape,
-            segs,
-            dia: b.dia,
-            barLength,
-            qtyEach: i === 0 ? qtyEach : 0,
-            qtyTotal: i === 0 ? qtyTotal : 0,
-            totalM: i === 0 ? totalM : 0,
-            weight: i === 0 ? weight : 0,
-            bars: g,
-          });
-        }
-        // Keep one row in the table for the group; shop drawing uses .1 .2 .3
-        // Filter later for table vs shop
-      } else {
-        schedule.push({
-          mark: String(mark),
-          markNum: mark,
-          shape,
-          segs,
-          dia: b.dia,
-          barLength,
-          qtyEach,
-          qtyTotal,
-          totalM,
-          weight,
-          bars: g,
-        });
-      }
+      const markStr = b.kind === "main" ? `${mark}a` : String(mark);
+      schedule.push({
+        mark: markStr,
+        markNum: mark,
+        family,
+        shape,
+        segs,
+        dia: b.dia,
+        barLength,
+        qtyMembers: sl,
+        qtyEach,
+        qtyTotal,
+        totalM,
+        weight,
+        bars: g,
+      });
       mark += 1;
     }
   };
 
-  pushGroup(mainBottom, (b) =>
-    b.hookStart && b.hookEnd ? "u-bottom" : b.hookStart ? "l-left" : b.hookEnd ? "l-right" : "straight",
-  );
-  pushGroup(extraBottom, (b) =>
-    b.hookStart && b.hookEnd ? "u-bottom" : b.hookStart ? "l-left" : b.hookEnd ? "l-right" : "straight",
-  );
-  pushGroup(mainTop, (b) =>
-    b.hookStart && b.hookEnd ? "u-top" : b.hookStart ? "l-left" : b.hookEnd ? "l-right" : "straight",
-  );
-  pushGroup(extraTop, (b) =>
-    b.hookStart && b.hookEnd ? "u-bottom" : b.hookStart ? "l-left" : b.hookEnd ? "l-right" : "straight",
-  );
+  const barShape = (face: "top" | "bottom") => (b: ResolvedBar): BarShape => {
+    const u = face === "top" ? "u-top" : "u-bottom";
+    if (b.hookStart && b.hookEnd) return u;
+    if (b.hookStart) return "l-left";
+    if (b.hookEnd) return "l-right";
+    return "straight";
+  };
 
-  // Collapse main-bar sub-rows for the TABLE: keep first of each markNum with qty
-  const tableRows: ScheduleRow[] = [];
-  const seen = new Set<number>();
-  for (const r of schedule) {
-    if (r.sub && r.sub > 1) continue;
-    if (seen.has(r.markNum)) continue;
-    seen.add(r.markNum);
-    tableRows.push({ ...r, mark: String(r.markNum) });
-  }
+  // Số hiệu theo mẫu shop: 1a = T1, 2a = B1, tiếp theo T2 rồi B2, đai cuối.
+  pushGroup(mainTop, barShape("top"));
+  pushGroup(mainBottom, barShape("bottom"));
+  pushGroup(extraTop, barShape("top"));
+  pushGroup(extraBottom, barShape("bottom"));
+
+  const tableRows = schedule;
 
   if (stirrups.countEach > 0) {
     const stirrupRow: ScheduleRow = {
       mark: String(mark),
       markNum: mark,
+      family: "D",
       shape: "stirrup",
       segs: [stirrups.innerB, stirrups.innerH, stirrups.hook],
       dia: stirrups.dia,
       barLength: stirrups.cutLength,
+      qtyMembers: sl,
       qtyEach: stirrups.countEach,
       qtyTotal: stirrups.countEach * sl,
       totalM: (stirrups.cutLength * stirrups.countEach * sl) / 1000,
@@ -891,13 +877,16 @@ export function computeModel(project: BeamProject): ComputedModel {
     tableRows.push(stirrupRow);
   }
 
-  const byDiaMap = new Map<number, number>();
+  const byDiaMap = new Map<number, { lengthM: number; weight: number }>();
   for (const r of tableRows) {
-    byDiaMap.set(r.dia, (byDiaMap.get(r.dia) ?? 0) + r.weight);
+    const cur = byDiaMap.get(r.dia) ?? { lengthM: 0, weight: 0 };
+    cur.lengthM += r.totalM;
+    cur.weight += r.weight;
+    byDiaMap.set(r.dia, cur);
   }
   const byDia = [...byDiaMap.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([dia, weight]) => ({ dia, weight }));
+    .map(([dia, v]) => ({ dia, lengthM: v.lengthM, weight: v.weight }));
 
   return {
     xs,

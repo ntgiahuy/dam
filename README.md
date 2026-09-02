@@ -2,10 +2,10 @@
 
 Công cụ nhập số liệu dầm bê tông cốt thép (theo quy trình shop thép dầm) và **xuất bản vẽ PDF** gồm:
 
-- Shop thép lớp trên / lớp dưới (thanh chủ + bổ sung, móc neo)
-- Mặt cắt dọc dầm, gối, đai, ghi kích thước nhịp
-- Mặt cắt ngang **MC 1-1** (vùng gối) và **MC 2-2** (giữa nhịp)
-- **Bảng thống kê cốt thép**: hình dạng, đường kính, chiều dài, số lượng 1 CK / toàn bộ, trọng lượng
+- Mặt dầm (trục, gối, đai, thép tăng cường) + kích thước nhịp
+- Shop nổ T1 / T2 / B2 / B1, căn theo trục như bản vẽ mẫu
+- Mặt cắt **1-1 … n-n** (TL 1/25) tại gối và giữa nhịp, kèm chi tiết đai
+- **Bảng thống kê cốt thép** và **Tổng hợp cốt thép** (theo Ø, thanh 11.7 m)
 
 Trọng lượng tính theo `d² / 162.2` (kg/m), nhân với số lượng dầm (SL).
 
@@ -44,7 +44,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 3. Khai báo **thép đai**: Ø, cách bố trí (**1/4** hoặc **Đai điều**), khoảng A1/A2 (1/4) hoặc một khoảng (đai điều), kiểu đai đơn/kép. Với 1/4, chiều dài vùng gối **tự bằng thép tăng cường M-** (không có thì l₀/4).
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
-6. Bấm **Xuất PDF** — file A2 ngang, tiêu đề `KẾT CẤU DẦM …`.
+6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm.
 
 Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Mẫu D1** khôi phục bộ số liệu demo.
 
