@@ -255,10 +255,18 @@ export function BeamApp() {
     setExtraForm((f) => {
       const startType = f.startType === 1 ? 1 : 2;
       const endType = f.endType === 1 ? 1 : 2;
-      if (startType === f.startType && endType === f.endType) return f;
-      return { ...f, startType, endType };
+      const axis = Math.max(0, Math.min(f.startAxis, lastAxis));
+      if (
+        startType === f.startType &&
+        endType === f.endType &&
+        f.startAxis === axis &&
+        f.endAxis === axis
+      ) {
+        return f;
+      }
+      return { ...f, startType, endType, startAxis: axis, endAxis: axis };
     });
-  }, [tab]);
+  }, [tab, lastAxis]);
 
   const barRegion =
     tab === "extraBottom" || tab === "extraTop"
@@ -271,7 +279,12 @@ export function BeamApp() {
 
   function moveBarRegionToSpan(spanIndex: number) {
     selectSpan(spanIndex);
-    if (tab === "extraBottom" || tab === "extraTop") {
+    if (tab === "extraTop") {
+      const axis = Math.max(0, Math.min(spanIndex, lastAxis));
+      setExtraForm((f) => ({ ...f, startAxis: axis, endAxis: axis }));
+      return;
+    }
+    if (tab === "extraBottom") {
       setExtraForm({
         ...extraForm,
         ...placeAxisRange(extraForm.startAxis, extraForm.endAxis, spanIndex, lastAxis),
@@ -316,30 +329,61 @@ export function BeamApp() {
   }
 
   function addExtra(key: "extraBottom" | "extraTop") {
-    if (extraBarDuplicate(project[key], extraForm)) {
-      setError(`Không thêm được: đã có ${extraLabel(extraForm)} trong danh sách.`);
+    const draft =
+      key === "extraTop"
+        ? {
+            ...extraForm,
+            startAxis: extraForm.startAxis,
+            endAxis: extraForm.startAxis,
+          }
+        : extraForm;
+    if (extraBarDuplicate(project[key], draft)) {
+      setError(`Không thêm được: đã có ${extraLabel(draft)} trong danh sách.`);
       setStatus(null);
       return;
     }
-    const bar = { ...extraForm, id: uid("ex") };
+    const bar = { ...draft, id: uid("ex") };
     persist({ ...project, [key]: [...project[key], bar] });
-    setSelectedBar(bar.id);
     setError(null);
+    if (key === "extraTop") {
+      const nextAxis = bar.startAxis + 1;
+      if (nextAxis <= lastAxis) {
+        setSelectedBar(null);
+        setExtraForm({
+          ...draft,
+          id: uid("ex"),
+          startAxis: nextAxis,
+          endAxis: nextAxis,
+        });
+        setSelectedSupport(nextAxis);
+        setSelectedSpan(Math.min(nextAxis, Math.max(0, project.spans.length - 1)));
+        setStatus(`Đã thêm ${extraLabel(bar)}. Gối tiếp theo: ${nextAxis}→${nextAxis}.`);
+      } else {
+        setSelectedBar(bar.id);
+        setStatus(`Đã thêm ${extraLabel(bar)} (gối cuối).`);
+      }
+      return;
+    }
+    setSelectedBar(bar.id);
     setStatus(`Đã thêm ${extraLabel(bar)}.`);
   }
   function editExtra(key: "extraBottom" | "extraTop") {
     if (!selectedBar) return;
-    if (extraBarDuplicate(project[key], extraForm, selectedBar)) {
-      setError(`Không lưu được: đã có ${extraLabel(extraForm)} trong danh sách.`);
+    const draft =
+      key === "extraTop"
+        ? { ...extraForm, startAxis: extraForm.startAxis, endAxis: extraForm.startAxis }
+        : extraForm;
+    if (extraBarDuplicate(project[key], draft, selectedBar)) {
+      setError(`Không lưu được: đã có ${extraLabel(draft)} trong danh sách.`);
       setStatus(null);
       return;
     }
     persist({
       ...project,
-      [key]: project[key].map((b) => (b.id === selectedBar ? { ...extraForm, id: b.id } : b)),
+      [key]: project[key].map((b) => (b.id === selectedBar ? { ...draft, id: b.id } : b)),
     });
     setError(null);
-    setStatus(`Đã sửa ${extraLabel(extraForm)}.`);
+    setStatus(`Đã sửa ${extraLabel(draft)}.`);
   }
   function delExtra(key: "extraBottom" | "extraTop") {
     persist({ ...project, [key]: project[key].filter((b) => b.id !== selectedBar) });
@@ -688,15 +732,23 @@ export function BeamApp() {
               selected={selectedBar}
               onSelect={(b) => {
                 setSelectedBar(b.id);
-                setExtraForm(b);
+                if (tab === "extraTop") {
+                  const axis = b.startAxis;
+                  setExtraForm({ ...b, startAxis: axis, endAxis: axis });
+                  setSelectedSupport(axis);
+                  setSelectedSpan(Math.min(axis, Math.max(0, project.spans.length - 1)));
+                } else {
+                  setExtraForm(b);
+                }
               }}
               lastAxis={lastAxis}
               onAdd={() => addExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onEdit={() => editExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onDelete={() => delExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onRegionMove={(start, end) => {
-                selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
-                void end;
+                const axis = Math.min(start, end);
+                selectSpan(Math.min(axis, Math.max(0, project.spans.length - 1)));
+                if (tab === "extraTop") setSelectedSupport(axis);
               }}
               face={tab === "extraTop" ? "top" : "bottom"}
             />
@@ -921,7 +973,12 @@ export function BeamApp() {
           highlightEnd={highlightEnd}
           extraDraft={tab === "extraBottom" || tab === "extraTop" ? extraForm : null}
           onSelectSpan={barRegion ? moveBarRegionToSpan : selectSpan}
-          onSelectSupport={selectSupport}
+          onSelectSupport={(i) => {
+            selectSupport(i);
+            if (tab === "extraTop") {
+              setExtraForm((f) => ({ ...f, startAxis: i, endAxis: i }));
+            }
+          }}
         />
       </div>
 
@@ -1174,8 +1231,15 @@ function ExtraBarPanel({
   const addBlocked = extraBarDuplicate(bars, form);
   const editBlocked = extraBarDuplicate(bars, form, selected);
   const extraHint = addBlocked
-    ? `Đã có ${extraLabel(form)} — đổi lớp, Ø, số lượng hoặc đoạn trục rồi thêm.`
-    : "Có thể thêm nhiều thanh cùng lớp nếu đoạn trục (hoặc Ø / số lượng) khác nhau. Không thêm hai dòng giống hệt.";
+    ? `Đã có ${extraLabel(form)} — đổi lớp, Ø, số lượng hoặc gối rồi thêm.`
+    : face === "top"
+      ? "Thép mũ tại gối: 0→0, 1→1, 2→2… Bấm Thêm sẽ chuyển sang gối kế tiếp."
+      : "Có thể thêm nhiều thanh cùng lớp nếu đoạn trục (hoặc Ø / số lượng) khác nhau. Không thêm hai dòng giống hệt.";
+  const pinTopAxis = (axis: number) => {
+    const a = Math.max(0, Math.min(axis, lastAxis));
+    setForm({ ...form, startAxis: a, endAxis: a });
+    onRegionMove?.(a, a);
+  };
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">
@@ -1210,7 +1274,11 @@ function ExtraBarPanel({
           <Field label="Vị trí bắt đầu">
             <Select
               value={form.startAxis}
-              onChange={(e) => setForm({ ...form, startAxis: Number(e.target.value) })}
+              onChange={(e) => {
+                const axis = Number(e.target.value);
+                if (face === "top") pinTopAxis(axis);
+                else setForm({ ...form, startAxis: axis });
+              }}
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
@@ -1233,8 +1301,12 @@ function ExtraBarPanel({
           </Field>
           <Field label="Vị trí kết thúc">
             <Select
-              value={form.endAxis}
-              onChange={(e) => setForm({ ...form, endAxis: Number(e.target.value) })}
+              value={face === "top" ? form.startAxis : form.endAxis}
+              onChange={(e) => {
+                const axis = Number(e.target.value);
+                if (face === "top") pinTopAxis(axis);
+                else setForm({ ...form, endAxis: axis });
+              }}
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
@@ -1274,18 +1346,34 @@ function ExtraBarPanel({
                 : "Lưu thay đổi thanh đang chọn"
             }
             onShiftLeft={() => {
+              if (face === "top") {
+                pinTopAxis(form.startAxis - 1);
+                return;
+              }
               const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
               setForm({ ...form, ...next });
               onRegionMove?.(next.startAxis, next.endAxis);
             }}
             onShiftRight={() => {
+              if (face === "top") {
+                pinTopAxis(form.startAxis + 1);
+                return;
+              }
               const next = shiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis);
               setForm({ ...form, ...next });
               onRegionMove?.(next.startAxis, next.endAxis);
             }}
-            canShiftLeft={canShiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis)}
-            canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
-            rangeLabel={`${form.startAxis} → ${form.endAxis}`}
+            canShiftLeft={
+              face === "top"
+                ? form.startAxis > 0
+                : canShiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis)
+            }
+            canShiftRight={
+              face === "top"
+                ? form.startAxis < lastAxis
+                : canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)
+            }
+            rangeLabel={`${form.startAxis} → ${face === "top" ? form.startAxis : form.endAxis}`}
           />
         </div>
         <p className={`mt-2 text-[11px] leading-snug ${addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
