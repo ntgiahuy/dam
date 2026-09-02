@@ -111,15 +111,21 @@ export function BeamApp() {
     setError(null);
     setStatus("Đang tạo bản vẽ PDF…");
     try {
-      const [regular, bold] = await Promise.all([
-        fetch("/fonts/BeVietnamPro-Regular.ttf").then((r) => r.arrayBuffer()),
-        fetch("/fonts/BeVietnamPro-Bold.ttf").then((r) => r.arrayBuffer()),
+      const fontRes = await Promise.all([
+        fetch("/fonts/BeVietnamPro-Regular.ttf"),
+        fetch("/fonts/BeVietnamPro-Bold.ttf"),
       ]);
+      if (fontRes.some((r) => !r.ok)) {
+        throw new Error("Không tải được font chữ cho PDF.");
+      }
+      const [regular, bold] = await Promise.all(fontRes.map((r) => r.arrayBuffer()));
       const bytes = await generateBeamPdf(project, { regular, bold });
       downloadPdf(bytes, `KetCauDam_${project.info.name}.pdf`);
-      setStatus("Đã xuất PDF.");
+      setStatus("Đã xuất PDF — kiểm tra thư mục Tải xuống.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không xuất được PDF.");
+      const message = e instanceof Error ? e.message : "Không xuất được PDF.";
+      console.error("Xuất PDF thất bại:", e);
+      setError(message);
       setStatus(null);
     } finally {
       setBusy(false);
@@ -226,6 +232,8 @@ export function BeamApp() {
           <Button size="sm" disabled={busy} onClick={exportPdf}>
             <Download /> {busy ? "Đang xuất…" : "Xuất PDF"}
           </Button>
+          {status && <span className="text-xs text-emerald-400">{status}</span>}
+          {error && <span className="max-w-xs text-xs text-red-400">{error}</span>}
         </div>
       </header>
 

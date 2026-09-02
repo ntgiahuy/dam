@@ -514,7 +514,8 @@ export async function generateBeamPdf(
 ): Promise<Uint8Array> {
   const model = computeModel(project);
   const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit as never);
+  const kit = (fontkit as { default?: unknown }).default ?? fontkit;
+  pdf.registerFontkit(kit as never);
   const font = await pdf.embedFont(fonts.regular, { subset: true });
   const fontBold = await pdf.embedFont(fonts.bold, { subset: true });
   const page = pdf.addPage([PAGE_W, PAGE_H]);
@@ -645,11 +646,17 @@ export async function generateBeamPdf(
 }
 
 export function downloadPdf(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
