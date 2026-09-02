@@ -84,15 +84,17 @@ export function describeEndType(
   dia: number,
   concreteGrade?: string,
   steelGrade?: string,
+  spanL?: number,
 ) {
   const ds = Math.max(dia || 1, 1);
-  if (type === 0) return "Cắt tại tim trục — không cộng neo";
-  if (type === 1) return `Cắt mép trong gối · gối biên kéo vào ≥ ${freeSupportEmbedMm(ds)} mm (5d, 10.3.5.7)`;
-  if (type === 2) {
-    const lan = designAnchorageMm(ds, { hooked: false, concreteGrade, steelGrade });
-    const n = Math.round(lan / ds);
-    return `Neo thẳng lan = ${lan} mm (${n}d) · TCVN 5574:2018 10.3.5`;
+  if (type === 1) {
+    const L = spanL && spanL > 0 ? roundTo(spanL / 8, 10) : null;
+    return L
+      ? `Cắt thẳng cách mép cột L/8 = ${L} mm`
+      : "Cắt thẳng từ mép cột trở ra L/8 nhịp kề";
   }
+  if (type === 2) return "Cắt thẳng tại mép trong gối";
+  if (type === 3) return "Cắt thẳng tại tim cột";
   const hook = hook90ExtensionMm(ds);
   const pin = bendPinDiameterMm(ds);
   return `Móc 90° đuôi ${hook} mm (12d) · gối uốn ${pin} mm · TCVN 5574:2018 10.3.7`;

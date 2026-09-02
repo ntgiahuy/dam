@@ -1,10 +1,6 @@
 import type { BeamProject, ExtraBar, MainBar, Span } from "./types";
 import { roundTo } from "./utils";
-import {
-  designAnchorageMm,
-  freeSupportEmbedMm,
-  hook90ExtensionMm,
-} from "./tcvn5574";
+import { hook90ExtensionMm } from "./tcvn5574";
 
 /** Unit weight kg/m — TCVN practice d²/162.2 (matches the sample PDF). */
 export function unitWeight(dia: number) {
@@ -26,8 +22,46 @@ export function extraLayerOffsetMm(layer: number) {
 
 export function hookLength(dia: number, type: number, override?: number) {
   if (override && override > 0) return override;
-  if (type === 3) return hook90ExtensionMm(dia);
+  if (type === 4) return hook90ExtensionMm(dia);
   return 0;
+}
+
+export function adjacentSpanLength(project: BeamProject, axisIndex: number, side: "left" | "right") {
+  if (side === "left") {
+    return project.spans[axisIndex]?.L ?? project.spans[axisIndex - 1]?.L ?? 0;
+  }
+  return project.spans[axisIndex - 1]?.L ?? project.spans[axisIndex]?.L ?? 0;
+}
+
+/**
+ * Dạng đầu thanh bổ sung:
+ * 1 — cắt thẳng từ mép cột trở ra L/8 nhịp kề
+ * 2 — cắt thẳng tại mép trong gối
+ * 3 — cắt thẳng tại tim cột
+ * 4 — móc 90° tại tim cột (đuôi theo TCVN 5574:2018)
+ */
+export function extraTermination(
+  project: BeamProject,
+  axisIndex: number,
+  type: number,
+  side: "left" | "right",
+  dia: number,
+) {
+  const f = supportFaces(project, axisIndex);
+  const inner = side === "left" ? f.right : f.left;
+  const intoSpan = side === "left" ? 1 : -1;
+
+  if (type === 1) {
+    const off = roundTo(adjacentSpanLength(project, axisIndex, side) / 8, 10);
+    return { x: inner + intoSpan * Math.max(off, 0), hook: 0 };
+  }
+  if (type === 2) {
+    return { x: inner, hook: 0 };
+  }
+  if (type === 4) {
+    return { x: f.axis, hook: hook90ExtensionMm(dia) };
+  }
+  return { x: f.axis, hook: 0 };
 }
 
 function supportFaces(project: BeamProject, axisIndex: number) {
@@ -39,43 +73,6 @@ function supportFaces(project: BeamProject, axisIndex: number) {
   const { width, leftToAxis } = supportGeometry(sup?.B ?? 200, sup?.B1 ?? 100);
   const left = axis - leftToAxis;
   return { axis, left, right: left + width };
-}
-
-/**
- * Dạng đầu thanh bổ sung — kích thước theo TCVN 5574:2018:
- * 0 — cắt tại tim trục
- * 1 — cắt thẳng tại mép trong gối; gối tự do ngoài cùng kéo vào ≥ 5 ds (10.3.5.7)
- * 2 — neo thẳng vào gối, đoạn neo = lan (10.3.5.5), không vượt mép ngoài trừ lớp bảo vệ
- * 3 — móc 90° tại tim trục, đuôi móc 12 ds (10.3.7)
- */
-export function extraTermination(
-  project: BeamProject,
-  axisIndex: number,
-  type: number,
-  side: "left" | "right",
-  dia: number,
-) {
-  const f = supportFaces(project, axisIndex);
-  const cover = project.info.cover || 25;
-  const concrete = project.info.concreteGrade;
-  const steel = project.info.steelGrade;
-  const last = Math.max(0, project.spans.length);
-  const inner = side === "left" ? f.right : f.left;
-  const outward = side === "left" ? -1 : 1;
-  const maxEmbed = Math.max(f.right - f.left - cover, 0);
-
-  if (type === 1) {
-    const isEnd = axisIndex === 0 || axisIndex === last;
-    const embed = isEnd ? Math.min(freeSupportEmbedMm(dia), maxEmbed) : 0;
-    return { x: inner + outward * embed, hook: 0 };
-  }
-  if (type === 2) {
-    const lan = designAnchorageMm(dia, { hooked: false, concreteGrade: concrete, steelGrade: steel });
-    const embed = Math.min(lan, maxEmbed);
-    return { x: inner + outward * embed, hook: 0 };
-  }
-  const hook = type === 3 ? hook90ExtensionMm(dia) : 0;
-  return { x: f.axis, hook };
 }
 
 export function axisPositions(spans: Span[]): number[] {
@@ -102,6 +99,12 @@ export function typicalB(spans: Span[]) {
 
 export function typicalB1(spans: Span[]) {
   return spans[0]?.B1 ?? 100;
+}
+
+function normalizeEndType(t: number) {
+  if (t === 1 || t === 2 || t === 3 || t === 4) return t;
+  if (t === 0) return 3;
+  return 2;
 }
 
 /**
@@ -139,8 +142,8 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
   const e = Math.max(0, Math.min(bar.endAxis, last));
   const leftAxis = Math.min(s, e);
   const rightAxis = Math.max(s, e);
-  const leftType = s <= e ? bar.startType : bar.endType;
-  const rightType = s <= e ? bar.endType : bar.startType;
+  const leftType = normalizeEndType(s <= e ? bar.startType : bar.endType);
+  const rightType = normalizeEndType(s <= e ? bar.endType : bar.startType);
 
   let x1: number;
   let x2: number;

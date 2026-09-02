@@ -27,6 +27,7 @@ import {
   canShiftAxisRange,
   computeModel,
   extraBarLength,
+  adjacentSpanLength,
   placeAxisRange,
   shiftAxisRange,
   syncSpanSupportGeometry,
@@ -55,7 +56,31 @@ import {
 import { CONCRETE_GRADES, STEEL_GRADES, describeEndType, hook90ExtensionMm } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
-const STORE_KEY = "thep-dam-project-v2";
+const STORE_KEY = "thep-dam-project-v3";
+const STORE_KEY_V2 = "thep-dam-project-v2";
+
+function migrateV2EndType(t: number): EndType {
+  if (t === 0) return 3;
+  if (t === 1) return 2;
+  if (t === 2) return 1;
+  if (t === 3) return 4;
+  if (t === 4) return 4;
+  return 2;
+}
+
+function migrateLoadedProject(raw: BeamProject, fromV2: boolean): BeamProject {
+  const map = fromV2 ? migrateV2EndType : (t: number) => (t === 1 || t === 2 || t === 3 || t === 4 ? t : 2);
+  const fix = (b: ExtraBar): ExtraBar => ({
+    ...b,
+    startType: map(b.startType) as EndType,
+    endType: map(b.endType) as EndType,
+  });
+  return {
+    ...raw,
+    extraBottom: (raw.extraBottom ?? []).map(fix),
+    extraTop: (raw.extraTop ?? []).map(fix),
+  };
+}
 
 function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
@@ -84,8 +109,17 @@ export function BeamApp() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (raw) setProject(JSON.parse(raw) as BeamProject);
+      const raw3 = localStorage.getItem(STORE_KEY);
+      if (raw3) {
+        setProject(migrateLoadedProject(JSON.parse(raw3) as BeamProject, false));
+        return;
+      }
+      const raw2 = localStorage.getItem(STORE_KEY_V2);
+      if (raw2) {
+        const next = migrateLoadedProject(JSON.parse(raw2) as BeamProject, true);
+        setProject(next);
+        localStorage.setItem(STORE_KEY, JSON.stringify(next));
+      }
     } catch {
       /* keep sample */
     }
@@ -615,6 +649,16 @@ export function BeamApp() {
               face={tab === "extraTop" ? "top" : "bottom"}
               concreteGrade={project.info.concreteGrade}
               steelGrade={project.info.steelGrade}
+              startSpanL={adjacentSpanLength(
+                project,
+                extraForm.startAxis,
+                extraForm.startAxis <= extraForm.endAxis ? "left" : "right",
+              )}
+              endSpanL={adjacentSpanLength(
+                project,
+                extraForm.endAxis,
+                extraForm.startAxis <= extraForm.endAxis ? "right" : "left",
+              )}
             />
           )}
 
@@ -1040,6 +1084,8 @@ function ExtraBarPanel({
   face,
   concreteGrade,
   steelGrade,
+  startSpanL,
+  endSpanL,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -1056,11 +1102,13 @@ function ExtraBarPanel({
   face: "top" | "bottom";
   concreteGrade?: string;
   steelGrade?: string;
+  startSpanL?: number;
+  endSpanL?: number;
 }) {
-  const startHint = describeEndType(form.startType, form.dia, concreteGrade, steelGrade);
-  const endHint = describeEndType(form.endType, form.dia, concreteGrade, steelGrade);
-  const startHook = form.startType === 3 ? hook90ExtensionMm(form.dia) : 0;
-  const endHook = form.endType === 3 ? hook90ExtensionMm(form.dia) : 0;
+  const startHint = describeEndType(form.startType, form.dia, concreteGrade, steelGrade, startSpanL);
+  const endHint = describeEndType(form.endType, form.dia, concreteGrade, steelGrade, endSpanL);
+  const startHook = form.startType === 4 ? hook90ExtensionMm(form.dia) : 0;
+  const endHook = form.endType === 4 ? hook90ExtensionMm(form.dia) : 0;
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">

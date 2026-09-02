@@ -3,18 +3,18 @@
 function endPath(type: number, side: "left" | "right", y: number, dir: number) {
   const axis = side === "left" ? 40 : 170;
   const inner = side === "left" ? 52 : 158;
-  const far = side === "left" ? 28 : 182;
+  const eighth = side === "left" ? 72 : 138;
   const hook = 16;
-  if (type === 3) {
+  if (type === 4) {
     const hx = axis;
     return side === "left"
       ? `M ${hx} ${y + dir * hook} L ${hx} ${y}`
       : `L ${hx} ${y} L ${hx} ${y + dir * hook}`;
   }
-  if (type === 2) {
-    return side === "left" ? `M ${far} ${y}` : `L ${far} ${y}`;
-  }
   if (type === 1) {
+    return side === "left" ? `M ${eighth} ${y}` : `L ${eighth} ${y}`;
+  }
+  if (type === 2) {
     return side === "left" ? `M ${inner} ${y}` : `L ${inner} ${y}`;
   }
   return side === "left" ? `M ${axis} ${y}` : `L ${axis} ${y}`;
@@ -58,12 +58,12 @@ export function ExtraShapeSketch({
         </text>
         <path d={dA} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
         <path d={dB} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
-        {startType === 3 && startHook ? (
+        {startType === 4 && startHook ? (
           <text x={8} y={face === "bottom" ? 28 : 70} fill="#fca5a5" fontSize={8}>
             {startHook}
           </text>
         ) : null}
-        {endType === 3 && endHook ? (
+        {endType === 4 && endHook ? (
           <text x={202} y={face === "bottom" ? 28 : 70} textAnchor="end" fill="#fca5a5" fontSize={8}>
             {endHook}
           </text>
