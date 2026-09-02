@@ -419,10 +419,14 @@ export function BeamApp() {
                       <Input
                         className="max-w-[200px]"
                         type="number"
+                        min={0}
                         value={support.B1}
                         onChange={(e) => patchSupport({ B1: Number(e.target.value) || 0 })}
                       />
                     </label>
+                    <p className="-mt-1 pl-[13.5rem] text-[11px] text-zinc-500">
+                      Từ mép trái gối đến tim trục. 0 = tim trùng mép trái, B/2 = cân giữa.
+                    </p>
                     <label className="flex items-center gap-2">
                       <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Chiều cao gối H (mm)</span>
                       <Input

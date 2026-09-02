@@ -39,6 +39,17 @@ export function typicalB1(spans: Span[]) {
   return spans[0]?.B1 ?? 100;
 }
 
+/**
+ * B1 = khoảng từ mép trái gối đến tim trục (mm).
+ * 0 hợp lệ: tim trùng mép trái, gối nằm bên phải trục.
+ * B/2 = gối cân giữa. Không quy 0 về B/2.
+ */
+export function supportGeometry(B: number, B1: number) {
+  const width = B > 0 ? B : 200;
+  const leftToAxis = Number.isFinite(B1) ? B1 : width / 2;
+  return { width, leftToAxis };
+}
+
 export interface ResolvedBar {
   sourceId: string;
   face: "top" | "bottom";

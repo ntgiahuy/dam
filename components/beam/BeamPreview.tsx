@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BeamProject, TabId } from "@/lib/types";
-import { computeModel, supportWidthLabel, barNotation } from "@/lib/calc";
+import { computeModel, supportWidthLabel, barNotation, supportGeometry } from "@/lib/calc";
 
 export function BeamPreview({
   project,
@@ -77,8 +77,7 @@ export function BeamPreview({
 
         {project.supports.map((sup, i) => {
           const cx = x(model.xs[i]);
-          const Bmm = sup.B || 200;
-          const B1mm = sup.B1 > 0 ? sup.B1 : Bmm / 2;
+          const { width: Bmm, leftToAxis: B1mm } = supportGeometry(sup.B, sup.B1);
           const colW = Math.max(Bmm * scale, 8);
           const left = cx - B1mm * scale;
           const hitW = Math.max(colW + 14, 32);

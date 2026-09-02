@@ -4,6 +4,7 @@ import type { BeamProject } from "../types";
 import {
   barNotation,
   computeModel,
+  supportGeometry,
   supportWidthLabel,
   type ComputedModel,
   type ResolvedBar,
@@ -204,14 +205,16 @@ function drawLongitudinal(ctx: Ctx, yTop: number, beamH: number) {
   // columns / supports
   project.supports.forEach((sup, i) => {
     const x = xAt(ctx, model.xs[i]);
-    const half = ((sup.B || 200) * ctx.scale) / 2;
+    const { width, leftToAxis } = supportGeometry(sup.B, sup.B1);
+    const left = x - leftToAxis * ctx.scale;
+    const right = left + width * ctx.scale;
     const colH = 26;
-    line(ctx, x - half, y1, x + half, y1, 1.1);
-    line(ctx, x - half, y1, x - half, y1 + colH, 1.1);
-    line(ctx, x + half, y1, x + half, y1 + colH, 1.1);
-    line(ctx, x - half, y0, x - half, y0 - colH, 1.1);
-    line(ctx, x + half, y0, x + half, y0 - colH, 1.1);
-    line(ctx, x - half, y0, x + half, y0, 1.1);
+    line(ctx, left, y1, right, y1, 1.1);
+    line(ctx, left, y1, left, y1 + colH, 1.1);
+    line(ctx, right, y1, right, y1 + colH, 1.1);
+    line(ctx, left, y0, left, y0 - colH, 1.1);
+    line(ctx, right, y0, right, y0 - colH, 1.1);
+    line(ctx, left, y0, right, y0, 1.1);
     // axis dashed
     for (let yy = y0 - 36; yy < y1 + 40; yy += 6) {
       line(ctx, x, yy, x, Math.min(yy + 3, y1 + 40), 0.35);
