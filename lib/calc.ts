@@ -105,15 +105,23 @@ export function hoggingExtraExtensionMm(l0: number) {
   return Math.ceil(l0 / 4 / 50) * 50;
 }
 
-/** Neo thẳng vào gối biên, đo từ mép trong (mm). Bản vẽ: 200 + 2500 = 2700. */
-export const HOGGING_EDGE_EMBED_MM = 200;
+/** Lớp bảo vệ đầu biên dầm — lùi 50 mm từ mỗi mép ngoài bê tông. */
+export const BEAM_END_COVER_MM = 50;
 
 /**
- * Móc đứng M- gối biên.
- * Bản vẽ H=500, lớp bảo vệ 25 → 525; L = 2700 + 525 = 3225.
+ * Móc đứng M- gối biên = 2/3 H dầm, làm tròn 50 mm.
+ * H=500 → 333 → 350 mm.
  */
-export function hoggingEdgeHookMm(H: number, cover = 25) {
-  return Math.round(Math.max(H || 500, 1) + Math.max(cover || 0, 0));
+export function hoggingEdgeHookMm(H: number) {
+  return roundTo((Math.max(H || 500, 1) * 2) / 3, 50);
+}
+
+function beamEndCoverStartX(project: BeamProject) {
+  return supportFaces(project, 0).left + BEAM_END_COVER_MM;
+}
+
+function beamEndCoverEndX(project: BeamProject) {
+  return supportFaces(project, project.spans.length).right - BEAM_END_COVER_MM;
 }
 
 function hoggingBarAtSupport(
@@ -125,8 +133,7 @@ function hoggingBarAtSupport(
   const f = supportFaces(project, axisIndex);
   const last = project.spans.length;
   const span = project.spans[axisIndex] ?? project.spans[axisIndex - 1] ?? project.spans[0];
-  const hook = hoggingEdgeHookMm(span?.H ?? typicalH(project.spans), project.info.cover || 25);
-  const embed = HOGGING_EDGE_EMBED_MM;
+  const hook = hoggingEdgeHookMm(span?.H ?? typicalH(project.spans));
 
   const endX = (type: number, side: "left" | "right") => {
     if (type === 1) {
@@ -150,11 +157,11 @@ function hoggingBarAtSupport(
   let hookStart = 0;
   let hookEnd = 0;
   if (axisIndex === 0) {
-    x1 = Math.max(f.left, f.right - embed);
+    x1 = beamEndCoverStartX(project);
     hookStart = hook;
   }
   if (axisIndex === last) {
-    x2 = Math.min(f.right, f.left + embed);
+    x2 = beamEndCoverEndX(project);
     hookEnd = hook;
   }
   if (x2 <= x1) {
@@ -214,6 +221,13 @@ export function extraTermination(
     return { x: inner, hook: 0 };
   }
   if (type === 4) {
+    const last = project.spans.length;
+    if (axisIndex === 0 && side === "left") {
+      return { x: beamEndCoverStartX(project), hook: hook90ExtensionMm(dia) };
+    }
+    if (axisIndex === last && side === "right") {
+      return { x: beamEndCoverEndX(project), hook: hook90ExtensionMm(dia) };
+    }
     return { x: f.axis, hook: hook90ExtensionMm(dia) };
   }
   return { x: f.axis, hook: 0 };
@@ -321,10 +335,10 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
       const len = Math.max(roundTo(adj, 50), 800);
       const x = xs[leftAxis] ?? 0;
       if (leftAxis === 0) {
-        x1 = x;
+        x1 = beamEndCoverStartX(project);
         x2 = x + len;
       } else if (leftAxis === last) {
-        x2 = x;
+        x2 = beamEndCoverEndX(project);
         x1 = x - len;
       } else {
         x1 = x - len / 2;
@@ -383,16 +397,15 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
   if (face === "top") {
     const first = supportFaces(project, 0);
     const lastF = supportFaces(project, last);
-    const cover = project.info.cover || 25;
     const Hs = project.spans[0]?.H ?? 500;
     const He = project.spans[Math.max(0, last - 1)]?.H ?? Hs;
     if (leftAxis === 0 && x1 <= first.right + 0.5) {
-      x1 = Math.max(first.left, first.right - HOGGING_EDGE_EMBED_MM);
-      hookStart = hoggingEdgeHookMm(Hs, cover);
+      x1 = beamEndCoverStartX(project);
+      hookStart = hoggingEdgeHookMm(Hs);
     }
     if (rightAxis === last && x2 >= lastF.left - 0.5) {
-      x2 = Math.min(lastF.right, lastF.left + HOGGING_EDGE_EMBED_MM);
-      hookEnd = hoggingEdgeHookMm(He, cover);
+      x2 = beamEndCoverEndX(project);
+      hookEnd = hoggingEdgeHookMm(He);
     }
   }
 
@@ -429,18 +442,20 @@ export function resolveMainBars(
 ): ResolvedBar[] {
   const xs = axisPositions(project.spans);
   const H = typicalH(project.spans);
+  const last = project.spans.length;
   return bars.map((b) => {
-    const x1 = xs[Math.min(b.startAxis, xs.length - 1)] ?? 0;
-    const x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
+    let x1 = xs[Math.min(b.startAxis, xs.length - 1)] ?? 0;
+    let x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
     const atStart = b.startAxis === 0;
-    const atEnd = b.endAxis === project.spans.length;
+    const atEnd = b.endAxis === last;
     const startType = atStart ? 3 : 0;
     const endType = atEnd ? 3 : 0;
-    const hook = face === "top" ? Math.round(H * 0.85) : Math.max(20 * b.dia, 400);
+    const hook = face === "top" ? hoggingEdgeHookMm(H) : Math.max(20 * b.dia, 400);
     const hookStart = startType ? hook : 0;
     const hookEnd = endType ? hook : 0;
-    const inset = 50;
-    const straight = Math.max(x2 - x1 - inset, 0);
+    if (atStart) x1 = beamEndCoverStartX(project);
+    if (atEnd) x2 = beamEndCoverEndX(project);
+    const straight = Math.max(x2 - x1, 0);
     const cutLength = straight + hookStart + hookEnd;
     return {
       sourceId: b.id,
@@ -449,8 +464,8 @@ export function resolveMainBars(
       layer: 1,
       dia: b.dia,
       qty: b.qty,
-      x1: x1 + inset / 2,
-      x2: x2 - inset / 2,
+      x1,
+      x2,
       startType,
       endType,
       hookStart,

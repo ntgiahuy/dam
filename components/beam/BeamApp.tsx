@@ -823,7 +823,7 @@ export function BeamApp() {
                     }
                   />
                 </Field>
-                <Field label="Lớp bảo vệ (mm)">
+                <Field label="Lớp bảo vệ đai (mm)">
                   <Input
                     type="number"
                     value={project.info.cover}
@@ -834,6 +834,9 @@ export function BeamApp() {
                       })
                     }
                   />
+                  <p className="text-[10px] leading-tight text-zinc-500">
+                    Cho đai và khoảng cách thép dọc tới mặt trên/dưới. Đầu biên dầm: thép dọc lùi 50 mm mỗi mép ngoài.
+                  </p>
                 </Field>
                 <Field label="Cấp bê tông (TCVN 5574:2018)">
                   <Select
@@ -1152,11 +1155,8 @@ function ExtraBarPanel({
   const startHint = extraEndHint(project, form, "start", startSide, face);
   const endHint = extraEndHint(project, form, "end", endSide, face);
   const endTypeOpts = extraEndTypeOptions(face);
-  const edgeHookStart = hoggingEdgeHookMm(project.spans[0]?.H ?? 500, project.info.cover || 25);
-  const edgeHookEnd = hoggingEdgeHookMm(
-    project.spans[project.spans.length - 1]?.H ?? 500,
-    project.info.cover || 25,
-  );
+  const edgeHookStart = hoggingEdgeHookMm(project.spans[0]?.H ?? 500);
+  const edgeHookEnd = hoggingEdgeHookMm(project.spans[project.spans.length - 1]?.H ?? 500);
   const startHook =
     face === "top" && form.startAxis === 0
       ? edgeHookStart

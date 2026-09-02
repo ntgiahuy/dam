@@ -35,7 +35,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 
 1. Khai báo **số liệu nhịp**, **sàn**, **gối đỡ**.
 2. Khai báo thép chủ / bổ sung lớp trên và lớp dưới (Thêm / Sửa / Xóa).
-   - Thép bổ sung **lớp trên** chỉ còn 2 dạng: **1** — M- tại gối kéo vào nhịp **l₀/4** (làm tròn lên 50 mm; ví dụ l₀=9825 → 2500); **2** — M- tại gối, cắt **tới tim cột**. **Gối biên** tự bẻ móc 90°: neo **200 mm** vào gối từ mép trong, móc đứng **H + lớp bảo vệ** (H=500, a=25 → 525; L = 2700 + 525 = 3225).
+   - Thép bổ sung **lớp trên** chỉ còn 2 dạng: **1** — M- tại gối kéo vào nhịp **l₀/4** (làm tròn lên 50 mm; ví dụ l₀=9825 → 2500); **2** — M- tại gối, cắt **tới tim cột**. **Gối biên** tự bẻ móc 90°, đuôi **2/3 H** làm tròn 50 mm (H=500 → 350). Thép dọc **đầu biên dầm** lùi **50 mm** lớp bảo vệ bê tông mỗi mép ngoài; lớp bảo vệ **đai** vẫn lấy theo ô «Lớp bảo vệ đai».
    - Thép bổ sung **lớp dưới**, dạng 1 (**M+ giữa nhịp**): chiều dài `l₀/2 + 2·max(h₀, 15d, l₀/16)`, dư 50 mm mỗi đầu rồi làm tròn 50 mm. Dạng 2–4 (mép gối / tim cột / móc 90°) giữ nguyên.
 3. Khai báo **thép đai** theo 3 vùng mỗi nhịp (gối trái – giữa – gối phải).
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
