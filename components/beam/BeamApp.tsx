@@ -362,13 +362,23 @@ export function BeamApp() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-zinc-500">Nhịp đang chọn: {selectedSpan + 1}</span>
                   <span className="text-xs text-zinc-600">B và B1 dùng chung với gối đỡ.</span>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => persist(applySpanParams(project, selectedSpan, ["L", "H", "B", "B1", "dH"]))}
-                  >
-                    <Check /> Áp dụng cho các nhịp
-                  </Button>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      title="Nhịp tiếp theo"
+                      onClick={() => selectSpan((selectedSpan + 1) % project.spans.length)}
+                    >
+                      <ChevronRight /> Tiếp theo
+                    </Button>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => persist(applySpanParams(project, selectedSpan, ["L", "H", "B", "B1", "dH"]))}
+                    >
+                      <Check /> Áp dụng cho các nhịp
+                    </Button>
+                  </div>
                 </div>
               </Panel>
               <SectionSketch B={span.B} B1={span.B1} H={span.H} />
@@ -420,16 +430,27 @@ export function BeamApp() {
                     />
                   </Field>
                 </div>
-                <div className="mt-3">
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() =>
-                      persist(applySpanParams(project, selectedSpan, ["slabType", "Hsl", "Hl", "Hsr", "Hr"]))
-                    }
-                  >
-                    <Check /> Áp dụng cho các nhịp
-                  </Button>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-zinc-500">Nhịp đang chọn: {selectedSpan + 1}</span>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      title="Nhịp tiếp theo"
+                      onClick={() => selectSpan((selectedSpan + 1) % project.spans.length)}
+                    >
+                      <ChevronRight /> Tiếp theo
+                    </Button>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() =>
+                        persist(applySpanParams(project, selectedSpan, ["slabType", "Hsl", "Hl", "Hsr", "Hr"]))
+                      }
+                    >
+                      <Check /> Áp dụng cho các nhịp
+                    </Button>
+                  </div>
                 </div>
               </Panel>
               <SectionSketch B={span.B} B1={span.B1} H={span.H} slab />
