@@ -9,6 +9,8 @@ export function BeamPreview({
   tab,
   selectedSpan,
   selectedSupport,
+  highlightStart,
+  highlightEnd,
   onSelectSpan,
   onSelectSupport,
 }: {
@@ -16,6 +18,8 @@ export function BeamPreview({
   tab: TabId;
   selectedSpan: number;
   selectedSupport: number;
+  highlightStart: number;
+  highlightEnd: number;
   onSelectSpan: (i: number) => void;
   onSelectSupport: (i: number) => void;
 }) {
@@ -49,7 +53,7 @@ export function BeamPreview({
         ))}
 
         {project.spans.map((sp, i) => {
-          const active = !selectSupports && selectedSpan === i;
+          const active = !selectSupports && i >= highlightStart && i < highlightEnd;
           return (
             <rect
               key={sp.id}
@@ -247,7 +251,7 @@ export function BeamPreview({
         {project.mainBottom[0]
           ? ` · ${barNotation(project.mainBottom[0].qty, project.mainBottom[0].dia)} dưới`
           : " · chưa có thép chủ"}{" "}
-        · {supportWidthLabel(project, selectedSupport)} gối {selectSupports ? selectedSupport : "đầu"}
+        · {supportWidthLabel(project, selectedSupport)} gối {selectSupports ? selectedSupport : selectedSpan}
       </div>
     </div>
   );

@@ -442,6 +442,31 @@ export function barNotation(qty: number, dia: number) {
   return `${qty}Ø${dia}`;
 }
 
+/** Dịch nguyên đoạn trục bắt đầu → kết thúc, giữ nguyên độ dài, kẹp trong [0, lastAxis]. */
+export function shiftAxisRange(start: number, end: number, delta: number, lastAxis: number) {
+  const last = Math.max(0, lastAxis);
+  let a = start + delta;
+  let b = end + delta;
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  let fix = 0;
+  if (lo < 0) fix = -lo;
+  if (hi + fix > last) fix = last - hi;
+  if (lo + fix < 0) fix = -lo;
+  a = Math.max(0, Math.min(last, a + fix));
+  b = Math.max(0, Math.min(last, b + fix));
+  return { startAxis: a, endAxis: b };
+}
+
+export function placeAxisRange(start: number, end: number, newStart: number, lastAxis: number) {
+  return shiftAxisRange(start, end, newStart - Math.min(start, end), lastAxis);
+}
+
+export function canShiftAxisRange(start: number, end: number, delta: number, lastAxis: number) {
+  const next = shiftAxisRange(start, end, delta, lastAxis);
+  return next.startAxis !== start || next.endAxis !== end;
+}
+
 /** B / B1 trên tab nhịp và tab gối là cùng một số liệu — ghi vào cả hai. */
 export function syncSpanSupportGeometry(
   project: BeamProject,

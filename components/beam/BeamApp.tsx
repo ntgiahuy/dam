@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
+  ChevronLeft,
   ChevronRight,
   Download,
   FilePlus,
@@ -21,8 +22,11 @@ import { SupportSketch } from "@/components/beam/SupportSketch";
 import {
   applySpanParams,
   applySupportToAll,
+  canShiftAxisRange,
   computeModel,
   extraBarLength,
+  placeAxisRange,
+  shiftAxisRange,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
@@ -179,6 +183,30 @@ export function BeamApp() {
     startType: 0,
     endType: 0,
   }));
+
+  const barRegion =
+    tab === "extraBottom" || tab === "extraTop"
+      ? extraForm
+      : tab === "mainBottom" || tab === "mainTop"
+        ? mainForm
+        : null;
+  const highlightStart = barRegion ? Math.min(barRegion.startAxis, barRegion.endAxis) : selectedSpan;
+  const highlightEnd = barRegion ? Math.max(barRegion.startAxis, barRegion.endAxis) : selectedSpan + 1;
+
+  function moveBarRegionToSpan(spanIndex: number) {
+    selectSpan(spanIndex);
+    if (tab === "extraBottom" || tab === "extraTop") {
+      setExtraForm({
+        ...extraForm,
+        ...placeAxisRange(extraForm.startAxis, extraForm.endAxis, spanIndex, lastAxis),
+      });
+    } else if (tab === "mainBottom" || tab === "mainTop") {
+      setMainForm({
+        ...mainForm,
+        ...placeAxisRange(mainForm.startAxis, mainForm.endAxis, spanIndex, lastAxis),
+      });
+    }
+  }
 
   function addMain(key: "mainBottom" | "mainTop") {
     const bar = { ...mainForm, id: uid("bar") };
@@ -511,6 +539,10 @@ export function BeamApp() {
               onAdd={() => addMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onEdit={() => editMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
+              onRegionMove={(start, end) => {
+                selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
+                void end;
+              }}
             />
           )}
 
@@ -538,6 +570,10 @@ export function BeamApp() {
               onAdd={() => addExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onEdit={() => editExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onDelete={() => delExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
+              onRegionMove={(start, end) => {
+                selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
+                void end;
+              }}
             />
           )}
 
@@ -725,7 +761,9 @@ export function BeamApp() {
           tab={tab}
           selectedSpan={selectedSpan}
           selectedSupport={selectedSupport}
-          onSelectSpan={selectSpan}
+          highlightStart={highlightStart}
+          highlightEnd={highlightEnd}
+          onSelectSpan={barRegion ? moveBarRegionToSpan : selectSpan}
           onSelectSupport={selectSupport}
         />
       </div>
@@ -794,16 +832,51 @@ function CrudButtons({
   onAdd,
   onEdit,
   onDelete,
+  onShiftLeft,
+  onShiftRight,
+  canShiftLeft,
+  canShiftRight,
+  rangeLabel,
 }: {
   onAdd: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onShiftLeft?: () => void;
+  onShiftRight?: () => void;
+  canShiftLeft?: boolean;
+  canShiftRight?: boolean;
+  rangeLabel?: string;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button variant="success" size="sm" onClick={onAdd}>
         <Plus /> Thêm
       </Button>
+      {onShiftLeft && onShiftRight && (
+        <>
+          <Button
+            variant="success"
+            size="sm"
+            className="w-8 px-0"
+            title="Lùi vị trí bắt đầu và kết thúc"
+            disabled={!canShiftLeft}
+            onClick={onShiftLeft}
+          >
+            <ChevronLeft />
+          </Button>
+          <Button
+            variant="success"
+            size="sm"
+            className="w-8 px-0"
+            title="Tiến vị trí bắt đầu và kết thúc"
+            disabled={!canShiftRight}
+            onClick={onShiftRight}
+          >
+            <ChevronRight />
+          </Button>
+          {rangeLabel && <span className="text-xs tabular-nums text-zinc-400">{rangeLabel}</span>}
+        </>
+      )}
       <Button variant="secondary" size="sm" onClick={onEdit}>
         <Pencil /> Sửa
       </Button>
@@ -825,6 +898,7 @@ function MainBarPanel({
   onAdd,
   onEdit,
   onDelete,
+  onRegionMove,
 }: {
   title: string;
   bars: MainBar[];
@@ -836,6 +910,7 @@ function MainBarPanel({
   onAdd: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onRegionMove?: (start: number, end: number) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -885,7 +960,24 @@ function MainBarPanel({
           </Field>
         </div>
         <div className="mt-3">
-          <CrudButtons onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
+          <CrudButtons
+            onAdd={onAdd}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onShiftLeft={() => {
+              const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
+              setForm({ ...form, ...next });
+              onRegionMove?.(next.startAxis, next.endAxis);
+            }}
+            onShiftRight={() => {
+              const next = shiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis);
+              setForm({ ...form, ...next });
+              onRegionMove?.(next.startAxis, next.endAxis);
+            }}
+            canShiftLeft={canShiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis)}
+            canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
+            rangeLabel={`${form.startAxis} → ${form.endAxis}`}
+          />
         </div>
       </Panel>
       <Panel title="Danh sách thép" className="w-56">
@@ -921,6 +1013,7 @@ function ExtraBarPanel({
   onAdd,
   onEdit,
   onDelete,
+  onRegionMove,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -933,6 +1026,7 @@ function ExtraBarPanel({
   onAdd: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onRegionMove?: (start: number, end: number) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -1028,7 +1122,24 @@ function ExtraBarPanel({
           </Field>
         </div>
         <div className="mt-3 flex items-center gap-3">
-          <CrudButtons onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
+          <CrudButtons
+            onAdd={onAdd}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onShiftLeft={() => {
+              const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
+              setForm({ ...form, ...next });
+              onRegionMove?.(next.startAxis, next.endAxis);
+            }}
+            onShiftRight={() => {
+              const next = shiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis);
+              setForm({ ...form, ...next });
+              onRegionMove?.(next.startAxis, next.endAxis);
+            }}
+            canShiftLeft={canShiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis)}
+            canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
+            rangeLabel={`${form.startAxis} → ${form.endAxis}`}
+          />
           <span className="text-xs text-zinc-500">{hint}</span>
         </div>
       </Panel>
