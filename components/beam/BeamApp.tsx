@@ -26,11 +26,6 @@ import {
   applySupportToAll,
   canShiftAxisRange,
   computeModel,
-  extraBarLengthHint,
-  adjacentSpanIndex,
-  adjacentSpanLength,
-  clearSpanMm,
-  effectiveDepthMm,
   hoggingEdgeHookMm,
   placeAxisRange,
   shiftAxisRange,
@@ -57,7 +52,7 @@ import {
   TABS,
   CONNECTION_TYPES,
 } from "@/lib/types";
-import { CONCRETE_GRADES, STEEL_GRADES, describeEndType, hook90ExtensionMm } from "@/lib/tcvn5574";
+import { CONCRETE_GRADES, STEEL_GRADES, hook90ExtensionMm } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
 const STORE_KEY = "thep-dam-project-v3";
@@ -655,11 +650,6 @@ export function BeamApp() {
                 setExtraForm(b);
               }}
               lastAxis={lastAxis}
-              hint={extraBarLengthHint(
-                project,
-                extraForm,
-                tab === "extraTop" ? "top" : "bottom",
-              )}
               onAdd={() => addExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onEdit={() => editExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
               onDelete={() => delExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
@@ -1081,44 +1071,6 @@ function MainBarPanel({
   );
 }
 
-function extraEndHint(
-  project: BeamProject,
-  form: ExtraBar,
-  which: "start" | "end",
-  side: "left" | "right",
-  face: "top" | "bottom",
-) {
-  const axis = which === "start" ? form.startAxis : form.endAxis;
-  const type = which === "start" ? form.startType : form.endType;
-  const si =
-    face === "top"
-      ? side === "left"
-        ? axis > 0
-          ? axis - 1
-          : axis < project.spans.length
-            ? axis
-            : null
-        : axis < project.spans.length
-          ? axis
-          : axis > 0
-            ? axis - 1
-            : null
-      : adjacentSpanIndex(project, axis, side);
-  const l0 = si != null ? clearSpanMm(project, si) : 0;
-  const h0 = si != null ? effectiveDepthMm(project, si, form.dia) : 0;
-  const spanL = adjacentSpanLength(project, axis, side);
-  return describeEndType(
-    type,
-    form.dia,
-    project.info.concreteGrade,
-    project.info.steelGrade,
-    spanL,
-    face,
-    l0,
-    h0,
-  );
-}
-
 function ExtraBarPanel({
   title,
   bars,
@@ -1127,7 +1079,6 @@ function ExtraBarPanel({
   selected,
   onSelect,
   lastAxis,
-  hint,
   onAdd,
   onEdit,
   onDelete,
@@ -1142,7 +1093,6 @@ function ExtraBarPanel({
   selected: string | null;
   onSelect: (b: ExtraBar) => void;
   lastAxis: number;
-  hint: string;
   onAdd: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -1150,10 +1100,6 @@ function ExtraBarPanel({
   face: "top" | "bottom";
   project: BeamProject;
 }) {
-  const startSide = form.startAxis <= form.endAxis ? "left" : "right";
-  const endSide = form.startAxis <= form.endAxis ? "right" : "left";
-  const startHint = extraEndHint(project, form, "start", startSide, face);
-  const endHint = extraEndHint(project, form, "end", endSide, face);
   const endTypeOpts = extraEndTypeOptions(face);
   const edgeHookStart = hoggingEdgeHookMm(project.spans[0]?.H ?? 500);
   const edgeHookEnd = hoggingEdgeHookMm(project.spans[project.spans.length - 1]?.H ?? 500);
@@ -1223,7 +1169,6 @@ function ExtraBarPanel({
                 </option>
               ))}
             </Select>
-            <p className="text-[10px] leading-tight text-zinc-500">{startHint}</p>
           </Field>
           <Field label="Vị trí kết thúc">
             <Select
@@ -1248,7 +1193,6 @@ function ExtraBarPanel({
                 </option>
               ))}
             </Select>
-            <p className="text-[10px] leading-tight text-zinc-500">{endHint}</p>
           </Field>
         </div>
         <div className="mt-3 flex items-center gap-3">
@@ -1270,7 +1214,6 @@ function ExtraBarPanel({
             canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
             rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
-          <span className="text-xs text-zinc-500">{hint} · TCVN 5574:2018</span>
         </div>
       </Panel>
       <div className="flex w-56 shrink-0 flex-col gap-2">
