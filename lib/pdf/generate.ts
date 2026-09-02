@@ -330,15 +330,15 @@ function drawShopSpec(
   y: number,
   mark: string,
   spec: string,
-  _dir: 1 | -1,
+  place: "mid" | "right" = "mid",
 ) {
   const mid = (x1 + x2) / 2;
   const spanPt = Math.abs(x2 - x1);
   const size = spanPt < 90 ? 6 : 7.5;
   const font = ctx.font;
   const sw = font.widthOfTextAtSize(spec, size);
-  const specX = mid - sw / 2;
   const r = spanPt < 86 ? 5.8 : 6.8;
+  const specX = place === "right" && spanPt > 140 ? x2 - sw - 10 : mid - sw / 2;
   markCircle(ctx, specX - r - 5, y - r - 3.6, mark, r);
   textAboveLine(ctx, spec, specX, y, size, "left", false, 3.4);
 }
@@ -356,10 +356,36 @@ function drawMainShopRows(ctx: Ctx, bar: ResolvedBar, row: ScheduleRow | undefin
     const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
     if (bar.hookStart > 0) dimV(ctx, x1 - 11, yy, yy + dir * hs, String(Math.round(bar.hookStart)), 6);
     if (bar.hookEnd > 0) dimV(ctx, x2 + 8, yy, yy + dir * he, String(Math.round(bar.hookEnd)), 6);
-    drawShopSpec(ctx, x1, x2, yy, mark, shopSpec(q, bar, family), dir);
+    drawShopSpec(ctx, x1, x2, yy, mark, shopSpec(q, bar, family), "right");
     yy += 32;
   }
   return yy;
+}
+
+function extraLayers(bars: ResolvedBar[]) {
+  const map = new Map<number, ResolvedBar[]>();
+  for (const b of bars) {
+    const k = Math.max(1, b.layer || 1);
+    const arr = map.get(k) ?? [];
+    arr.push(b);
+    map.set(k, arr);
+  }
+  return [...map.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+function drawSupportGuides(ctx: Ctx, y0: number, y1: number) {
+  const h = y1 - y0;
+  if (h < 4) return;
+  ctx.project.supports.forEach((_, i) => {
+    const f = supportFaces(ctx.project, i);
+    const left = xAt(ctx, f.left);
+    const right = xAt(ctx, f.right);
+    const ax = xAt(ctx, f.axis);
+    const w = Math.max(right - left, 2);
+    hatch(ctx, left, y0, w, h, 3.5);
+    rect(ctx, left, y0, w, h, 0.4);
+    dashV(ctx, ax, y0, y1, 3.1, 2.3, 0.26);
+  });
 }
 
 function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[], y: number, dir: 1 | -1) {
@@ -370,13 +396,62 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const family = row?.family ?? barFamilyOf(b);
     const mark = row?.mark ?? "";
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
-    dimH(ctx, x1, x2, y + (dir > 0 ? -16 : 14), String(Math.round(b.straight)), 6.2);
+    dimH(ctx, x1, x2, y - 22, String(Math.round(b.straight)), 6.2);
     const hs = Math.max(b.hookStart * ctx.scale * 0.28, b.hookStart > 0 ? 8 : 0);
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
     if (b.hookEnd > 0) dimV(ctx, x2 + 7, y, y + dir * he, String(Math.round(b.hookEnd)), 6);
-    drawShopSpec(ctx, x1, x2, y, mark, shopSpec(b.qty, b, family), dir);
+    drawShopSpec(ctx, x1, x2, y, mark, shopSpec(b.qty, b, family), "mid");
   }
+}
+
+const MAIN_SHOP_H = 32;
+const EXTRA_SHOP_H = 44;
+const MOMENT_GAP = 18;
+
+function drawExplodedShops(ctx: Ctx, yStart: number) {
+  const { model } = ctx;
+  const mt = model.mainTop[0];
+  const mb = model.mainBottom[0];
+  const mtRow = model.schedule.find((r) => r.family === "T1");
+  const mbRow = model.schedule.find((r) => r.family === "B1");
+  const topLayers = extraLayers(model.extraTop);
+  const botLayers = extraLayers(model.extraBottom);
+  const t1n = mt ? splitQty(mt.qty || 1, "top").length : 0;
+  const b1n = mb ? splitQty(mb.qty || 1, "bottom").length : 0;
+  const gap = topLayers.length && botLayers.length ? MOMENT_GAP : 0;
+  const total =
+    t1n * MAIN_SHOP_H +
+    topLayers.length * EXTRA_SHOP_H +
+    gap +
+    botLayers.length * EXTRA_SHOP_H +
+    b1n * MAIN_SHOP_H;
+  drawSupportGuides(ctx, yStart - 8, yStart + Math.max(total, 12) + 6);
+
+  let y = yStart;
+  if (mt) y = drawMainShopRows(ctx, mt, mtRow, y, 1);
+
+  if (topLayers.length) {
+    y += 6;
+    for (const [, bars] of topLayers) {
+      textSimple(ctx, "M-", 108, y + 2, 8, true, "right");
+      drawExtraShopRow(ctx, bars, model.schedule, y, 1);
+      y += EXTRA_SHOP_H;
+    }
+  }
+
+  if (gap) y += gap - 6;
+
+  if (botLayers.length) {
+    for (const [, bars] of botLayers) {
+      textSimple(ctx, "M+", 108, y + 2, 8, true, "right");
+      drawExtraShopRow(ctx, bars, model.schedule, y, -1);
+      y += EXTRA_SHOP_H;
+    }
+  }
+
+  if (mb) y = drawMainShopRows(ctx, mb, mbRow, y, -1) + 6;
+  return y;
 }
 
 type CutLoc = {
@@ -1007,32 +1082,7 @@ export async function generateBeamPdf(
   textSimple(ctx, title, PAGE_W / 2, y + 2, 13, true, "center");
   textSimple(ctx, "TL: 1/50", PAGE_W / 2, y + 18, 9, false, "center");
   y += 38;
-
-  const mt = model.mainTop[0];
-  const mtRow = model.schedule.find((r) => r.family === "T1");
-  if (mt) y = drawMainShopRows(ctx, mt, mtRow, y, 1) + 6;
-
-  if (model.extraTop.length) {
-    project.supports.forEach((sup, i) => {
-      const f = supportFaces(project, i);
-      const left = xAt(ctx, f.left);
-      const right = xAt(ctx, f.right);
-      hatch(ctx, left, y - 10, Math.max(right - left, 2), 20, 3.4);
-      rect(ctx, left, y - 10, Math.max(right - left, 2), 20, 0.45);
-      void sup;
-    });
-    drawExtraShopRow(ctx, model.extraTop, model.schedule, y, 1);
-    y += 40;
-  }
-
-  if (model.extraBottom.length) {
-    drawExtraShopRow(ctx, model.extraBottom, model.schedule, y, -1);
-    y += 40;
-  }
-
-  const mb = model.mainBottom[0];
-  const mbRow = model.schedule.find((r) => r.family === "B1");
-  if (mb) y = drawMainShopRows(ctx, mb, mbRow, y, -1) + 8;
+  y = drawExplodedShops(ctx, y);
 
   const uniqueCuts: CutLoc[] = [];
   const seen = new Set<number>();
