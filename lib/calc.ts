@@ -1,5 +1,10 @@
 import type { BeamProject, ExtraBar, MainBar, Span } from "./types";
 import { roundTo } from "./utils";
+import {
+  designAnchorageMm,
+  freeSupportEmbedMm,
+  hook90ExtensionMm,
+} from "./tcvn5574";
 
 /** Unit weight kg/m — TCVN practice d²/162.2 (matches the sample PDF). */
 export function unitWeight(dia: number) {
@@ -21,7 +26,7 @@ export function extraLayerOffsetMm(layer: number) {
 
 export function hookLength(dia: number, type: number, override?: number) {
   if (override && override > 0) return override;
-  if (type === 3) return Math.max(20 * dia, 200);
+  if (type === 3) return hook90ExtensionMm(dia);
   return 0;
 }
 
@@ -37,11 +42,11 @@ function supportFaces(project: BeamProject, axisIndex: number) {
 }
 
 /**
- * Dạng đầu thanh bổ sung (theo shop dầm):
+ * Dạng đầu thanh bổ sung — kích thước theo TCVN 5574:2018:
  * 0 — cắt tại tim trục
- * 1 — cắt thẳng tại mép trong gối (không vào cột)
- * 2 — neo vào gối (kéo tới mép ngoài)
- * 3 — móc 90° tại tim trục
+ * 1 — cắt thẳng tại mép trong gối; gối tự do ngoài cùng kéo vào ≥ 5 ds (10.3.5.7)
+ * 2 — neo thẳng vào gối, đoạn neo = lan (10.3.5.5), không vượt mép ngoài trừ lớp bảo vệ
+ * 3 — móc 90° tại tim trục, đuôi móc 12 ds (10.3.7)
  */
 export function extraTermination(
   project: BeamProject,
@@ -51,9 +56,25 @@ export function extraTermination(
   dia: number,
 ) {
   const f = supportFaces(project, axisIndex);
-  const hook = type === 3 ? hookLength(dia, 3) : 0;
-  if (type === 1) return { x: side === "left" ? f.right : f.left, hook };
-  if (type === 2) return { x: side === "left" ? f.left : f.right, hook };
+  const cover = project.info.cover || 25;
+  const concrete = project.info.concreteGrade;
+  const steel = project.info.steelGrade;
+  const last = Math.max(0, project.spans.length);
+  const inner = side === "left" ? f.right : f.left;
+  const outward = side === "left" ? -1 : 1;
+  const maxEmbed = Math.max(f.right - f.left - cover, 0);
+
+  if (type === 1) {
+    const isEnd = axisIndex === 0 || axisIndex === last;
+    const embed = isEnd ? Math.min(freeSupportEmbedMm(dia), maxEmbed) : 0;
+    return { x: inner + outward * embed, hook: 0 };
+  }
+  if (type === 2) {
+    const lan = designAnchorageMm(dia, { hooked: false, concreteGrade: concrete, steelGrade: steel });
+    const embed = Math.min(lan, maxEmbed);
+    return { x: inner + outward * embed, hook: 0 };
+  }
+  const hook = type === 3 ? hook90ExtensionMm(dia) : 0;
   return { x: f.axis, hook };
 }
 

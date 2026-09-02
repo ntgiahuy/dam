@@ -52,7 +52,7 @@ import {
   TABS,
   CONNECTION_TYPES,
 } from "@/lib/types";
-import { uid } from "@/lib/utils";
+import { CONCRETE_GRADES, STEEL_GRADES, describeEndType, hook90ExtensionMm } from "@/lib/tcvn5574";
 
 const STORE_KEY = "thep-dam-project-v2";
 
@@ -612,6 +612,8 @@ export function BeamApp() {
                 void end;
               }}
               face={tab === "extraTop" ? "top" : "bottom"}
+              concreteGrade={project.info.concreteGrade}
+              steelGrade={project.info.steelGrade}
             />
           )}
 
@@ -777,6 +779,34 @@ export function BeamApp() {
                       })
                     }
                   />
+                </Field>
+                <Field label="Cấp bê tông (TCVN 5574:2018)">
+                  <Select
+                    value={project.info.concreteGrade || "B25"}
+                    onChange={(e) =>
+                      persist({ ...project, info: { ...project.info, concreteGrade: e.target.value } })
+                    }
+                  >
+                    {CONCRETE_GRADES.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Loại thép (TCVN 5574:2018)">
+                  <Select
+                    value={project.info.steelGrade || "CB400-V"}
+                    onChange={(e) =>
+                      persist({ ...project, info: { ...project.info, steelGrade: e.target.value } })
+                    }
+                  >
+                    {STEEL_GRADES.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
               </div>
               <Button
@@ -1007,6 +1037,8 @@ function ExtraBarPanel({
   onDelete,
   onRegionMove,
   face,
+  concreteGrade,
+  steelGrade,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -1021,7 +1053,13 @@ function ExtraBarPanel({
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
   face: "top" | "bottom";
+  concreteGrade?: string;
+  steelGrade?: string;
 }) {
+  const startHint = describeEndType(form.startType, form.dia, concreteGrade, steelGrade);
+  const endHint = describeEndType(form.endType, form.dia, concreteGrade, steelGrade);
+  const startHook = form.startType === 3 ? hook90ExtensionMm(form.dia) : 0;
+  const endHook = form.endType === 3 ? hook90ExtensionMm(form.dia) : 0;
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">
@@ -1076,6 +1114,7 @@ function ExtraBarPanel({
                 </option>
               ))}
             </Select>
+            <p className="text-[10px] leading-tight text-zinc-500">{startHint}</p>
           </Field>
           <Field label="Vị trí kết thúc">
             <Select
@@ -1100,6 +1139,7 @@ function ExtraBarPanel({
                 </option>
               ))}
             </Select>
+            <p className="text-[10px] leading-tight text-zinc-500">{endHint}</p>
           </Field>
           <Field label="Chiều dài thanh (mm, để trống = tự tính)" className="sm:col-span-2">
             <Input
@@ -1134,11 +1174,17 @@ function ExtraBarPanel({
             canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
             rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
-          <span className="text-xs text-zinc-500">{hint}</span>
+          <span className="text-xs text-zinc-500">{hint} · TCVN 5574:2018</span>
         </div>
       </Panel>
       <div className="flex w-56 shrink-0 flex-col gap-2">
-        <ExtraShapeSketch startType={form.startType} endType={form.endType} face={face} />
+        <ExtraShapeSketch
+          startType={form.startType}
+          endType={form.endType}
+          face={face}
+          startHook={startHook}
+          endHook={endHook}
+        />
         <Panel title="Danh sách thép">
         <ul className="max-h-36 overflow-auto text-sm">
           {bars.length === 0 && <li className="text-zinc-500">Chưa có thanh thép</li>}

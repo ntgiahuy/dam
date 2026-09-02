@@ -94,6 +94,10 @@ export interface BeamInfo {
   elevation: number;
   axisName: string;
   cover: number;
+  /** TCVN 5574:2018 cấp bê tông, mặc định B25. */
+  concreteGrade?: string;
+  /** TCVN 5574:2018 loại thép, mặc định CB400-V. */
+  steelGrade?: string;
 }
 
 export interface BeamProject {

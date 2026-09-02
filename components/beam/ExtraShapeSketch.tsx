@@ -24,10 +24,14 @@ export function ExtraShapeSketch({
   startType,
   endType,
   face,
+  startHook,
+  endHook,
 }: {
   startType: number;
   endType: number;
   face: "top" | "bottom";
+  startHook?: number;
+  endHook?: number;
 }) {
   const dir = face === "bottom" ? -1 : 1;
   const yA = 38;
@@ -54,6 +58,16 @@ export function ExtraShapeSketch({
         </text>
         <path d={dA} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
         <path d={dB} fill="none" stroke="#ef4444" strokeWidth={2.2} strokeLinecap="square" />
+        {startType === 3 && startHook ? (
+          <text x={8} y={face === "bottom" ? 28 : 70} fill="#fca5a5" fontSize={8}>
+            {startHook}
+          </text>
+        ) : null}
+        {endType === 3 && endHook ? (
+          <text x={202} y={face === "bottom" ? 28 : 70} textAnchor="end" fill="#fca5a5" fontSize={8}>
+            {endHook}
+          </text>
+        ) : null}
       </svg>
     </div>
   );
