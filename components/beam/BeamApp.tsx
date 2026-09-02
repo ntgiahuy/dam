@@ -97,6 +97,11 @@ function extraLabel(b: ExtraBar) {
   return `Lớp ${b.layer}: ${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
 }
 
+/** Mỗi mặt (thép mũ / thép bụng) chỉ được một thanh extra cho mỗi lớp 1–3. */
+function extraLayerInUse(bars: ExtraBar[], layer: number, exceptId?: string | null) {
+  return bars.some((b) => b.layer === layer && b.id !== exceptId);
+}
+
 export function BeamApp() {
   const [project, setProject] = useState<BeamProject>(() => createSampleD1());
   const [tab, setTab] = useState<TabId>("spans");
@@ -276,16 +281,34 @@ export function BeamApp() {
   }
 
   function addExtra(key: "extraBottom" | "extraTop") {
+    if (extraLayerInUse(project[key], extraForm.layer)) {
+      setError(
+        `Không thêm được: lớp ${extraForm.layer} đã có trên mặt này. Chọn lớp khác rồi thêm.`,
+      );
+      setStatus(null);
+      return;
+    }
     const bar = { ...extraForm, id: uid("ex") };
     persist({ ...project, [key]: [...project[key], bar] });
     setSelectedBar(bar.id);
+    setError(null);
+    setStatus(`Đã thêm thép lớp ${bar.layer}.`);
   }
   function editExtra(key: "extraBottom" | "extraTop") {
     if (!selectedBar) return;
+    if (extraLayerInUse(project[key], extraForm.layer, selectedBar)) {
+      setError(
+        `Không lưu được: lớp ${extraForm.layer} đã có thanh khác trên mặt này. Chọn lớp khác.`,
+      );
+      setStatus(null);
+      return;
+    }
     persist({
       ...project,
       [key]: project[key].map((b) => (b.id === selectedBar ? { ...extraForm, id: b.id } : b)),
     });
+    setError(null);
+    setStatus(`Đã sửa thép lớp ${extraForm.layer}.`);
   }
   function delExtra(key: "extraBottom" | "extraTop") {
     persist({ ...project, [key]: project[key].filter((b) => b.id !== selectedBar) });
@@ -893,6 +916,10 @@ function CrudButtons({
   canShiftLeft,
   canShiftRight,
   rangeLabel,
+  addDisabled,
+  editDisabled,
+  addTitle,
+  editTitle,
 }: {
   onAdd: () => void;
   onEdit: () => void;
@@ -902,10 +929,14 @@ function CrudButtons({
   canShiftLeft?: boolean;
   canShiftRight?: boolean;
   rangeLabel?: string;
+  addDisabled?: boolean;
+  editDisabled?: boolean;
+  addTitle?: string;
+  editTitle?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="success" size="sm" onClick={onAdd}>
+      <Button variant="success" size="sm" disabled={addDisabled} title={addTitle} onClick={onAdd}>
         <Plus /> Thêm
       </Button>
       {onShiftLeft && onShiftRight && (
@@ -933,7 +964,13 @@ function CrudButtons({
           {rangeLabel && <span className="text-xs tabular-nums text-zinc-400">{rangeLabel}</span>}
         </>
       )}
-      <Button variant="secondary" size="sm" onClick={onEdit}>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={editDisabled}
+        title={editTitle}
+        onClick={onEdit}
+      >
         <Pencil /> Sửa
       </Button>
       <Button variant="danger" size="sm" onClick={onDelete}>
@@ -1085,17 +1122,29 @@ function ExtraBarPanel({
   face: "top" | "bottom";
 }) {
   const endTypeOpts = extraEndTypeOptions(face);
+  const addBlocked = extraLayerInUse(bars, form.layer);
+  const editBlocked = extraLayerInUse(bars, form.layer, selected);
+  const allLayersUsed = [1, 2, 3].every((n) => extraLayerInUse(bars, n));
+  const extraHint = allLayersUsed
+    ? "Đã đủ 3 lớp trên mặt này. Xóa một thanh nếu cần thêm lại."
+    : addBlocked
+      ? `Lớp ${form.layer} đã có trong danh sách. Chọn lớp khác rồi bấm Thêm.`
+      : "Mỗi lớp (1, 2, 3) chỉ được khai báo một lần trên mỗi mặt. Chọn lớp khác để thêm thanh mới.";
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[280px]">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           <Field label="Chọn lớp (Lớp thứ)">
             <Select value={form.layer} onChange={(e) => setForm({ ...form, layer: Number(e.target.value) })}>
-              {LAYER_LABELS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
+              {LAYER_LABELS.map((d) => {
+                const taken = extraLayerInUse(bars, d.value, selected);
+                return (
+                  <option key={d.value} value={d.value} disabled={taken}>
+                    {d.label}
+                    {taken ? " (đã có)" : ""}
+                  </option>
+                );
+              })}
             </Select>
           </Field>
           <Field label="Chọn đường kính">
@@ -1170,6 +1219,18 @@ function ExtraBarPanel({
             onAdd={onAdd}
             onEdit={onEdit}
             onDelete={onDelete}
+            addDisabled={addBlocked}
+            editDisabled={editBlocked}
+            addTitle={
+              addBlocked
+                ? `Lớp ${form.layer} đã có. Chọn lớp khác để thêm.`
+                : "Thêm thanh extra với lớp đang chọn"
+            }
+            editTitle={
+              editBlocked
+                ? `Lớp ${form.layer} đã có thanh khác. Chọn lớp khác rồi sửa.`
+                : "Lưu thay đổi thanh đang chọn"
+            }
             onShiftLeft={() => {
               const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
               setForm({ ...form, ...next });
@@ -1185,6 +1246,9 @@ function ExtraBarPanel({
             rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
         </div>
+        <p className={`mt-2 text-[11px] leading-snug ${addBlocked || allLayersUsed ? "text-amber-400" : "text-zinc-400"}`}>
+          {extraHint}
+        </p>
       </Panel>
       <div className="flex w-56 shrink-0 flex-col gap-2">
         <Panel title="Danh sách thép">
