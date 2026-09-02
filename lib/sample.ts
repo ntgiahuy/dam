@@ -78,36 +78,43 @@ export function createSampleD1(): BeamProject {
   };
 }
 
-function round50(n: number) {
-  return Math.round(n / 50) * 50;
+export function defaultSpanStirrups(): SpanStirrups {
+  return { dia: 6, layout: "1/4", a1: 150, a2: 200, kind: "don" };
 }
 
-function zoneLengths(L: number) {
-  const side = Math.max(round50(L * 0.34), 800);
-  let mid = L - 2 * side;
-  let left = side;
-  let right = side;
-  if (mid < 600) {
-    mid = Math.max(round50(L * 0.3), 400);
-    left = Math.floor((L - mid) / 2 / 50) * 50;
-    right = L - left - mid;
+/** @deprecated dùng defaultSpanStirrups — giữ tên cũ cho chỗ gọi theo L. */
+export function emptyStirrupsForLength(_L?: number): SpanStirrups {
+  return defaultSpanStirrups();
+}
+
+export function defaultStirrupsForLength(_L?: number): SpanStirrups {
+  return defaultSpanStirrups();
+}
+
+export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
+  const r = raw as Record<string, unknown> | null;
+  const fallback = defaultSpanStirrups();
+  if (!r || typeof r !== "object") return fallback;
+  const layout = r.layout === "1/3" || r.layout === "1/5" || r.layout === "1/4" ? r.layout : "1/4";
+  const kind = r.kind === "kep" ? "kep" : "don";
+  if (typeof r.a1 === "number" || typeof r.a2 === "number") {
+    return {
+      dia: Number(r.dia) || fallback.dia,
+      layout,
+      a1: Number(r.a1) || fallback.a1,
+      a2: Number(r.a2) || fallback.a2,
+      kind,
+    };
   }
-  return { left, mid, right };
-}
-
-/** Vùng đai theo chiều dài nhịp, số lượng = 0 — người dùng tự nhập. */
-export function emptyStirrupsForLength(L: number): SpanStirrups {
-  const { left, mid, right } = zoneLengths(L);
+  const left = r.left as { spacing?: number } | undefined;
+  const mid = r.mid as { spacing?: number } | undefined;
   return {
-    dia: 6,
-    left: { count: 0, spacing: 150, length: left },
-    mid: { count: 0, spacing: 200, length: mid },
-    right: { count: 0, spacing: 150, length: right },
+    dia: Number(r.dia) || fallback.dia,
+    layout,
+    a1: Number(left?.spacing) || fallback.a1,
+    a2: Number(mid?.spacing) || fallback.a2,
+    kind,
   };
-}
-
-export function defaultStirrupsForLength(L: number): SpanStirrups {
-  return emptyStirrupsForLength(L);
 }
 
 export function syncGeometry(project: BeamProject, spanCount: number): BeamProject {
@@ -127,7 +134,9 @@ export function syncGeometry(project: BeamProject, spanCount: number): BeamProje
     return existing ? { ...existing } : support(i, count);
   });
   const stirrups: SpanStirrups[] = Array.from({ length: count }, (_, i) => {
-    return project.stirrups[i] ?? defaultStirrupsForLength(spans[i].L);
+    return project.stirrups[i]
+      ? normalizeSpanStirrups(project.stirrups[i])
+      : defaultSpanStirrups();
   });
   const last = count;
   const clampBar = <T extends { startAxis: number; endAxis: number }>(b: T): T => ({

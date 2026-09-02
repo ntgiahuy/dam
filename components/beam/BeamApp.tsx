@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { BeamPreview } from "@/components/beam/BeamPreview";
 import { SectionSketch } from "@/components/beam/SectionSketch";
 import { SupportSketch } from "@/components/beam/SupportSketch";
+import { StirrupSketch } from "@/components/beam/StirrupSketch";
 import {
   applySpanParams,
   applySupportToAll,
@@ -26,10 +27,11 @@ import {
   computeModel,
   placeAxisRange,
   shiftAxisRange,
+  stirrupZonesForSpan,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
-import { createEmptyProject, createSampleD1, defaultStirrupsForLength, syncGeometry } from "@/lib/sample";
+import { createEmptyProject, createSampleD1, defaultSpanStirrups, normalizeSpanStirrups, syncGeometry } from "@/lib/sample";
 import type {
   BeamProject,
   ConnectionType,
@@ -38,6 +40,9 @@ import type {
   MainBar,
   SecondaryKind,
   ShearKind,
+  SpanStirrups,
+  StirrupKind,
+  StirrupLayout,
   TabId,
 } from "@/lib/types";
 import {
@@ -47,6 +52,8 @@ import {
   MAX_SPAN_COUNT,
   QTY_OPTIONS,
   SLAB_TYPES,
+  STIRRUP_KINDS,
+  STIRRUP_LAYOUTS,
   TABS,
   CONNECTION_TYPES,
 } from "@/lib/types";
@@ -83,6 +90,7 @@ function migrateLoadedProject(raw: BeamProject, fromV2: boolean): BeamProject {
         endType: (x.endType === 1 ? 1 : 2) as EndType,
       };
     }),
+    stirrups: (raw.stirrups ?? []).map(normalizeSpanStirrups),
   };
 }
 
@@ -212,6 +220,15 @@ export function BeamApp() {
       });
     }
     persist(next);
+  }
+
+  function patchStirrup(partial: Partial<SpanStirrups>) {
+    persist({
+      ...project,
+      stirrups: project.stirrups.map((s, i) =>
+        i === selectedSpan ? { ...(s ?? defaultSpanStirrups()), ...partial } : s,
+      ),
+    });
   }
 
   async function exportPdf() {
@@ -781,107 +798,91 @@ export function BeamApp() {
           )}
 
           {tab === "stirrups" && (
-            <Panel title="Thông số thép đai">
-              <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Field label="Nhịp đang chọn">
-                  <Select
-                    value={selectedSpan}
-                    onChange={(e) => selectSpan(Number(e.target.value))}
-                  >
-                    {project.spans.map((_, i) => (
-                      <option key={i} value={i}>
-                        Nhịp {i + 1} (L={project.spans[i].L})
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Đường kính đai">
-                  <Select
-                    value={project.stirrups[selectedSpan]?.dia ?? 6}
-                    onChange={(e) => {
-                      const dia = Number(e.target.value);
-                      persist({
-                        ...project,
-                        stirrups: project.stirrups.map((s, i) =>
-                          i === selectedSpan ? { ...s, dia } : s,
-                        ),
-                      });
-                    }}
-                  >
-                    {DIAMETERS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-              {(["left", "mid", "right"] as const).map((zone) => {
-                const st = project.stirrups[selectedSpan];
-                if (!st) return null;
-                const label =
-                  zone === "left" ? "Vùng gối trái" : zone === "mid" ? "Vùng giữa nhịp" : "Vùng gối phải";
-                const z = st[zone];
-                const patch = (partial: Partial<typeof z>) => {
-                  persist({
-                    ...project,
-                    stirrups: project.stirrups.map((s, i) =>
-                      i === selectedSpan ? { ...s, [zone]: { ...s[zone], ...partial } } : s,
-                    ),
-                  });
-                };
-                return (
-                  <div key={zone} className="mb-2 grid grid-cols-3 gap-2">
-                    <Field label={`${label} — số lượng`}>
-                      <Input
-                        type="number"
-                        value={z.count}
-                        onChange={(e) => patch({ count: Number(e.target.value) || 0 })}
-                      />
-                    </Field>
-                    <Field label="Khoảng a (mm)">
-                      <Input
-                        type="number"
-                        value={z.spacing}
-                        onChange={(e) => patch({ spacing: Number(e.target.value) || 0 })}
-                      />
-                    </Field>
-                    <Field label="Chiều dài vùng (mm)">
-                      <Input
-                        type="number"
-                        value={z.length}
-                        onChange={(e) => patch({ length: Number(e.target.value) || 0 })}
-                      />
-                    </Field>
-                  </div>
-                );
-              })}
-              <Button
-                variant="success"
-                size="sm"
-                onClick={() => {
-                  const src = project.stirrups[selectedSpan];
-                  persist({
-                    ...project,
-                    stirrups: project.stirrups.map((s, i) =>
-                      i === selectedSpan
-                        ? s
-                        : {
-                            ...src,
-                            left: { ...src.left, length: defaultStirrupsForLength(project.spans[i].L).left.length },
-                            mid: { ...src.mid, length: defaultStirrupsForLength(project.spans[i].L).mid.length },
-                            right: {
-                              ...src.right,
-                              length: defaultStirrupsForLength(project.spans[i].L).right.length,
-                            },
-                          },
-                    ),
-                  });
-                }}
-              >
-                <Check /> Áp dụng số lượng/khoảng cho các nhịp
-              </Button>
-            </Panel>
+            <div className="flex flex-wrap gap-3">
+              <Panel title="Thông số thép đai" className="min-w-[280px] flex-1">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                  <Field label="Đường kính đai">
+                    <Select
+                      value={project.stirrups[selectedSpan]?.dia ?? 6}
+                      onChange={(e) => patchStirrup({ dia: Number(e.target.value) })}
+                    >
+                      {DIAMETERS.filter((d) => d <= 12).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Cách bố trí đai">
+                    <Select
+                      value={project.stirrups[selectedSpan]?.layout ?? "1/4"}
+                      onChange={(e) => patchStirrup({ layout: e.target.value as StirrupLayout })}
+                    >
+                      {STIRRUP_LAYOUTS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Khoảng cách đai A1 (mm)">
+                    <Input
+                      type="number"
+                      min={50}
+                      value={project.stirrups[selectedSpan]?.a1 ?? 150}
+                      onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
+                    />
+                  </Field>
+                  <Field label="Khoảng cách đai A2 (mm)">
+                    <Input
+                      type="number"
+                      min={50}
+                      value={project.stirrups[selectedSpan]?.a2 ?? 200}
+                      onChange={(e) => patchStirrup({ a2: Number(e.target.value) || 0 })}
+                    />
+                  </Field>
+                  <Field label="Kiểu đai">
+                    <Select
+                      value={project.stirrups[selectedSpan]?.kind ?? "don"}
+                      onChange={(e) => patchStirrup({ kind: e.target.value as StirrupKind })}
+                    >
+                      {STIRRUP_KINDS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+                {(() => {
+                  const z = stirrupZonesForSpan(project, selectedSpan);
+                  return (
+                    <p className="mt-2 text-[11px] leading-snug text-zinc-400">
+                      Nhịp {selectedSpan + 1}: gối trái {z.left.length} mm ({z.left.count}Ø{z.dia}a{z.left.spacing})
+                      · giữa {z.mid.length} mm ({z.mid.count}Ø{z.dia}a{z.mid.spacing}) · gối phải {z.right.length} mm
+                      ({z.right.count}Ø{z.dia}a{z.right.spacing}). Chiều dài vùng gối = thép tăng cường M- (không có
+                      thì theo cách bố trí {z.layout} nhịp). Ø và A1/A2 chỉ cần đổi khi đổi nhịp hoặc kích thước dầm.
+                    </p>
+                  );
+                })()}
+                <Button
+                  className="mt-3"
+                  variant="success"
+                  size="sm"
+                  onClick={() => {
+                    const src = project.stirrups[selectedSpan] ?? defaultSpanStirrups();
+                    persist({
+                      ...project,
+                      stirrups: project.stirrups.map(() => ({ ...src })),
+                    });
+                    setStatus("Đã áp dụng đai cho mọi nhịp.");
+                  }}
+                >
+                  <Check /> Áp dụng cho các nhịp
+                </Button>
+              </Panel>
+              <StirrupSketch kind={project.stirrups[selectedSpan]?.kind ?? "don"} />
+            </div>
           )}
 
           {tab === "secondary" && (

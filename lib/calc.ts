@@ -1,4 +1,4 @@
-import type { BeamProject, ExtraBar, MainBar, Span } from "./types";
+import type { BeamProject, ExtraBar, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
 
@@ -607,26 +607,27 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
   const hook = 50;
   const cutLength = 2 * (innerB + innerH) + 2 * hook;
   const xs = axisPositions(project.spans);
+  const extrasTop = resolveExtraBars(project, project.extraTop, "top");
   const labels: StirrupResolved["labels"] = [];
   const ticks: StirrupResolved["ticks"] = [];
   let countEach = 0;
 
   project.spans.forEach((span, i) => {
-    const st = project.stirrups[i] ?? project.stirrups[0];
-    if (!st) return;
+    const zones = stirrupZonesForSpan(project, i, extrasTop);
     const x0 = xs[i];
-    const zones = [
-      { z: st.left, dense: true },
-      { z: st.mid, dense: false },
-      { z: st.right, dense: true },
+    const rows: { z: { count: number; spacing: number; length: number }; dense: boolean }[] = [
+      { z: zones.left, dense: true },
+      { z: zones.mid, dense: false },
+      { z: zones.right, dense: true },
     ];
     let cursor = x0;
-    for (const { z, dense } of zones) {
-      countEach += z.count;
+    const factor = zones.kind === "kep" ? 2 : 1;
+    for (const { z, dense } of rows) {
+      countEach += z.count * factor;
       if (z.count > 0) {
         labels.push({
           x: cursor + z.length / 2,
-          text: `${z.count}Ø${st.dia}a${z.spacing}`,
+          text: `${z.count}Ø${zones.dia}a${z.spacing}`,
           mark: "9",
         });
         const gap = z.length / Math.max(z.count, 1);
@@ -644,6 +645,90 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
   }
 
   return { dia, innerB, innerH, hook, cutLength, countEach, labels, ticks };
+}
+
+export function stirrupLayoutFraction(layout: StirrupLayout | undefined) {
+  if (layout === "1/3") return 1 / 3;
+  if (layout === "1/5") return 1 / 5;
+  return 1 / 4;
+}
+
+function extraSteelIntoSpanMm(
+  project: BeamProject,
+  spanIndex: number,
+  side: "left" | "right",
+  extras: ResolvedBar[],
+): number {
+  const leftInner = supportFaces(project, spanIndex).right;
+  const rightInner = supportFaces(project, spanIndex + 1).left;
+  let best = 0;
+  for (const b of extras) {
+    if (b.face !== "top" || b.kind !== "extra") continue;
+    if (side === "left") {
+      const ext = Math.min(b.x2, rightInner) - leftInner;
+      if (b.x1 <= leftInner + 100 && ext > 0) best = Math.max(best, ext);
+    } else {
+      const ext = rightInner - Math.max(b.x1, leftInner);
+      if (b.x2 >= rightInner - 100 && ext > 0) best = Math.max(best, ext);
+    }
+  }
+  return best;
+}
+
+function zoneCount(length: number, spacing: number) {
+  if (!(length > 0) || !(spacing > 0)) return 0;
+  return Math.max(1, Math.round(length / spacing));
+}
+
+/** Vùng đai một nhịp: gối A1, giữa A2. Chiều dài gối = thép tăng cường M- (không thì theo cách bố trí 1/4…). */
+export function stirrupZonesForSpan(
+  project: BeamProject,
+  spanIndex: number,
+  extrasTop?: ResolvedBar[],
+): {
+  dia: number;
+  kind: StirrupKind;
+  layout: StirrupLayout;
+  left: { count: number; spacing: number; length: number };
+  mid: { count: number; spacing: number; length: number };
+  right: { count: number; spacing: number; length: number };
+} {
+  const span = project.spans[spanIndex];
+  const L = span?.L ?? 0;
+  const raw = project.stirrups[spanIndex] ?? project.stirrups[0];
+  const dia = raw?.dia ?? 6;
+  const a1 = raw?.a1 ?? 150;
+  const a2 = raw?.a2 ?? 200;
+  const layout: StirrupLayout = raw?.layout === "1/3" || raw?.layout === "1/5" ? raw.layout : "1/4";
+  const kind: StirrupKind = raw?.kind === "kep" ? "kep" : "don";
+  const extras = extrasTop ?? resolveExtraBars(project, project.extraTop, "top");
+  const l0 = clearSpanMm(project, spanIndex);
+  const byLayout = roundTo(Math.max(l0, 0) * stirrupLayoutFraction(layout), 50);
+  const fromLeft = extraSteelIntoSpanMm(project, spanIndex, "left", extras);
+  const fromRight = extraSteelIntoSpanMm(project, spanIndex, "right", extras);
+  let leftLen = roundTo(fromLeft >= 100 ? fromLeft : byLayout, 50);
+  let rightLen = roundTo(fromRight >= 100 ? fromRight : byLayout, 50);
+  const maxSide = roundTo(Math.max(L * 0.42, 0), 50);
+  if (maxSide > 0) {
+    leftLen = Math.min(leftLen, maxSide);
+    rightLen = Math.min(rightLen, maxSide);
+  }
+  if (leftLen + rightLen > L) {
+    const midMin = Math.min(400, L * 0.2);
+    const budget = Math.max(L - midMin, 0);
+    const sum = leftLen + rightLen || 1;
+    leftLen = roundTo((leftLen / sum) * budget, 50);
+    rightLen = Math.max(L - leftLen - Math.max(midMin, 0), 0);
+  }
+  const midLen = Math.max(L - leftLen - rightLen, 0);
+  return {
+    dia,
+    kind,
+    layout,
+    left: { length: leftLen, spacing: a1, count: zoneCount(leftLen, a1) },
+    mid: { length: midLen, spacing: a2, count: zoneCount(midLen, a2) },
+    right: { length: rightLen, spacing: a1, count: zoneCount(rightLen, a1) },
+  };
 }
 
 function shapeFamily(bar: ResolvedBar) {

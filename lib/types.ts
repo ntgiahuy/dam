@@ -63,17 +63,33 @@ export interface ExtraBar {
   lengthOverride?: number;
 }
 
+export type StirrupLayout = "1/5" | "1/4" | "1/3";
+export type StirrupKind = "don" | "kep";
+
+export const STIRRUP_LAYOUTS: { value: StirrupLayout; label: string }[] = [
+  { value: "1/5", label: "1/5" },
+  { value: "1/4", label: "1/4" },
+  { value: "1/3", label: "1/3" },
+];
+
+export const STIRRUP_KINDS: { value: StirrupKind; label: string }[] = [
+  { value: "don", label: "Đai Đơn" },
+  { value: "kep", label: "Đai Kép" },
+];
+
 export interface StirrupZone {
   count: number;
   spacing: number;
   length: number;
 }
 
+/** Thông số đai do người dùng nhập — chiều dài vùng gối tự lấy theo thép tăng cường / nhịp. */
 export interface SpanStirrups {
   dia: number;
-  left: StirrupZone;
-  mid: StirrupZone;
-  right: StirrupZone;
+  layout: StirrupLayout;
+  a1: number;
+  a2: number;
+  kind: StirrupKind;
 }
 
 export interface SecondaryMember {
