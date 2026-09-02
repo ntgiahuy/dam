@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Download,
   FilePlus,
-  FolderOpen,
   Pencil,
   Plus,
   Save,
@@ -301,16 +300,6 @@ export function BeamApp() {
           <div className="text-[11px] text-zinc-400">Shop thép dầm · thống kê cốt thép</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              persist(createSampleD1());
-              setStatus("Đã nạp hình học D1. Thêm thép bằng nút Thêm.");
-            }}
-          >
-            <FolderOpen /> Mẫu D1
-          </Button>
           <Button
             variant="secondary"
             size="sm"
