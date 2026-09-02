@@ -17,13 +17,12 @@ function span(partial: Partial<Span> & Pick<Span, "L">): Span {
   };
 }
 
-function support(i: number, n: number): Support {
-  const end = i === 0 || i === n;
+function support(i: number, _n: number): Support {
   return {
     id: uid("sup"),
     type: "cot",
     B: 200,
-    B1: end ? 0 : 0,
+    B1: 100,
     H: 0,
     axisName: String(i),
   };

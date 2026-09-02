@@ -1,4 +1,21 @@
-export type ConnectionType = "cot" | "dam";
+export type ConnectionType =
+  | "cot"
+  | "vach"
+  | "vach-2"
+  | "dam-do"
+  | "console-do-dam"
+  | "console-tu-do"
+  | "cot-mai";
+
+export const CONNECTION_TYPES: { value: ConnectionType; label: string }[] = [
+  { value: "cot", label: "Cột" },
+  { value: "vach", label: "Vách" },
+  { value: "vach-2", label: "Vách loại 2" },
+  { value: "dam-do", label: "Dầm đỡ" },
+  { value: "console-do-dam", label: "Console đỡ dầm" },
+  { value: "console-tu-do", label: "Console tự do" },
+  { value: "cot-mai", label: "Cột tầng mái" },
+];
 export type SecondaryKind = "dam-phu" | "tru";
 export type ShearKind = "dai" | "treo";
 export type EndType = 0 | 1 | 2;

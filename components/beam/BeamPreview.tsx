@@ -77,14 +77,18 @@ export function BeamPreview({
 
         {project.supports.map((sup, i) => {
           const cx = x(model.xs[i]);
-          const half = Math.max(((sup.B || 200) * scale) / 2, 10);
-          const hitW = Math.max(half * 2 + 12, 32);
+          const Bmm = sup.B || 200;
+          const B1mm = sup.B1 > 0 ? sup.B1 : Bmm / 2;
+          const colW = Math.max(Bmm * scale, 8);
+          const left = cx - B1mm * scale;
+          const hitW = Math.max(colW + 14, 32);
+          const hitX = Math.min(left, cx) - 7;
           const active = selectSupports && selectedSupport === i;
           const hovered = selectSupports && hoverSupport === i && !active;
           return (
             <g key={sup.id}>
               <rect
-                x={cx - hitW / 2}
+                x={hitX}
                 y={4}
                 width={hitW}
                 height={y1 + 22}
@@ -111,9 +115,9 @@ export function BeamPreview({
                 pointerEvents="none"
               />
               <rect
-                x={cx - half}
+                x={left}
                 y={y1}
-                width={half * 2}
+                width={colW}
                 height={16}
                 fill="none"
                 stroke="#86ef65"
@@ -121,9 +125,9 @@ export function BeamPreview({
                 pointerEvents="none"
               />
               <rect
-                x={cx - half}
+                x={left}
                 y={y0 - 16}
-                width={half * 2}
+                width={colW}
                 height={16}
                 fill="none"
                 stroke="#86ef65"
