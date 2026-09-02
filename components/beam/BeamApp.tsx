@@ -53,6 +53,7 @@ import {
   CONNECTION_TYPES,
 } from "@/lib/types";
 import { CONCRETE_GRADES, STEEL_GRADES, describeEndType, hook90ExtensionMm } from "@/lib/tcvn5574";
+import { uid } from "@/lib/utils";
 
 const STORE_KEY = "thep-dam-project-v2";
 
