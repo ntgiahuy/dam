@@ -1,4 +1,4 @@
-import { MAX_SPAN_COUNT, type BeamProject, type Span, type SpanStirrups, type Support } from "./types";
+import { MAX_SPAN_COUNT, type BeamProject, type Span, type SpanStirrups, type StirrupLayout, type Support } from "./types";
 import { uid } from "./utils";
 
 function span(partial: Partial<Span> & Pick<Span, "L">): Span {
