@@ -27,7 +27,10 @@ import {
   canShiftAxisRange,
   computeModel,
   extraBarLength,
+  adjacentSpanIndex,
   adjacentSpanLength,
+  clearSpanMm,
+  effectiveDepthMm,
   placeAxisRange,
   shiftAxisRange,
   syncSpanSupportGeometry,
@@ -46,7 +49,7 @@ import type {
 } from "@/lib/types";
 import {
   DIAMETERS,
-  END_TYPE_OPTIONS,
+  extraEndTypeOptions,
   LAYER_LABELS,
   QTY_OPTIONS,
   SLAB_TYPES,
@@ -647,18 +650,7 @@ export function BeamApp() {
                 void end;
               }}
               face={tab === "extraTop" ? "top" : "bottom"}
-              concreteGrade={project.info.concreteGrade}
-              steelGrade={project.info.steelGrade}
-              startSpanL={adjacentSpanLength(
-                project,
-                extraForm.startAxis,
-                extraForm.startAxis <= extraForm.endAxis ? "left" : "right",
-              )}
-              endSpanL={adjacentSpanLength(
-                project,
-                extraForm.endAxis,
-                extraForm.startAxis <= extraForm.endAxis ? "right" : "left",
-              )}
+              project={project}
             />
           )}
 
@@ -1068,6 +1060,31 @@ function MainBarPanel({
   );
 }
 
+function extraEndHint(
+  project: BeamProject,
+  form: ExtraBar,
+  which: "start" | "end",
+  side: "left" | "right",
+  face: "top" | "bottom",
+) {
+  const axis = which === "start" ? form.startAxis : form.endAxis;
+  const type = which === "start" ? form.startType : form.endType;
+  const si = adjacentSpanIndex(project, axis, side);
+  const l0 = si != null ? clearSpanMm(project, si) : 0;
+  const h0 = si != null ? effectiveDepthMm(project, si, form.dia) : 0;
+  const spanL = adjacentSpanLength(project, axis, side);
+  return describeEndType(
+    type,
+    form.dia,
+    project.info.concreteGrade,
+    project.info.steelGrade,
+    spanL,
+    face,
+    l0,
+    h0,
+  );
+}
+
 function ExtraBarPanel({
   title,
   bars,
@@ -1082,10 +1099,7 @@ function ExtraBarPanel({
   onDelete,
   onRegionMove,
   face,
-  concreteGrade,
-  steelGrade,
-  startSpanL,
-  endSpanL,
+  project,
 }: {
   title: string;
   bars: ExtraBar[];
@@ -1100,13 +1114,13 @@ function ExtraBarPanel({
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
   face: "top" | "bottom";
-  concreteGrade?: string;
-  steelGrade?: string;
-  startSpanL?: number;
-  endSpanL?: number;
+  project: BeamProject;
 }) {
-  const startHint = describeEndType(form.startType, form.dia, concreteGrade, steelGrade, startSpanL);
-  const endHint = describeEndType(form.endType, form.dia, concreteGrade, steelGrade, endSpanL);
+  const startSide = form.startAxis <= form.endAxis ? "left" : "right";
+  const endSide = form.startAxis <= form.endAxis ? "right" : "left";
+  const startHint = extraEndHint(project, form, "start", startSide, face);
+  const endHint = extraEndHint(project, form, "end", endSide, face);
+  const endTypeOpts = extraEndTypeOptions(face);
   const startHook = form.startType === 4 ? hook90ExtensionMm(form.dia) : 0;
   const endHook = form.endType === 4 ? hook90ExtensionMm(form.dia) : 0;
   return (
@@ -1157,7 +1171,7 @@ function ExtraBarPanel({
               value={form.startType}
               onChange={(e) => setForm({ ...form, startType: Number(e.target.value) as EndType })}
             >
-              {END_TYPE_OPTIONS.map((t) => (
+              {endTypeOpts.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -1182,7 +1196,7 @@ function ExtraBarPanel({
               value={form.endType}
               onChange={(e) => setForm({ ...form, endType: Number(e.target.value) as EndType })}
             >
-              {END_TYPE_OPTIONS.map((t) => (
+              {endTypeOpts.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>

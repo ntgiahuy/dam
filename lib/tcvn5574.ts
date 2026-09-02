@@ -79,15 +79,29 @@ export function freeSupportEmbedMm(dia: number) {
   return 5 * Math.max(dia || 1, 1);
 }
 
+export function describeSaggingExtraBottom(l0?: number, h0?: number, dia?: number) {
+  const formula = "M+ giữa nhịp, lớp dưới · l₀/2 + 2·max(h₀, 15d, l₀/16)";
+  if (!(l0 && l0 > 0) || !(h0 && h0 > 0) || !(dia && dia > 0)) return formula;
+  const ds = Math.max(dia, 1);
+  const a = Math.max(h0, 15 * ds, l0 / 16);
+  const len = roundTo(l0 / 2 + 2 * a, 10);
+  const inset = Math.max((l0 - Math.min(len, l0)) / 2, 0);
+  return `${formula} = ${len} mm (cách mép gối ${Math.round(inset)} mm)`;
+}
+
 export function describeEndType(
   type: number,
   dia: number,
   concreteGrade?: string,
   steelGrade?: string,
   spanL?: number,
+  face?: "top" | "bottom",
+  l0?: number,
+  h0?: number,
 ) {
   const ds = Math.max(dia || 1, 1);
   if (type === 1) {
+    if (face === "bottom") return describeSaggingExtraBottom(l0, h0, ds);
     const L = spanL && spanL > 0 ? roundTo(spanL / 8, 10) : null;
     return L
       ? `Cắt thẳng cách mép cột L/8 = ${L} mm`

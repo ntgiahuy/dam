@@ -33,9 +33,66 @@ export function adjacentSpanLength(project: BeamProject, axisIndex: number, side
   return project.spans[axisIndex - 1]?.L ?? project.spans[axisIndex]?.L ?? 0;
 }
 
+/** Nhịp kề gối theo phía cắt: trái = spans[axis], phải = spans[axis-1]. */
+export function adjacentSpanIndex(
+  project: BeamProject,
+  axisIndex: number,
+  side: "left" | "right",
+): number | null {
+  if (side === "left") {
+    return axisIndex >= 0 && axisIndex < project.spans.length ? axisIndex : null;
+  }
+  return axisIndex > 0 && axisIndex <= project.spans.length ? axisIndex - 1 : null;
+}
+
+/** l₀ — nhịp thông thủy giữa hai mép trong gối (mm). */
+export function clearSpanMm(project: BeamProject, spanIndex: number) {
+  if (spanIndex < 0 || spanIndex >= project.spans.length) return 0;
+  const left = supportFaces(project, spanIndex);
+  const right = supportFaces(project, spanIndex + 1);
+  return Math.max(0, right.left - left.right);
+}
+
+/**
+ * h₀ — chiều cao làm việc tiết diện (mm).
+ * a = lớp bảo vệ + đai + d/2 thanh đang xét.
+ */
+export function effectiveDepthMm(project: BeamProject, spanIndex: number, barDia: number) {
+  const span = project.spans[spanIndex] ?? project.spans[0];
+  const H = span?.H ?? 500;
+  const cover = project.info.cover || 25;
+  const stirrup = project.stirrups[spanIndex]?.dia ?? project.stirrups[0]?.dia ?? 8;
+  const ds = Math.max(barDia || 1, 1);
+  return Math.max(H - cover - stirrup - ds / 2, ds);
+}
+
+/** max(h₀, 15d, l₀/16) — đoạn neo cắt thép M+ giữa nhịp. */
+export function saggingExtraAnchorMm(l0: number, h0: number, dia: number) {
+  const ds = Math.max(dia || 1, 1);
+  return Math.max(h0, 15 * ds, l0 / 16);
+}
+
+/**
+ * Chiều dài thép bổ sung M+ giữa nhịp, lớp dưới:
+ * l₀/2 + 2·max(h₀, 15d, l₀/16)
+ */
+export function saggingExtraLengthMm(l0: number, h0: number, dia: number) {
+  return roundTo(l0 / 2 + 2 * saggingExtraAnchorMm(l0, h0, dia), 10);
+}
+
+/**
+ * Khoảng từ mép trong gối vào nhịp. Hai đầu dạng 1 cho ra đúng saggingExtraLengthMm.
+ * = l₀/4 − max(h₀, 15d, l₀/16), không âm.
+ */
+export function saggingExtraInsetMm(l0: number, h0: number, dia: number) {
+  const len = saggingExtraLengthMm(l0, h0, dia);
+  return Math.max((l0 - Math.min(len, l0)) / 2, 0);
+}
+
 /**
  * Dạng đầu thanh bổ sung:
- * 1 — cắt thẳng từ mép cột trở ra L/8 nhịp kề
+ * 1 — lớp trên: cắt thẳng từ mép cột trở ra L/8 nhịp kề
+ *     lớp dưới: M+ giữa nhịp, l₀/2 + 2·max(h₀, 15d, l₀/16)
  * 2 — cắt thẳng tại mép trong gối
  * 3 — cắt thẳng tại tim cột
  * 4 — móc 90° tại tim cột (đuôi theo TCVN 5574:2018)
@@ -46,12 +103,24 @@ export function extraTermination(
   type: number,
   side: "left" | "right",
   dia: number,
+  face: "top" | "bottom" = "top",
 ) {
   const f = supportFaces(project, axisIndex);
   const inner = side === "left" ? f.right : f.left;
   const intoSpan = side === "left" ? 1 : -1;
 
   if (type === 1) {
+    if (face === "bottom") {
+      const si = adjacentSpanIndex(project, axisIndex, side);
+      if (si != null) {
+        const l0 = clearSpanMm(project, si);
+        if (l0 > 0) {
+          const h0 = effectiveDepthMm(project, si, dia);
+          const off = saggingExtraInsetMm(l0, h0, dia);
+          return { x: inner + intoSpan * off, hook: 0 };
+        }
+      }
+    }
     const off = roundTo(adjacentSpanLength(project, axisIndex, side) / 8, 10);
     return { x: inner + intoSpan * Math.max(off, 0), hook: 0 };
   }
@@ -169,8 +238,8 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
     hookStart = hookLength(bar.dia, leftType);
     hookEnd = hookLength(bar.dia, rightType);
   } else {
-    const leftT = extraTermination(project, leftAxis, leftType, "left", bar.dia);
-    const rightT = extraTermination(project, rightAxis, rightType, "right", bar.dia);
+    const leftT = extraTermination(project, leftAxis, leftType, "left", bar.dia, face);
+    const rightT = extraTermination(project, rightAxis, rightType, "right", bar.dia, face);
     x1 = leftT.x;
     x2 = rightT.x;
     hookStart = leftT.hook;
@@ -195,7 +264,6 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
   const straight = x2 - x1;
   const cutLength =
     bar.lengthOverride && bar.lengthOverride > 0 ? bar.lengthOverride : straight + hookStart + hookEnd;
-  void face;
   return { x1, x2, hookStart, hookEnd, straight, cutLength, startType, endType };
 }
 

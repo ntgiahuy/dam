@@ -1,9 +1,16 @@
 "use client";
 
-function endPath(type: number, side: "left" | "right", y: number, dir: number) {
+function endPath(
+  type: number,
+  side: "left" | "right",
+  y: number,
+  dir: number,
+  face: "top" | "bottom",
+) {
   const axis = side === "left" ? 40 : 170;
   const inner = side === "left" ? 52 : 158;
   const eighth = side === "left" ? 72 : 138;
+  const midspan = side === "left" ? 88 : 122;
   const hook = 16;
   if (type === 4) {
     const hx = axis;
@@ -12,7 +19,8 @@ function endPath(type: number, side: "left" | "right", y: number, dir: number) {
       : `L ${hx} ${y} L ${hx} ${y + dir * hook}`;
   }
   if (type === 1) {
-    return side === "left" ? `M ${eighth} ${y}` : `L ${eighth} ${y}`;
+    const x = face === "bottom" ? midspan : eighth;
+    return side === "left" ? `M ${x} ${y}` : `L ${x} ${y}`;
   }
   if (type === 2) {
     return side === "left" ? `M ${inner} ${y}` : `L ${inner} ${y}`;
@@ -36,8 +44,8 @@ export function ExtraShapeSketch({
   const dir = face === "bottom" ? -1 : 1;
   const yA = 38;
   const yB = 54;
-  const dA = `${endPath(startType, "left", yA, dir)} ${endPath(endType, "right", yA, dir)}`;
-  const dB = `${endPath(startType, "left", yB, -dir)} ${endPath(endType, "right", yB, -dir)}`;
+  const dA = `${endPath(startType, "left", yA, dir, face)} ${endPath(endType, "right", yA, dir, face)}`;
+  const dB = `${endPath(startType, "left", yB, -dir, face)} ${endPath(endType, "right", yB, -dir, face)}`;
 
   return (
     <div className="rounded border border-zinc-700 bg-zinc-950 p-2">

@@ -152,6 +152,17 @@ export const END_TYPE_OPTIONS = [
   { value: 4, label: "4 — Móc 90°" },
 ];
 
+export const EXTRA_BOTTOM_END_TYPE_OPTIONS = [
+  { value: 1, label: "1 — Cắt thẳng M+ giữa nhịp" },
+  { value: 2, label: "2 — Cắt thẳng mép gối" },
+  { value: 3, label: "3 — Cắt thẳng tim cột" },
+  { value: 4, label: "4 — Móc 90°" },
+];
+
+export function extraEndTypeOptions(face: "top" | "bottom") {
+  return face === "bottom" ? EXTRA_BOTTOM_END_TYPE_OPTIONS : END_TYPE_OPTIONS;
+}
+
 export const SLAB_TYPES = [
   { value: 0, label: "0 — Chữ nhật" },
   { value: 1, label: "1 — Sàn hai bên" },
