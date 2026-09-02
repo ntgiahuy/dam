@@ -19,7 +19,8 @@ const PAGE_H = 1191;
 const BLACK = rgb(0, 0, 0);
 const WHITE = rgb(1, 1, 1);
 const STOCK_M = 11.7;
-const SECTION_SCALE = (72 / 25.4) / 25;
+/** Visual scale for cross-sections (readable on A2; title still TL 1/25). */
+const SECTION_SCALE = 0.24;
 
 type Ctx = {
   page: PDFPage;
@@ -562,16 +563,68 @@ function placeDots(ctx: Ctx, xs: number[], y: number, r: number) {
   for (const x of xs) circle(ctx, x, y, r, true);
 }
 
-function barXs(cx: number, w: number, pad: number, n: number) {
+function barXs(left: number, right: number, n: number) {
   const count = Math.max(1, n);
-  if (count === 1) return [cx + w / 2];
-  return Array.from({ length: count }, (_, i) => cx + pad + ((w - 2 * pad) * i) / (count - 1));
+  if (count === 1) return [(left + right) / 2];
+  return Array.from({ length: count }, (_, i) => left + ((right - left) * i) / (count - 1));
 }
 
-function drawSectionCallout(ctx: Ctx, x: number, y: number, mark: string, text: string, toX: number, toY: number) {
-  markCircle(ctx, x, y, mark, 6.2);
-  textSimple(ctx, text, x + 8, y + 2.6, 6.5);
-  line(ctx, x + 6, y, toX, toY, 0.35);
+function extraLayerXs(left: number, right: number, qty: number) {
+  const n = Math.max(1, Math.min(qty || 1, 4));
+  if (n === 1) return [left];
+  if (n === 2) return [left, right];
+  return barXs(left, right, n);
+}
+
+function textMid(
+  ctx: Ctx,
+  str: string,
+  x: number,
+  cy: number,
+  size: number,
+  align: "left" | "center" | "right" = "left",
+  bold = false,
+) {
+  const font = bold ? ctx.fontBold : ctx.font;
+  const width = font.widthOfTextAtSize(str, size);
+  let tx = x;
+  if (align === "center") tx = x - width / 2;
+  if (align === "right") tx = x - width;
+  ctx.page.drawText(str, {
+    x: tx,
+    y: ty(cy) - size * (CAP_RATIO / 2),
+    size,
+    font,
+    color: BLACK,
+  });
+}
+
+function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number) {
+  rect(ctx, x, y, w, h, 0.7);
+  const hx = x + w;
+  const hy = y;
+  line(ctx, hx - 0.3, hy + 7, hx + 5, hy - 2.5, 0.7);
+  line(ctx, hx + 5, hy - 2.5, hx - 11, hy - 2.5, 0.7);
+}
+
+function drawLayerCallout(
+  ctx: Ctx,
+  bubbleX: number,
+  y: number,
+  mark: string,
+  text: string,
+  tickX: number,
+  side: "left" | "right",
+) {
+  markCircle(ctx, bubbleX, y, mark, 6.4);
+  if (side === "left") {
+    textMid(ctx, text, bubbleX + 9, y, 6.6, "left");
+    line(ctx, bubbleX + 6.4, y, tickX, y, 0.4);
+  } else {
+    textMid(ctx, text, bubbleX - 9, y, 6.6, "right");
+    line(ctx, bubbleX - 6.4, y, tickX, y, 0.4);
+  }
+  line(ctx, tickX, y - 5, tickX, y + 5, 0.45);
 }
 
 function drawCrossSection(
@@ -582,74 +635,98 @@ function drawCrossSection(
   title: string,
 ) {
   const { model, project } = ctx;
-  const W = Math.max(model.B * SECTION_SCALE, 18);
-  const H = Math.max(model.H * SECTION_SCALE, 28);
-  const cx = ox + 52;
-  const boxY = oy + 16;
-  rect(ctx, cx, boxY, W, H, 1.05);
-  const inset = Math.max(3.2, (project.info.cover || 25) * SECTION_SCALE);
-  rect(ctx, cx + inset, boxY + inset, Math.max(W - inset * 2, 4), Math.max(H - inset * 2, 4), 0.45);
-  dashV(ctx, cx + W / 2, boxY - 4, boxY + H + 10, 2.4, 1.8, 0.25);
+  const W = Math.max(model.B * SECTION_SCALE, 28);
+  const H = Math.max(model.H * SECTION_SCALE, 48);
+  const cx = ox + 70;
+  const boxY = oy + 10;
+  const cover = project.info.cover || 25;
+  const inset = Math.max(4, cover * SECTION_SCALE);
+  const barR = 2.35;
+  const innerL = cx + inset + barR + 0.6;
+  const innerR = cx + W - inset - barR - 0.6;
 
-  const pad = inset + 3.2;
-  const r = 2.15;
-  const topN = Math.min(model.mainTop[0]?.qty || 0, 6);
-  const botN = Math.min(model.mainBottom[0]?.qty || 0, 6);
-  const topXs = barXs(cx, W, pad, Math.max(topN, 2));
-  const botXs = barXs(cx, W, pad, Math.max(botN, 2));
-  if (topN) placeDots(ctx, topXs.slice(0, topN), boxY + pad, r);
-  if (botN) placeDots(ctx, botXs.slice(0, botN), boxY + H - pad, r);
+  rect(ctx, cx, boxY, W, H, 1.15);
+  drawStirrupFrame(ctx, cx + inset, boxY + inset, Math.max(W - inset * 2, 6), Math.max(H - inset * 2, 6));
+  dashV(ctx, cx + W / 2, boxY - 3, boxY + H + 8, 2.6, 1.9, 0.28);
+
+  const topN = Math.min(Math.max(model.mainTop[0]?.qty || 0, 0), 6);
+  const botN = Math.min(Math.max(model.mainBottom[0]?.qty || 0, 0), 6);
+  const topY = boxY + inset + barR + 0.8;
+  const botY = boxY + H - inset - barR - 0.8;
+  const topXs = topN ? barXs(innerL, innerR, topN) : [];
+  const botXs = botN ? barXs(innerL, innerR, botN) : [];
+  if (topN) placeDots(ctx, topXs, topY, barR);
+  if (botN) placeDots(ctx, botXs, botY, barR);
 
   const extraTop = cut.kind === "support" ? cut.extraTop : cut.extraTop.filter((b) => covers(b, cut.x, 20));
   const extraBot = cut.kind === "span" ? cut.extraBot : cut.extraBot.filter((b) => covers(b, cut.x, 20));
-  const drawExtras = (bars: ResolvedBar[], fromTop: boolean) => {
-    const seen = new Set<number>();
-    for (const b of bars) {
-      if (seen.has(b.layer)) continue;
-      seen.add(b.layer);
-      const off = extraLayerOffsetMm(b.layer) * SECTION_SCALE + (b.layer <= 1 ? 3.2 : 0);
-      const y = fromTop ? boxY + pad + off : boxY + H - pad - off;
-      const n = Math.max(1, Math.min(b.qty || 1, 4));
-      const xs =
-        b.layer <= 1 && topN >= 2
-          ? barXs(cx, W, pad, topN).slice(0, -1).map((x, i, arr) => (x + (arr[i + 1] ?? x + 8)) / 2).slice(0, n)
-          : barXs(cx, W, pad + 2, n);
-      placeDots(ctx, xs, y, r);
-    }
-  };
-  drawExtras(extraTop, true);
-  drawExtras(extraBot, false);
 
-  dimV(ctx, cx + W + 10, boxY, boxY + H, String(model.H), 6);
-  dimH(ctx, cx, cx + W / 2, boxY + H + 11, String(model.B1), 5.8);
-  dimH(ctx, cx + W / 2, cx + W, boxY + H + 11, String(model.B1 || Math.round(model.B / 2)), 5.8);
-  dimH(ctx, cx, cx + W, boxY + H + 22, String(model.B), 6.2);
+  const extraY = (fromTop: boolean, layer: number) => {
+    const gapMm = Math.max(1, layer) * 50;
+    const gap = Math.max(7, gapMm * SECTION_SCALE);
+    return fromTop ? topY + gap : botY - gap;
+  };
+
+  const extrasByLayer = (bars: ResolvedBar[]) => {
+    const map = new Map<number, ResolvedBar>();
+    for (const b of bars) {
+      if (!map.has(b.layer)) map.set(b.layer, b);
+    }
+    return [...map.entries()].sort((a, b) => a[0] - b[0]);
+  };
+
+  const drawnTopExtras: { y: number; bar: ResolvedBar }[] = [];
+  const drawnBotExtras: { y: number; bar: ResolvedBar }[] = [];
+  for (const [layer, b] of extrasByLayer(extraTop)) {
+    const y = extraY(true, layer);
+    placeDots(ctx, extraLayerXs(innerL, innerR, b.qty), y, barR);
+    line(ctx, innerL - 1, (topY + y) / 2, innerR + 1, (topY + y) / 2, 0.35);
+    drawnTopExtras.push({ y, bar: b });
+  }
+  for (const [layer, b] of extrasByLayer(extraBot)) {
+    const y = extraY(false, layer);
+    placeDots(ctx, extraLayerXs(innerL, innerR, b.qty), y, barR);
+    line(ctx, innerL - 1, (botY + y) / 2, innerR + 1, (botY + y) / 2, 0.35);
+    drawnBotExtras.push({ y, bar: b });
+  }
+
+  dimV(ctx, cx - 16, boxY, boxY + H, String(model.H), 6.2);
+  dimH(ctx, cx, cx + W / 2, boxY + H + 12, String(model.B1 || Math.round(model.B / 2)), 5.8);
+  dimH(ctx, cx + W / 2, cx + W, boxY + H + 12, String(model.B - (model.B1 || Math.round(model.B / 2))), 5.8);
+  dimH(ctx, cx, cx + W, boxY + H + 24, String(model.B), 6.4);
 
   const mt = model.schedule.find((r) => r.family === "T1");
   const mb = model.schedule.find((r) => r.family === "B1");
   const st = model.schedule.find((r) => r.family === "D");
-  if (mt && model.mainTop[0]) {
-    drawSectionCallout(ctx, cx - 38, boxY + pad, String(mt.markNum), barNotation(model.mainTop[0].qty, model.mainTop[0].dia), cx + pad, boxY + pad);
-  }
-  if (mb && model.mainBottom[0]) {
-    drawSectionCallout(ctx, cx - 38, boxY + H - pad, String(mb.markNum), barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), cx + pad, boxY + H - pad);
-  }
-  const extra = cut.kind === "support" ? extraTop[0] : extraBot[0];
-  if (extra) {
-    const row = markForBar(model.schedule, extra);
-    if (row) {
-      const y = cut.kind === "support" ? boxY + pad + 10 : boxY + H / 2;
-      drawSectionCallout(ctx, cx - 38, y, String(row.markNum), barNotation(extra.qty, extra.dia), cx + W * 0.35, y);
-    }
+  const leftX = ox + 10;
+  if (mt && model.mainTop[0] && topN) {
+    drawLayerCallout(ctx, leftX, topY, String(mt.markNum), barNotation(model.mainTop[0].qty, model.mainTop[0].dia), cx, "left");
   }
   if (st) {
-    drawSectionCallout(ctx, cx - 38, boxY + H / 2 + 6, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, cx + inset, boxY + H / 2);
+    drawLayerCallout(ctx, leftX, boxY + H / 2, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, cx + inset, "left");
+  }
+  if (mb && model.mainBottom[0] && botN) {
+    drawLayerCallout(ctx, leftX, botY, String(mb.markNum), barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), cx, "left");
   }
 
-  textSimple(ctx, title, cx + W / 2, boxY + H + 38, 9, true, "center");
-  line(ctx, cx + W / 2 - 14, boxY + H + 40, cx + W / 2 + 14, boxY + H + 40, 0.9);
-  line(ctx, cx + W / 2 - 14, boxY + H + 42, cx + W / 2 + 14, boxY + H + 42, 0.55);
-  textSimple(ctx, "TL: 1/25", cx + W / 2, boxY + H + 54, 7, false, "center");
+  const rightX = cx + W + 28;
+  const rightTick = cx + W;
+  for (const e of drawnTopExtras) {
+    const row = markForBar(model.schedule, e.bar);
+    if (!row) continue;
+    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), rightTick, "right");
+  }
+  for (const e of drawnBotExtras) {
+    const row = markForBar(model.schedule, e.bar);
+    if (!row) continue;
+    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), rightTick, "right");
+  }
+
+  const titleY = boxY + H + 42;
+  textSimple(ctx, title, cx + W / 2, titleY, 10, true, "center");
+  line(ctx, cx + W / 2 - 16, titleY + 2, cx + W / 2 + 16, titleY + 2, 0.95);
+  line(ctx, cx + W / 2 - 16, titleY + 4.2, cx + W / 2 + 16, titleY + 4.2, 0.55);
+  textSimple(ctx, "TL: 1/25", cx + W / 2, titleY + 16, 7, false, "center");
 }
 
 function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | undefined) {
@@ -913,19 +990,22 @@ export async function generateBeamPdf(
   uniqueCuts.sort((a, b) => a.n - b.n);
 
   const stirrupRow = model.schedule.find((r) => r.family === "D");
-  const sectTop = Math.max(y + 8, 455);
+  const sectTop = Math.max(y + 10, 430);
   const n = Math.max(uniqueCuts.length, 1);
-  const stirrupW = stirrupRow ? 130 : 20;
-  const avail = PAGE_W - 40 - stirrupW;
-  const pitch = Math.min(128, avail / n);
+  const boxW = Math.max(model.B * SECTION_SCALE, 28);
+  const boxH = Math.max(model.H * SECTION_SCALE, 48);
+  const cellW = 70 + boxW + 62;
+  const stirrupW = stirrupRow ? 140 : 16;
+  const avail = PAGE_W - 36 - stirrupW;
+  const pitch = Math.min(cellW + 8, avail / n);
   uniqueCuts.forEach((c, i) => {
-    drawCrossSection(ctx, 22 + i * pitch, sectTop, c, `${c.n}-${c.n}`);
+    drawCrossSection(ctx, 18 + i * pitch, sectTop, c, `${c.n}-${c.n}`);
   });
   if (stirrupRow) {
-    drawStirrupDetail(ctx, 22 + n * pitch, sectTop + 8, stirrupRow);
+    drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
 
-  const tableY = Math.min(sectTop + 168, 660);
+  const tableY = Math.min(sectTop + boxH + 78, 680);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
