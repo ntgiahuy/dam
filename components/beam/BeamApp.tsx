@@ -473,91 +473,93 @@ export function BeamApp() {
           )}
 
           {tab === "supports" && support && (
-            <div className="flex flex-wrap gap-3">
-              <Panel title="Thông số gối đỡ" className="flex-1 min-w-[320px]">
-                <div className="flex flex-wrap items-start gap-4">
-                  <div className="min-w-[280px] flex-1 space-y-2">
-                    <div className="text-[11px] text-sky-400">
-                      Gối đang chọn: trục {support.axisName || selectedSupport}
-                    </div>
-                    <label className="flex items-center gap-2">
-                      <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Chọn liên kết</span>
-                      <Select
-                        className="max-w-[200px]"
-                        value={support.type}
-                        onChange={(e) => patchSupport({ type: e.target.value as ConnectionType })}
-                      >
-                        {CONNECTION_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Chiều rộng gối B (mm)</span>
+            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <Panel title="Thông số gối đỡ" className="min-w-0">
+                <div className="text-[11px] text-sky-400">
+                  Gối đang chọn: trục {support.axisName || selectedSupport}
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2">
+                    <span className="w-44 shrink-0 text-[12px] text-zinc-300">- Chọn liên kết</span>
+                    <Select
+                      className="min-w-0 flex-1"
+                      value={support.type}
+                      onChange={(e) => patchSupport({ type: e.target.value as ConnectionType })}
+                    >
+                      {CONNECTION_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span className="w-44 shrink-0 text-[12px] text-zinc-300">- Chiều rộng gối B (mm)</span>
+                    <Input
+                      className="min-w-0 flex-1"
+                      type="number"
+                      value={support.B}
+                      onChange={(e) => patchSupport({ B: Number(e.target.value) || 0 })}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 sm:col-span-2">
+                    <span className="flex items-center gap-2">
+                      <span className="w-44 shrink-0 text-[12px] text-zinc-300">- Khoảng gối lệch trục B1 (mm)</span>
                       <Input
-                        className="max-w-[200px]"
-                        type="number"
-                        value={support.B}
-                        onChange={(e) => patchSupport({ B: Number(e.target.value) || 0 })}
-                      />
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Khoảng gối lệch trục B1 (mm)</span>
-                      <Input
-                        className="max-w-[200px]"
+                        className="max-w-[200px] min-w-0 flex-1"
                         type="number"
                         min={0}
                         value={support.B1}
                         onChange={(e) => patchSupport({ B1: Number(e.target.value) || 0 })}
                       />
-                    </label>
-                    <p className="-mt-1 pl-[13.5rem] text-[11px] text-zinc-500">
+                    </span>
+                    <p className="pl-0 text-[11px] text-zinc-500 sm:pl-44">
                       Từ mép trái gối đến tim trục. 0 = tim trùng mép trái, B/2 = cân giữa.
                     </p>
-                    <label className="flex items-center gap-2">
-                      <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Chiều cao gối H (mm)</span>
-                      <Input
-                        className="max-w-[200px]"
-                        type="number"
-                        value={support.H || ""}
-                        onChange={(e) => patchSupport({ H: Number(e.target.value) || 0 })}
-                      />
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Tên trục định vị gối</span>
-                      <Input
-                        className="max-w-[160px]"
-                        value={support.axisName}
-                        onChange={(e) => patchSupport({ axisName: e.target.value })}
-                      />
-                      <Button
-                        variant="success"
-                        size="icon"
-                        title="Gối tiếp theo"
-                        onClick={() => {
-                          const next = (selectedSupport + 1) % project.supports.length;
-                          selectSupport(next);
-                        }}
-                      >
-                        <ChevronRight />
-                      </Button>
-                    </label>
-                    <div className="pt-1">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => persist(applySupportToAll(project, selectedSupport))}
-                      >
-                        <Check /> Áp dụng cho các nhịp
-                      </Button>
-                      <p className="mt-1 text-[11px] text-zinc-600">B và B1 dùng chung với số liệu nhịp dầm.</p>
-                    </div>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span className="w-44 shrink-0 text-[12px] text-zinc-300">- Chiều cao gối H (mm)</span>
+                    <Input
+                      className="min-w-0 flex-1"
+                      type="number"
+                      value={support.H || ""}
+                      onChange={(e) => patchSupport({ H: Number(e.target.value) || 0 })}
+                    />
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span className="w-44 shrink-0 text-[12px] text-zinc-300">- Tên trục định vị gối</span>
+                    <Input
+                      className="min-w-0 flex-1"
+                      value={support.axisName}
+                      onChange={(e) => patchSupport({ axisName: e.target.value })}
+                    />
+                    <Button
+                      variant="success"
+                      size="icon"
+                      title="Gối tiếp theo"
+                      onClick={() => {
+                        const next = (selectedSupport + 1) % project.supports.length;
+                        selectSupport(next);
+                      }}
+                    >
+                      <ChevronRight />
+                    </Button>
+                  </label>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] text-zinc-600">B và B1 dùng chung với số liệu nhịp dầm.</span>
+                  <div className="ml-auto">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => persist(applySupportToAll(project, selectedSupport))}
+                    >
+                      <Check /> Áp dụng cho các nhịp
+                    </Button>
                   </div>
-                  <SupportSketch B={support.B} B1={support.B1} />
                 </div>
               </Panel>
+              <SupportSketch B={support.B} B1={support.B1} />
             </div>
           )}
 
