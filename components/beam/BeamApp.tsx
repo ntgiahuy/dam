@@ -123,6 +123,19 @@ function extraBarDuplicate(bars: ExtraBar[], candidate: ExtraBar, exceptId?: str
   );
 }
 
+/** Thép mũ: một gối (0→0, 1→1, …). */
+function extraTopAtSupport(axis: number, lastAxis: number) {
+  const a = Math.max(0, Math.min(axis, lastAxis));
+  return { startAxis: a, endAxis: a };
+}
+
+/** Thép bụng: một nhịp (0→1, 1→2, …). */
+function extraBottomAtSpan(spanIndex: number, lastAxis: number) {
+  const lastSpan = Math.max(0, lastAxis - 1);
+  const s = Math.max(0, Math.min(spanIndex, lastSpan));
+  return { startAxis: s, endAxis: s + 1 };
+}
+
 export function BeamApp() {
   const [project, setProject] = useState<BeamProject>(() => createSampleD1());
   const [tab, setTab] = useState<TabId>("spans");
@@ -251,21 +264,30 @@ export function BeamApp() {
   }));
 
   useEffect(() => {
-    if (tab !== "extraTop" && tab !== "extraBottom") return;
-    setExtraForm((f) => {
-      const axis = Math.max(0, Math.min(f.startAxis, lastAxis));
-      const startType = tab === "extraTop" ? (f.startType === 1 ? 1 : 2) : f.startType;
-      const endType = tab === "extraTop" ? (f.endType === 1 ? 1 : 2) : f.endType;
-      if (
-        startType === f.startType &&
-        endType === f.endType &&
-        f.startAxis === axis &&
-        f.endAxis === axis
-      ) {
-        return f;
-      }
-      return { ...f, startType, endType, startAxis: axis, endAxis: axis };
-    });
+    if (tab === "extraTop") {
+      setExtraForm((f) => {
+        const startType = f.startType === 1 ? 1 : 2;
+        const endType = f.endType === 1 ? 1 : 2;
+        const pinned = extraTopAtSupport(f.startAxis, lastAxis);
+        if (
+          startType === f.startType &&
+          endType === f.endType &&
+          f.startAxis === pinned.startAxis &&
+          f.endAxis === pinned.endAxis
+        ) {
+          return f;
+        }
+        return { ...f, startType, endType, ...pinned };
+      });
+      return;
+    }
+    if (tab === "extraBottom") {
+      setExtraForm((f) => {
+        const pinned = extraBottomAtSpan(Math.min(f.startAxis, f.endAxis), lastAxis);
+        if (f.startAxis === pinned.startAxis && f.endAxis === pinned.endAxis) return f;
+        return { ...f, ...pinned };
+      });
+    }
   }, [tab, lastAxis]);
 
   const barRegion =
@@ -279,9 +301,12 @@ export function BeamApp() {
 
   function moveBarRegionToSpan(spanIndex: number) {
     selectSpan(spanIndex);
-    if (tab === "extraTop" || tab === "extraBottom") {
-      const axis = Math.max(0, Math.min(spanIndex, lastAxis));
-      setExtraForm((f) => ({ ...f, startAxis: axis, endAxis: axis }));
+    if (tab === "extraTop") {
+      setExtraForm((f) => ({ ...f, ...extraTopAtSupport(spanIndex, lastAxis) }));
+      return;
+    }
+    if (tab === "extraBottom") {
+      setExtraForm((f) => ({ ...f, ...extraBottomAtSpan(spanIndex, lastAxis) }));
       return;
     }
     if (tab === "mainBottom" || tab === "mainTop") {
@@ -324,11 +349,10 @@ export function BeamApp() {
   }
 
   function addExtra(key: "extraBottom" | "extraTop") {
-    const draft = {
-      ...extraForm,
-      startAxis: extraForm.startAxis,
-      endAxis: extraForm.startAxis,
-    };
+    const draft =
+      key === "extraTop"
+        ? { ...extraForm, ...extraTopAtSupport(extraForm.startAxis, lastAxis) }
+        : { ...extraForm, ...extraBottomAtSpan(extraForm.startAxis, lastAxis) };
     if (extraBarDuplicate(project[key], draft)) {
       setError(`Không thêm được: đã có ${extraLabel(draft)} trong danh sách.`);
       setStatus(null);
@@ -337,30 +361,41 @@ export function BeamApp() {
     const bar = { ...draft, id: uid("ex") };
     persist({ ...project, [key]: [...project[key], bar] });
     setError(null);
-    const nextAxis = bar.startAxis + 1;
-    if (nextAxis <= lastAxis) {
+    if (key === "extraTop") {
+      const nextAxis = bar.startAxis + 1;
+      if (nextAxis <= lastAxis) {
+        setSelectedBar(null);
+        setExtraForm({ ...draft, id: uid("ex"), ...extraTopAtSupport(nextAxis, lastAxis) });
+        setSelectedSupport(nextAxis);
+        setSelectedSpan(Math.min(nextAxis, Math.max(0, project.spans.length - 1)));
+        setStatus(`Đã thêm ${extraLabel(bar)}. Gối tiếp theo: ${nextAxis}→${nextAxis}.`);
+      } else {
+        setSelectedBar(bar.id);
+        setStatus(`Đã thêm ${extraLabel(bar)} (gối cuối).`);
+      }
+      return;
+    }
+    const nextSpan = extraBottomAtSpan(bar.startAxis + 1, lastAxis);
+    const moved = nextSpan.startAxis !== bar.startAxis;
+    if (moved) {
       setSelectedBar(null);
-      setExtraForm({
-        ...draft,
-        id: uid("ex"),
-        startAxis: nextAxis,
-        endAxis: nextAxis,
-      });
-      setSelectedSupport(nextAxis);
-      setSelectedSpan(Math.min(nextAxis, Math.max(0, project.spans.length - 1)));
-      setStatus(`Đã thêm ${extraLabel(bar)}. Gối tiếp theo: ${nextAxis}→${nextAxis}.`);
+      setExtraForm({ ...draft, id: uid("ex"), ...nextSpan });
+      setSelectedSpan(nextSpan.startAxis);
+      setSelectedSupport(nextSpan.startAxis);
+      setStatus(
+        `Đã thêm ${extraLabel(bar)}. Nhịp tiếp theo: ${nextSpan.startAxis}→${nextSpan.endAxis}.`,
+      );
     } else {
       setSelectedBar(bar.id);
-      setStatus(`Đã thêm ${extraLabel(bar)} (gối cuối).`);
+      setStatus(`Đã thêm ${extraLabel(bar)} (nhịp cuối).`);
     }
   }
   function editExtra(key: "extraBottom" | "extraTop") {
     if (!selectedBar) return;
-    const draft = {
-      ...extraForm,
-      startAxis: extraForm.startAxis,
-      endAxis: extraForm.startAxis,
-    };
+    const draft =
+      key === "extraTop"
+        ? { ...extraForm, ...extraTopAtSupport(extraForm.startAxis, lastAxis) }
+        : { ...extraForm, ...extraBottomAtSpan(extraForm.startAxis, lastAxis) };
     if (extraBarDuplicate(project[key], draft, selectedBar)) {
       setError(`Không lưu được: đã có ${extraLabel(draft)} trong danh sách.`);
       setStatus(null);
@@ -720,10 +755,17 @@ export function BeamApp() {
               selected={selectedBar}
               onSelect={(b) => {
                 setSelectedBar(b.id);
-                const axis = b.startAxis;
-                setExtraForm({ ...b, startAxis: axis, endAxis: axis });
-                setSelectedSupport(axis);
-                setSelectedSpan(Math.min(axis, Math.max(0, project.spans.length - 1)));
+                if (tab === "extraTop") {
+                  const pinned = extraTopAtSupport(b.startAxis, lastAxis);
+                  setExtraForm({ ...b, ...pinned });
+                  setSelectedSupport(pinned.startAxis);
+                  setSelectedSpan(Math.min(pinned.startAxis, Math.max(0, project.spans.length - 1)));
+                } else {
+                  const pinned = extraBottomAtSpan(b.startAxis, lastAxis);
+                  setExtraForm({ ...b, ...pinned });
+                  setSelectedSpan(pinned.startAxis);
+                  setSelectedSupport(pinned.startAxis);
+                }
               }}
               lastAxis={lastAxis}
               onAdd={() => addExtra(tab === "extraBottom" ? "extraBottom" : "extraTop")}
@@ -732,7 +774,7 @@ export function BeamApp() {
               onRegionMove={(start, end) => {
                 const axis = Math.min(start, end);
                 selectSpan(Math.min(axis, Math.max(0, project.spans.length - 1)));
-                setSelectedSupport(axis);
+                if (tab === "extraTop") setSelectedSupport(axis);
               }}
               face={tab === "extraTop" ? "top" : "bottom"}
             />
@@ -959,8 +1001,10 @@ export function BeamApp() {
           onSelectSpan={barRegion ? moveBarRegionToSpan : selectSpan}
           onSelectSupport={(i) => {
             selectSupport(i);
-            if (tab === "extraTop" || tab === "extraBottom") {
-              setExtraForm((f) => ({ ...f, startAxis: i, endAxis: i }));
+            if (tab === "extraTop") {
+              setExtraForm((f) => ({ ...f, ...extraTopAtSupport(i, lastAxis) }));
+            } else if (tab === "extraBottom") {
+              setExtraForm((f) => ({ ...f, ...extraBottomAtSpan(i === lastAxis ? i - 1 : i, lastAxis) }));
             }
           }}
         />
@@ -1215,14 +1259,19 @@ function ExtraBarPanel({
   const addBlocked = extraBarDuplicate(bars, form);
   const editBlocked = extraBarDuplicate(bars, form, selected);
   const extraHint = addBlocked
-    ? `Đã có ${extraLabel(form)} — đổi lớp, Ø, số lượng hoặc gối rồi thêm.`
+    ? `Đã có ${extraLabel(form)} — đổi lớp, Ø, số lượng hoặc đoạn rồi thêm.`
     : face === "top"
       ? "Thép mũ tại gối: 0→0, 1→1, 2→2… Bấm Thêm sẽ chuyển sang gối kế tiếp."
-      : "Thép bụng tại gối: 0→0, 1→1, 2→2… Bấm Thêm sẽ chuyển sang gối kế tiếp.";
-  const pinAxis = (axis: number) => {
-    const a = Math.max(0, Math.min(axis, lastAxis));
-    setForm({ ...form, startAxis: a, endAxis: a });
-    onRegionMove?.(a, a);
+      : "Thép bụng theo nhịp: 0→1, 1→2, 2→3… Bấm Thêm sẽ chuyển sang nhịp kế tiếp.";
+  const pinTopAxis = (axis: number) => {
+    const pinned = extraTopAtSupport(axis, lastAxis);
+    setForm({ ...form, ...pinned });
+    onRegionMove?.(pinned.startAxis, pinned.endAxis);
+  };
+  const pinBottomSpan = (spanIndex: number) => {
+    const pinned = extraBottomAtSpan(spanIndex, lastAxis);
+    setForm({ ...form, ...pinned });
+    onRegionMove?.(pinned.startAxis, pinned.endAxis);
   };
   return (
     <div className="flex flex-wrap gap-3">
@@ -1258,7 +1307,11 @@ function ExtraBarPanel({
           <Field label="Vị trí bắt đầu">
             <Select
               value={form.startAxis}
-              onChange={(e) => pinAxis(Number(e.target.value))}
+              onChange={(e) => {
+                const axis = Number(e.target.value);
+                if (face === "top") pinTopAxis(axis);
+                else pinBottomSpan(axis);
+              }}
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
@@ -1281,8 +1334,12 @@ function ExtraBarPanel({
           </Field>
           <Field label="Vị trí kết thúc">
             <Select
-              value={form.startAxis}
-              onChange={(e) => pinAxis(Number(e.target.value))}
+              value={form.endAxis}
+              onChange={(e) => {
+                const axis = Number(e.target.value);
+                if (face === "top") pinTopAxis(axis);
+                else pinBottomSpan(axis - 1);
+              }}
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
@@ -1321,11 +1378,19 @@ function ExtraBarPanel({
                 ? `Đã có ${extraLabel(form)} — không lưu trùng`
                 : "Lưu thay đổi thanh đang chọn"
             }
-            onShiftLeft={() => pinAxis(form.startAxis - 1)}
-            onShiftRight={() => pinAxis(form.startAxis + 1)}
+            onShiftLeft={() => {
+              if (face === "top") pinTopAxis(form.startAxis - 1);
+              else pinBottomSpan(form.startAxis - 1);
+            }}
+            onShiftRight={() => {
+              if (face === "top") pinTopAxis(form.startAxis + 1);
+              else pinBottomSpan(form.startAxis + 1);
+            }}
             canShiftLeft={form.startAxis > 0}
-            canShiftRight={form.startAxis < lastAxis}
-            rangeLabel={`${form.startAxis} → ${form.startAxis}`}
+            canShiftRight={
+              face === "top" ? form.startAxis < lastAxis : form.startAxis < lastAxis - 1
+            }
+            rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
         </div>
         <p className={`mt-2 text-[11px] leading-snug ${addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
