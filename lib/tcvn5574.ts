@@ -84,9 +84,10 @@ export function describeSaggingExtraBottom(l0?: number, h0?: number, dia?: numbe
   if (!(l0 && l0 > 0) || !(h0 && h0 > 0) || !(dia && dia > 0)) return formula;
   const ds = Math.max(dia, 1);
   const a = Math.max(h0, 15 * ds, l0 / 16);
-  const len = roundTo(l0 / 2 + 2 * a, 10);
-  const inset = Math.max((l0 - Math.min(len, l0)) / 2, 0);
-  return `${formula} = ${len} mm (cách mép gối ${Math.round(inset)} mm)`;
+  const raw = l0 / 2 + 2 * a;
+  const shop = Math.min(roundTo(raw + 100, 50), l0);
+  const inset = Math.max((l0 - shop) / 2, 0);
+  return `${formula} = ${Math.round(raw)} → ${shop} mm (dư 50 mỗi đầu, tròn 50) · cách mép gối ${Math.round(inset)} mm`;
 }
 
 export function describeEndType(

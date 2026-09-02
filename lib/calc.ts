@@ -75,14 +75,21 @@ export function saggingExtraAnchorMm(l0: number, h0: number, dia: number) {
 /**
  * Chiều dài thép bổ sung M+ giữa nhịp, lớp dưới:
  * l₀/2 + 2·max(h₀, 15d, l₀/16)
+ * Shop: dư 50 mm mỗi đầu rồi làm tròn 50 mm (khớp bản vẽ sxCAD: 6141→6250, 6281→6400).
  */
+export function saggingExtraLengthRawMm(l0: number, h0: number, dia: number) {
+  return l0 / 2 + 2 * saggingExtraAnchorMm(l0, h0, dia);
+}
+
 export function saggingExtraLengthMm(l0: number, h0: number, dia: number) {
-  return roundTo(l0 / 2 + 2 * saggingExtraAnchorMm(l0, h0, dia), 10);
+  if (!(l0 > 0)) return 0;
+  const raw = saggingExtraLengthRawMm(l0, h0, dia);
+  const shop = roundTo(raw + 100, 50);
+  return Math.max(0, Math.min(shop, l0));
 }
 
 /**
  * Khoảng từ mép trong gối vào nhịp. Hai đầu dạng 1 cho ra đúng saggingExtraLengthMm.
- * = l₀/4 − max(h₀, 15d, l₀/16), không âm.
  */
 export function saggingExtraInsetMm(l0: number, h0: number, dia: number) {
   const len = saggingExtraLengthMm(l0, h0, dia);
