@@ -124,6 +124,17 @@ function beamEndCoverEndX(project: BeamProject) {
   return supportFaces(project, project.spans.length).right - BEAM_END_COVER_MM;
 }
 
+/** M- gối biên: móc tại tim nếu tim đã cách mép ngoài ≥ 50 mm (khớp shop 2450). */
+function hoggingEdgeStartX(project: BeamProject) {
+  const f = supportFaces(project, 0);
+  return Math.max(f.axis, f.left + BEAM_END_COVER_MM);
+}
+
+function hoggingEdgeEndX(project: BeamProject) {
+  const f = supportFaces(project, project.spans.length);
+  return Math.min(f.axis, f.right - BEAM_END_COVER_MM);
+}
+
 function hoggingBarAtSupport(
   project: BeamProject,
   axisIndex: number,
@@ -157,11 +168,11 @@ function hoggingBarAtSupport(
   let hookStart = 0;
   let hookEnd = 0;
   if (axisIndex === 0) {
-    x1 = beamEndCoverStartX(project);
+    x1 = hoggingEdgeStartX(project);
     hookStart = hook;
   }
   if (axisIndex === last) {
-    x2 = beamEndCoverEndX(project);
+    x2 = hoggingEdgeEndX(project);
     hookEnd = hook;
   }
   if (x2 <= x1) {
@@ -400,18 +411,17 @@ export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top
     const Hs = project.spans[0]?.H ?? 500;
     const He = project.spans[Math.max(0, last - 1)]?.H ?? Hs;
     if (leftAxis === 0 && x1 <= first.right + 0.5) {
-      x1 = beamEndCoverStartX(project);
+      x1 = hoggingEdgeStartX(project);
       hookStart = hoggingEdgeHookMm(Hs);
     }
     if (rightAxis === last && x2 >= lastF.left - 0.5) {
-      x2 = beamEndCoverEndX(project);
+      x2 = hoggingEdgeEndX(project);
       hookEnd = hoggingEdgeHookMm(He);
     }
   }
 
   const straight = x2 - x1;
-  const cutLength =
-    bar.lengthOverride && bar.lengthOverride > 0 ? bar.lengthOverride : straight + hookStart + hookEnd;
+  const cutLength = straight + hookStart + hookEnd;
   return { x1, x2, hookStart, hookEnd, straight, cutLength, startType, endType };
 }
 
@@ -429,7 +439,6 @@ export function extraBarLengthHint(
   bar: ExtraBar,
   face: "top" | "bottom",
 ) {
-  if (bar.lengthOverride && bar.lengthOverride > 0) return `L=${bar.lengthOverride}`;
   const rs = resolveExtraBars(project, [bar], face);
   if (rs.length === 0) return "L≈0";
   return `L≈${rs.map((b) => Math.round(b.cutLength)).join("+")}`;

@@ -1250,19 +1250,6 @@ function ExtraBarPanel({
             </Select>
             <p className="text-[10px] leading-tight text-zinc-500">{endHint}</p>
           </Field>
-          <Field label="Chiều dài thanh (mm, để trống = tự tính)" className="sm:col-span-2">
-            <Input
-              type="number"
-              value={form.lengthOverride ?? ""}
-              placeholder={hint}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  lengthOverride: e.target.value === "" ? undefined : Number(e.target.value),
-                })
-              }
-            />
-          </Field>
         </div>
         <div className="mt-3 flex items-center gap-3">
           <CrudButtons
