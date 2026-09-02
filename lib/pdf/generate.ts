@@ -236,20 +236,11 @@ function drawLongitudinal(ctx: Ctx, yTop: number, beamH: number) {
   const coverPt = Math.max(6, (project.info.cover || 25) * mmToPt);
   const topY = y0 + coverPt;
   const botY = y1 - coverPt;
-  const mainPitch = 3.2;
   for (const b of model.mainTop) {
-    const n = Math.max(2, Math.min(b.qty || 2, 4));
-    for (let k = 0; k < n; k++) {
-      const yy = topY + (k - (n - 1) / 2) * mainPitch;
-      drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), yy, b.hookStart, b.hookEnd, 1, 0.9);
-    }
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY, b.hookStart, b.hookEnd, 1, 0.9);
   }
   for (const b of model.mainBottom) {
-    const n = Math.max(2, Math.min(b.qty || 2, 4));
-    for (let k = 0; k < n; k++) {
-      const yy = botY + (k - (n - 1) / 2) * mainPitch;
-      drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), yy, b.hookStart, b.hookEnd, -1, 0.9);
-    }
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.9);
   }
   for (const b of model.extraTop) {
     drawHookedBar(
