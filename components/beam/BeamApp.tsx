@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { BeamPreview } from "@/components/beam/BeamPreview";
 import { ExtraShapeSketch } from "@/components/beam/ExtraShapeSketch";
+import { SectionSketch } from "@/components/beam/SectionSketch";
 import { SupportSketch } from "@/components/beam/SupportSketch";
 import {
   applySpanParams,
@@ -381,7 +382,7 @@ export function BeamApp() {
                   </div>
                 </div>
               </Panel>
-              <SectionSketch B={span.B} B1={span.B1} H={span.H} />
+              <SectionSketch span={span} />
             </div>
           )}
 
@@ -453,7 +454,7 @@ export function BeamApp() {
                   </div>
                 </div>
               </Panel>
-              <SectionSketch B={span.B} B1={span.B1} H={span.H} slab />
+              <SectionSketch span={span} />
             </div>
           )}
 
@@ -802,53 +803,6 @@ export function BeamApp() {
         <span className="ml-auto text-zinc-600">Nhấp vào nhịp / gối trên bản vẽ để chọn</span>
       </footer>
     </div>
-  );
-}
-
-function SectionSketch({
-  B,
-  B1,
-  H,
-  slab,
-}: {
-  B: number;
-  B1: number;
-  H: number;
-  slab?: boolean;
-}) {
-  const width = Math.max(B || 200, 1);
-  const leftToAxis = Number.isFinite(B1) ? B1 : width / 2;
-  const boxW = 36;
-  const boxX = 42;
-  const boxY = 18;
-  const boxH = 90;
-  const axisX = boxX + (leftToAxis / width) * boxW;
-
-  return (
-    <Panel title="Tiết diện" className="w-44 shrink-0">
-      <svg viewBox="0 0 120 140" className="h-32 w-full">
-        {slab && <rect x={58} y={18} width={50} height={14} fill="#93c5fd" stroke="#e5e7eb" />}
-        <rect x={boxX} y={boxY} width={boxW} height={boxH} fill="#1d4ed8" stroke="#e5e7eb" />
-        <line
-          x1={axisX}
-          y1={8}
-          x2={axisX}
-          y2={boxY + boxH + 8}
-          stroke="#a3e635"
-          strokeDasharray="3 2"
-          strokeWidth={1}
-        />
-        <text x={78} y={70} fill="#e5e7eb" fontSize={9}>
-          H={H}
-        </text>
-        <text x={42} y={122} fill="#e5e7eb" fontSize={9}>
-          B={B}
-        </text>
-        <text x={8} y={122} fill="#a1a1aa" fontSize={8}>
-          B1={B1}
-        </text>
-      </svg>
-    </Panel>
   );
 }
 
