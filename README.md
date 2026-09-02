@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Mở trình duyệt tại cổng dev (mặc định in ra terminal). Ứng dụng đã nạp sẵn mẫu **dầm D1** (5 nhịp, SL = 2) giống file PDF mẫu.
+Mở trình duyệt tại cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1** (5 nhịp); danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí.
 
 Xuất site tĩnh cho GitHub Pages:
 

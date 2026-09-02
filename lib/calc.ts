@@ -220,15 +220,16 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
     let cursor = x0;
     for (const { z, dense } of zones) {
       countEach += z.count;
-      const text = `${z.count}Ø${st.dia}a${z.spacing}`;
-      labels.push({
-        x: cursor + z.length / 2,
-        text,
-        mark: "9",
-      });
-      const gap = z.length / Math.max(z.count, 1);
-      for (let k = 0; k < z.count; k++) {
-        ticks.push({ x: cursor + gap * (k + 0.5), dense });
+      if (z.count > 0) {
+        labels.push({
+          x: cursor + z.length / 2,
+          text: `${z.count}Ø${st.dia}a${z.spacing}`,
+          mark: "9",
+        });
+        const gap = z.length / Math.max(z.count, 1);
+        for (let k = 0; k < z.count; k++) {
+          ticks.push({ x: cursor + gap * (k + 0.5), dense });
+        }
       }
       cursor += z.length;
     }
@@ -376,20 +377,22 @@ export function computeModel(project: BeamProject): ComputedModel {
     tableRows.push({ ...r, mark: String(r.markNum) });
   }
 
-  const stirrupRow: ScheduleRow = {
-    mark: String(mark),
-    markNum: mark,
-    shape: "stirrup",
-    segs: [stirrups.innerB, stirrups.innerH, stirrups.hook],
-    dia: stirrups.dia,
-    barLength: stirrups.cutLength,
-    qtyEach: stirrups.countEach,
-    qtyTotal: stirrups.countEach * sl,
-    totalM: (stirrups.cutLength * stirrups.countEach * sl) / 1000,
-    weight: ((stirrups.cutLength * stirrups.countEach * sl) / 1000) * unitWeight(stirrups.dia),
-    bars: [],
-  };
-  tableRows.push(stirrupRow);
+  if (stirrups.countEach > 0) {
+    const stirrupRow: ScheduleRow = {
+      mark: String(mark),
+      markNum: mark,
+      shape: "stirrup",
+      segs: [stirrups.innerB, stirrups.innerH, stirrups.hook],
+      dia: stirrups.dia,
+      barLength: stirrups.cutLength,
+      qtyEach: stirrups.countEach,
+      qtyTotal: stirrups.countEach * sl,
+      totalM: (stirrups.cutLength * stirrups.countEach * sl) / 1000,
+      weight: ((stirrups.cutLength * stirrups.countEach * sl) / 1000) * unitWeight(stirrups.dia),
+      bars: [],
+    };
+    tableRows.push(stirrupRow);
+  }
 
   const byDiaMap = new Map<number, number>();
   for (const r of tableRows) {

@@ -29,15 +29,6 @@ function support(i: number, n: number): Support {
   };
 }
 
-function stirrup(L: number, left: number, mid: number, right: number, cL: number, cM: number, cR: number): SpanStirrups {
-  return {
-    dia: 6,
-    left: { count: cL, spacing: 150, length: left },
-    mid: { count: cM, spacing: 200, length: mid },
-    right: { count: cR, spacing: 150, length: right },
-  };
-}
-
 export function createEmptyProject(): BeamProject {
   const spans = [span({ L: 4000 })];
   return {
@@ -50,16 +41,16 @@ export function createEmptyProject(): BeamProject {
     },
     spans,
     supports: [support(0, 1), support(1, 1)],
-    mainBottom: [{ id: uid("mb"), dia: 18, qty: 2, startAxis: 0, endAxis: 1 }],
+    mainBottom: [],
     extraBottom: [],
-    mainTop: [{ id: uid("mt"), dia: 18, qty: 2, startAxis: 0, endAxis: 1 }],
+    mainTop: [],
     extraTop: [],
-    stirrups: [stirrup(4000, 1400, 1200, 1400, 8, 6, 8)],
+    stirrups: [emptyStirrupsForLength(4000)],
     secondary: [],
   };
 }
 
-/** Sample matching the provided shop-drawing PDF (dầm D1, 5 nhịp). */
+/** Hình học mẫu dầm D1 (5 nhịp). Danh sách thép để trống — người dùng tự thêm. */
 export function createSampleD1(): BeamProject {
   const Ls = [4250, 4250, 5000, 4250, 4250];
   const spans = Ls.map((L) => span({ L }));
@@ -75,47 +66,20 @@ export function createSampleD1(): BeamProject {
     },
     spans,
     supports,
-    mainBottom: [{ id: uid("mb"), dia: 18, qty: 3, startAxis: 0, endAxis: 5 }],
-    extraBottom: [
-      { id: uid("eb"), layer: 2, dia: 20, qty: 2, startAxis: 0, endAxis: 1, startType: 0, endType: 0, lengthOverride: 2950 },
-      { id: uid("eb"), layer: 2, dia: 20, qty: 2, startAxis: 1, endAxis: 2, startType: 0, endType: 0, lengthOverride: 3050 },
-      { id: uid("eb"), layer: 2, dia: 20, qty: 2, startAxis: 2, endAxis: 3, startType: 0, endType: 0, lengthOverride: 3600 },
-      { id: uid("eb"), layer: 2, dia: 20, qty: 2, startAxis: 3, endAxis: 4, startType: 0, endType: 0, lengthOverride: 3050 },
-      { id: uid("eb"), layer: 2, dia: 20, qty: 2, startAxis: 4, endAxis: 5, startType: 0, endType: 0, lengthOverride: 2950 },
-    ],
-    mainTop: [{ id: uid("mt"), dia: 18, qty: 3, startAxis: 0, endAxis: 5 }],
-    extraTop: [
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 0, endAxis: 0, startType: 1, endType: 0, lengthOverride: 1450 },
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 1, endAxis: 1, startType: 0, endType: 0, lengthOverride: 2850 },
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 2, endAxis: 2, startType: 0, endType: 0, lengthOverride: 3150 },
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 3, endAxis: 3, startType: 0, endType: 0, lengthOverride: 3150 },
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 4, endAxis: 4, startType: 0, endType: 0, lengthOverride: 2850 },
-      { id: uid("et"), layer: 2, dia: 20, qty: 2, startAxis: 5, endAxis: 5, startType: 0, endType: 1, lengthOverride: 1450 },
-    ],
-    stirrups: [
-      stirrup(4250, 1500, 1350, 1400, 7, 9, 7),
-      stirrup(4250, 1450, 1350, 1450, 8, 8, 8),
-      stirrup(5000, 1700, 1600, 1700, 9, 10, 9),
-      stirrup(4250, 1450, 1350, 1450, 8, 8, 8),
-      stirrup(4250, 1400, 1350, 1500, 7, 9, 7),
-    ],
-    secondary: [
-      {
-        id: uid("sec"),
-        kind: "dam-phu",
-        position: 1200,
-        Cx: 200,
-        Dx: 100,
-        H: 400,
-        shear: true,
-        shearKind: "dai",
-        stirrupsEachSide: 5,
-      },
-    ],
+    mainBottom: [],
+    extraBottom: [],
+    mainTop: [],
+    extraTop: [],
+    stirrups: Ls.map((L) => emptyStirrupsForLength(L)),
+    secondary: [],
   };
 }
 
-export function defaultStirrupsForLength(L: number): SpanStirrups {
+function round50(n: number) {
+  return Math.round(n / 50) * 50;
+}
+
+function zoneLengths(L: number) {
   const side = Math.max(round50(L * 0.34), 800);
   let mid = L - 2 * side;
   let left = side;
@@ -125,19 +89,22 @@ export function defaultStirrupsForLength(L: number): SpanStirrups {
     left = Math.floor((L - mid) / 2 / 50) * 50;
     right = L - left - mid;
   }
-  const cL = Math.max(4, Math.round(left / 150) - 3);
-  const cM = Math.max(4, Math.round(mid / 200) - 2);
-  const cR = Math.max(4, Math.round(right / 150) - 3);
+  return { left, mid, right };
+}
+
+/** Vùng đai theo chiều dài nhịp, số lượng = 0 — người dùng tự nhập. */
+export function emptyStirrupsForLength(L: number): SpanStirrups {
+  const { left, mid, right } = zoneLengths(L);
   return {
     dia: 6,
-    left: { count: cL, spacing: 150, length: left },
-    mid: { count: cM, spacing: 200, length: mid },
-    right: { count: cR, spacing: 150, length: right },
+    left: { count: 0, spacing: 150, length: left },
+    mid: { count: 0, spacing: 200, length: mid },
+    right: { count: 0, spacing: 150, length: right },
   };
 }
 
-function round50(n: number) {
-  return Math.round(n / 50) * 50;
+export function defaultStirrupsForLength(L: number): SpanStirrups {
+  return emptyStirrupsForLength(L);
 }
 
 export function syncGeometry(project: BeamProject, spanCount: number): BeamProject {

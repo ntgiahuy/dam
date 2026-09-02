@@ -188,10 +188,11 @@ export function BeamPreview({
         ))}
       </svg>
       <div className="pointer-events-none absolute bottom-1 left-2 text-[10px] text-zinc-500">
-        {project.info.name} · {project.spans.length} nhịp · {barNotation(
-          project.mainBottom[0]?.qty ?? 0,
-          project.mainBottom[0]?.dia ?? 0,
-        )} dưới · {supportWidthLabel(project, 0)} gối đầu
+        {project.info.name} · {project.spans.length} nhịp
+        {project.mainBottom[0]
+          ? ` · ${barNotation(project.mainBottom[0].qty, project.mainBottom[0].dia)} dưới`
+          : " · chưa có thép chủ"}{" "}
+        · {supportWidthLabel(project, 0)} gối đầu
       </div>
     </div>
   );

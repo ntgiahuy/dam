@@ -44,7 +44,7 @@ import {
 } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
-const STORE_KEY = "thep-dam-project-v1";
+const STORE_KEY = "thep-dam-project-v2";
 
 function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
@@ -202,7 +202,7 @@ export function BeamApp() {
             size="sm"
             onClick={() => {
               persist(createSampleD1());
-              setStatus("Đã nạp mẫu dầm D1.");
+              setStatus("Đã nạp hình học D1. Thêm thép bằng nút Thêm.");
             }}
           >
             <FolderOpen /> Mẫu D1
