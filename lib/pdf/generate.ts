@@ -151,6 +151,49 @@ function markCircle(ctx: Ctx, cx: number, cy: number, mark: string, r = 7) {
   textCentered(ctx, mark, cx, cy, size);
 }
 
+function clampMark(n: number, lo: number, hi: number) {
+  if (hi < lo) return (lo + hi) / 2;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+/**
+ * Đặt số hiệu giữa thanh, rồi đẩy tách nếu hai vòng tròn chồng nhau.
+ * Giữ mỗi số hiệu nằm trong đoạn [x1, x2] của đúng thanh đó.
+ */
+function placeBarMarks(
+  bars: { x1: number; x2: number }[],
+  radius: number,
+  gap = 4,
+): number[] {
+  const minGap = radius * 2 + gap;
+  const items = bars.map((b, i) => {
+    const a = Math.min(b.x1, b.x2);
+    const c = Math.max(b.x1, b.x2);
+    const lo = a + radius + 1;
+    const hi = c - radius - 1;
+    const mid = (a + c) / 2;
+    return { i, lo, hi, x: clampMark(mid, lo, hi) };
+  });
+  items.sort((a, b) => a.x - b.x || a.i - b.i);
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 1; i < items.length; i++) {
+      const prev = items[i - 1];
+      const cur = items[i];
+      if (cur.x - prev.x + 1e-6 >= minGap) continue;
+      const need = prev.x + minGap;
+      const pushed = Math.min(cur.hi, need);
+      cur.x = pushed;
+      if (cur.x + 1e-6 < need) {
+        prev.x = clampMark(cur.x - minGap, prev.lo, prev.hi);
+        cur.x = clampMark(prev.x + minGap, cur.lo, cur.hi);
+      }
+    }
+  }
+  const out = new Array<number>(bars.length);
+  for (const it of items) out[it.i] = it.x;
+  return out;
+}
+
 function textAboveLine(
   ctx: Ctx,
   str: string,
@@ -178,24 +221,30 @@ function textAboveLine(
   return width;
 }
 
-function dimH(ctx: Ctx, x1: number, x2: number, y: number, label: string, size = 6.5) {
+function dimH(ctx: Ctx, x1: number, x2: number, y: number, label: string, size = 6.5, avoidX?: number) {
   const a = Math.min(x1, x2);
   const b = Math.max(x1, x2);
   if (b - a < 2) return;
   const mid = (a + b) / 2;
   const labelW = ctx.font.widthOfTextAtSize(label, size) + 5;
+  let labelX = mid;
+  if (avoidX != null && Math.abs(mid - avoidX) < labelW / 2 + 14) {
+    const left = a + (b - a) * 0.3;
+    const right = a + (b - a) * 0.7;
+    labelX = Math.abs(left - avoidX) >= Math.abs(right - avoidX) ? left : right;
+  }
   line(ctx, a, y - 2.4, a, y + 2.4, 0.35);
   line(ctx, b, y - 2.4, b, y + 2.4, 0.35);
   line(ctx, a, y - 2.2, a + 3.2, y + 2.2, 0.3);
   line(ctx, b, y - 2.2, b - 3.2, y + 2.2, 0.3);
   if (b - a > labelW + 12) {
-    line(ctx, a, y, mid - labelW / 2, y, 0.35);
-    line(ctx, mid + labelW / 2, y, b, y, 0.35);
+    line(ctx, a, y, labelX - labelW / 2, y, 0.35);
+    line(ctx, labelX + labelW / 2, y, b, y, 0.35);
   } else {
     line(ctx, a, y, b, y, 0.35);
   }
   if (b - a > 14 || label.length < 5) {
-    textAboveLine(ctx, label, mid, y, size, "center", false, 3.8);
+    textAboveLine(ctx, label, labelX, y, size, "center", false, 3.8);
   }
 }
 
@@ -296,18 +345,21 @@ function covers(bar: ResolvedBar, x: number, pad = 30) {
 }
 
 function markForBar(schedule: ScheduleRow[], bar: ResolvedBar) {
-  return schedule.find((r) => {
-    if (r.family === "D") return false;
-    if (
+  const piece = bar.pieceIndex ?? 0;
+  const exact = schedule.find(
+    (r) =>
+      r.family !== "D" &&
       r.bars.some(
         (b) =>
           b.sourceId === bar.sourceId &&
+          (b.pieceIndex ?? 0) === piece &&
           Math.abs(b.x1 - bar.x1) < 2 &&
           Math.abs(b.x2 - bar.x2) < 2,
-      )
-    ) {
-      return true;
-    }
+      ),
+  );
+  if (exact) return exact;
+  return schedule.find((r) => {
+    if (r.family === "D") return false;
     const head = r.bars[0];
     if (!head) return false;
     return (
@@ -338,17 +390,31 @@ function drawShopSpec(
   y: number,
   mark: string,
   spec: string,
-  place: "mid" | "right" = "mid",
+  markX?: number,
+  nextMarkX?: number,
 ) {
-  const mid = (x1 + x2) / 2;
-  const spanPt = Math.abs(x2 - x1);
+  const a = Math.min(x1, x2);
+  const b = Math.max(x1, x2);
+  const spanPt = b - a;
   const size = spanPt < 90 ? 6 : 7.5;
+  const r = Math.max(mark.length > 2 ? 7.2 : 6.4, spanPt < 86 ? 5.8 : 6.6);
+  const cx = markX ?? (a + b) / 2;
+  markCircle(ctx, cx, y, mark, r);
+  if (!spec) return;
   const font = ctx.font;
   const sw = font.widthOfTextAtSize(spec, size);
-  const r = spanPt < 86 ? 5.8 : 6.8;
-  const specX = place === "right" && spanPt > 140 ? x2 - sw - 10 : mid - sw / 2;
-  markCircle(ctx, specX - r - 5, y - r - 3.6, mark, r);
-  textAboveLine(ctx, spec, specX, y, size, "left", false, 3.4);
+  const rightLimit = nextMarkX != null ? nextMarkX - r - 5 : b + 80;
+  const leftLimit = a - 8;
+  const specRight = cx + r + 5;
+  if (specRight + sw <= rightLimit) {
+    textAboveLine(ctx, spec, specRight, y, size, "left", false, 3.4);
+    return;
+  }
+  const specLeft = cx - r - 5;
+  if (specLeft - sw >= leftLimit) {
+    textAboveLine(ctx, spec, specLeft, y, size, "right", false, 3.4);
+    return;
+  }
 }
 
 function groupMainShopSources(bars: ResolvedBar[]) {
@@ -387,14 +453,15 @@ function drawMainShopPiece(
   const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
   if (bar.hookStart > 0) dimV(ctx, x1 - 11, y, y + dir * hs, String(Math.round(bar.hookStart)), 6);
   if (bar.hookEnd > 0) dimV(ctx, x2 + 8, y, y + dir * he, String(Math.round(bar.hookEnd)), 6);
+  const markX = placeBarMarks([{ x1, x2 }], 6.6)[0] ?? (x1 + x2) / 2;
   if (bar.straight > 80) {
-    dimH(ctx, x1, x2, y - dir * 15, String(Math.round(bar.cutLength)), 6.3);
+    dimH(ctx, x1, x2, y - dir * 15, String(Math.round(bar.cutLength)), 6.3, markX);
   }
   if (bar.spliceLapMm && bar.spliceLapMm > 0) {
     const lapX1 = xAt(ctx, bar.x2 - bar.spliceLapMm);
     dimH(ctx, lapX1, x2, y + dir * 13, String(Math.round(bar.spliceLapMm)), 6.2);
   }
-  drawShopSpec(ctx, x1, x2, y, mark, shopSpec(qty, bar, family), "right");
+  drawShopSpec(ctx, x1, x2, y, mark, shopSpec(qty, bar, family), markX);
 }
 
 function drawMainShopRows(ctx: Ctx, bars: ResolvedBar[], y: number, dir: 1 | -1) {
@@ -444,20 +511,24 @@ function drawSupportGuides(ctx: Ctx, y0: number, y1: number) {
 }
 
 function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[], y: number, dir: 1 | -1) {
-  for (const b of bars) {
-    const x1 = xAt(ctx, b.x1);
-    const x2 = xAt(ctx, b.x2);
+  const pageBars = bars.map((b) => ({ x1: xAt(ctx, b.x1), x2: xAt(ctx, b.x2) }));
+  const markXs = placeBarMarks(pageBars, 6.6);
+  bars.forEach((b, i) => {
+    const x1 = pageBars[i].x1;
+    const x2 = pageBars[i].x2;
     const row = markForBar(schedule, b);
     const family = row?.family ?? barFamilyOf(b);
     const mark = row?.mark ?? "";
+    const markX = markXs[i] ?? (x1 + x2) / 2;
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
-    dimH(ctx, x1, x2, y - 22, String(Math.round(b.straight)), 6.2);
+    dimH(ctx, x1, x2, y - 22, String(Math.round(b.straight)), 6.2, markX);
     const hs = Math.max(b.hookStart * ctx.scale * 0.28, b.hookStart > 0 ? 8 : 0);
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
     if (b.hookEnd > 0) dimV(ctx, x2 + 7, y, y + dir * he, String(Math.round(b.hookEnd)), 6);
-    drawShopSpec(ctx, x1, x2, y, mark, shopSpec(b.qty, b, family), "mid");
-  }
+    const nextMark = markXs[i + 1];
+    drawShopSpec(ctx, x1, x2, y, mark, shopSpec(b.qty, b, family), markX, nextMark);
+  });
 }
 
 const MAIN_SHOP_H = 40;
@@ -822,16 +893,50 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     }
   }
 
-  const call = (bar: ResolvedBar, planeY: number, side: 1 | -1) => {
-    const row = markForBar(model.schedule, bar);
-    if (!row) return;
-    const midX = xAt(ctx, (bar.x1 + bar.x2) / 2);
-    const barY = planeY + side * extraLayerOffsetMm(bar.layer) * mmToPt;
-    markCircle(ctx, midX, barY, String(row.markNum), 5.6);
-    textAboveLine(ctx, barNotation(bar.qty, bar.dia), midX + 8, barY, 6.3, "left", false, 3.2);
+  const drawMarksOnPlane = (
+    items: { bar: ResolvedBar; y: number; fullMark: boolean }[],
+  ) => {
+    const groups = new Map<number, typeof items>();
+    for (const it of items) {
+      const key = Math.round(it.y * 4) / 4;
+      const arr = groups.get(key) ?? [];
+      arr.push(it);
+      groups.set(key, arr);
+    }
+    const placed = new Map<ResolvedBar, number>();
+    for (const [, list] of groups) {
+      const pageBars = list.map(({ bar }) => ({ x1: xAt(ctx, bar.x1), x2: xAt(ctx, bar.x2) }));
+      const xs = placeBarMarks(pageBars, 5.8);
+      list.forEach((it, i) => {
+        const row = markForBar(model.schedule, it.bar);
+        if (!row) return;
+        const mx = xs[i] ?? (pageBars[i].x1 + pageBars[i].x2) / 2;
+        placed.set(it.bar, mx);
+        markCircle(ctx, mx, it.y, it.fullMark ? row.mark : String(row.markNum), 5.6);
+        const note = barNotation(it.bar.qty, it.bar.dia);
+        const nw = ctx.font.widthOfTextAtSize(note, 6.2);
+        const next = xs[i + 1] ?? Number.POSITIVE_INFINITY;
+        if (mx + 8 + nw < next - 8) {
+          textAboveLine(ctx, note, mx + 8, it.y, 6.2, "left", false, 3.0);
+        }
+      });
+    }
+    return placed;
   };
-  for (const b of model.extraTop) call(b, topY, 1);
-  for (const b of model.extraBottom) call(b, botY, -1);
+
+  const extraMarks = drawMarksOnPlane([
+    ...model.extraTop.map((bar) => ({
+      bar,
+      y: topY + extraLayerOffsetMm(bar.layer) * mmToPt,
+      fullMark: false,
+    })),
+    ...model.extraBottom.map((bar) => ({
+      bar,
+      y: botY - extraLayerOffsetMm(bar.layer) * mmToPt,
+      fullMark: false,
+    })),
+  ]);
+  void extraMarks;
 
   const mb = model.schedule.find((r) => r.family === "B1");
   const mt = model.schedule.find((r) => r.family === "T1");
@@ -843,15 +948,18 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
   }
   if (topSpliced) {
+    const placed = drawMarksOnPlane(model.mainTop.map((bar) => ({ bar, y: topY, fullMark: true })));
     for (const b of model.mainTop) {
-      const row = markForBar(model.schedule, b);
-      if (!row) continue;
-      const midX = xAt(ctx, (b.x1 + b.x2) / 2);
-      markCircle(ctx, midX, topY, row.mark, 5.6);
-      textAboveLine(ctx, barNotation(b.qty, b.dia), midX + 8, topY, 6.2, "left", false, 3.0);
-      if (b.straight > 400) {
-        dimH(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY + 11, String(Math.round(b.cutLength)), 5.8);
-      }
+      if (b.straight <= 400) continue;
+      dimH(
+        ctx,
+        xAt(ctx, b.x1),
+        xAt(ctx, b.x2),
+        topY + 11,
+        String(Math.round(b.cutLength)),
+        5.8,
+        placed.get(b),
+      );
     }
   }
   const bottomSpliced = model.mainBottom.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
@@ -860,15 +968,18 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     textAboveLine(ctx, barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), steelSpecX, botY, 6.5, "left", false, 3.2);
   }
   if (bottomSpliced) {
+    const placed = drawMarksOnPlane(model.mainBottom.map((bar) => ({ bar, y: botY, fullMark: true })));
     for (const b of model.mainBottom) {
-      const row = markForBar(model.schedule, b);
-      if (!row) continue;
-      const midX = xAt(ctx, (b.x1 + b.x2) / 2);
-      markCircle(ctx, midX, botY, row.mark, 5.6);
-      textAboveLine(ctx, barNotation(b.qty, b.dia), midX + 8, botY, 6.2, "left", false, 3.0);
-      if (b.straight > 400) {
-        dimH(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY - 11, String(Math.round(b.cutLength)), 5.8);
-      }
+      if (b.straight <= 400) continue;
+      dimH(
+        ctx,
+        xAt(ctx, b.x1),
+        xAt(ctx, b.x2),
+        botY - 11,
+        String(Math.round(b.cutLength)),
+        5.8,
+        placed.get(b),
+      );
     }
   }
 
