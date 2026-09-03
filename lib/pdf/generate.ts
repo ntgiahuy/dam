@@ -744,7 +744,7 @@ function arcDeg(ctx: Ctx, cx: number, cy: number, r: number, startDeg: number, e
 
 function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number, t = 0.7) {
   const r = Math.min(7.4, w * 0.22, h * 0.18);
-  const hook = Math.min(8.6, w * 0.3, h * 0.16);
+  const hook = Math.min(6.8, w * 0.26, h * 0.12);
   const L = x;
   const R = x + w;
   const T = y;
@@ -778,20 +778,14 @@ function drawLayerCallout(
   side: "left" | "right",
 ) {
   const size = 6.6;
-  const tw = ctx.font.widthOfTextAtSize(text, size);
-  const pad = 2.4;
   const stroke = 0.65;
   markCircle(ctx, bubbleX, y, mark, 6.4);
   if (side === "left") {
-    const tx = bubbleX + 9;
-    line(ctx, bubbleX + 6.4, y, tx - 0.6, y, stroke);
-    line(ctx, tx + tw + pad, y, tickX, y, stroke);
-    textAboveLine(ctx, text, tx, y, size, "left", false, 3.2);
+    line(ctx, bubbleX + 6.4, y, tickX, y, stroke);
+    textAboveLine(ctx, text, bubbleX + 9, y, size, "left", false, 3.2);
   } else {
-    const tx = bubbleX - 9;
-    line(ctx, tickX, y, tx - tw - pad, y, stroke);
-    line(ctx, tx + 0.6, y, bubbleX - 6.4, y, stroke);
-    textAboveLine(ctx, text, tx, y, size, "right", false, 3.2);
+    line(ctx, tickX, y, bubbleX - 6.4, y, stroke);
+    textAboveLine(ctx, text, bubbleX - 9, y, size, "right", false, 3.2);
   }
 }
 

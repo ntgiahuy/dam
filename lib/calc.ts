@@ -8,11 +8,11 @@ export function unitWeight(dia: number) {
 }
 
 /** Vertical spacing between extra-bar layers, measured from the main steel plane (mm). */
-export const EXTRA_LAYER_SPACING_MM = 50;
+export const EXTRA_LAYER_SPACING_MM = 25;
 
 /**
  * Offset from the main-bar plane toward mid-depth.
- * Layer 1 is 50 mm inward; layer 2 is 100 mm; layer 3 is 150 mm.
+ * Layer 1 is 25 mm inward; layer 2 is 50 mm; layer 3 is 75 mm.
  */
 export function extraLayerOffsetMm(layer: number) {
   const n = Math.max(1, Math.round(Number.isFinite(layer) ? layer : 1));
