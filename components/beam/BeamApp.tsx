@@ -537,9 +537,30 @@ export function BeamApp() {
   return (
     <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-100">
       <header className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-3 py-2">
-        <div className="mr-2">
-          <div className="text-sm font-bold tracking-wide text-sky-300">Shop drawing thép dầm</div>
-          <div className="text-[11px] text-zinc-400">Shop thép dầm · thống kê cốt thép · GiaHuy.Net</div>
+        <div className="mr-2 flex min-w-0 items-center gap-3 sm:gap-4">
+          <div
+            className="flex shrink-0 items-start select-none"
+            aria-label="GiaHuy"
+          >
+            <span className="text-[22px] font-extrabold leading-none tracking-[0.14em] text-[#e84aa8] sm:text-[26px]">
+              GIAHUY
+            </span>
+            <span className="-mt-0.5 ml-px text-[10px] font-bold leading-none text-[#e84aa8] sm:text-[11px]">
+              ©
+            </span>
+          </div>
+          <div
+            className="h-9 w-px shrink-0 bg-zinc-500/80 sm:h-10"
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-bold tracking-wide text-[#8ec5ff] sm:text-base">
+              Shop drawing thép dầm
+            </div>
+            <div className="text-[11px] leading-snug text-zinc-400">
+              Nhập kích thước dầm, bấm nút xanh để xem bản vẽ. Tải PDF khi cần.
+            </div>
+          </div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button
