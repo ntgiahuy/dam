@@ -778,35 +778,23 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
 
   const mb = model.schedule.find((r) => r.family === "B1");
   const mt = model.schedule.find((r) => r.family === "T1");
+  const steelMarkX = xStart - 20;
+  const steelSpecX = xStart - 12;
   if (mt && model.mainTop[0]) {
-    textAboveLine(
-      ctx,
-      `${mt.markNum}  ${barNotation(model.mainTop[0].qty, model.mainTop[0].dia)}`,
-      xStart - 6,
-      topY,
-      6.5,
-      "right",
-      false,
-      3.2,
-    );
+    markCircle(ctx, steelMarkX, topY, String(mt.markNum), 5.8);
+    textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
   }
   if (mb && model.mainBottom[0]) {
-    textAboveLine(
-      ctx,
-      `${mb.markNum}  ${barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia)}`,
-      xStart - 6,
-      botY,
-      6.5,
-      "right",
-      false,
-      3.2,
-    );
+    markCircle(ctx, steelMarkX, botY, String(mb.markNum), 5.8);
+    textAboveLine(ctx, barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), steelSpecX, botY, 6.5, "left", false, 3.2);
   }
 
   const elev = ctx.project.info.elevation;
-  const elevStr = elev === 0 ? "±0.000" : (elev > 0 ? `+${elev.toFixed(3)}` : elev.toFixed(3));
-  textSimple(ctx, elevStr, xStart - 8, y0 + 3, 7, false, "right");
-  dimV(ctx, xStart - 22, y0, y1, String(model.H), 7);
+  const elevStr = elev === 0 ? "±0.000" : elev > 0 ? `+${elev.toFixed(3)}` : elev.toFixed(3);
+  const dimX = xStart - 44;
+  dimV(ctx, dimX, y0, y1, String(model.H), 7, "left");
+  const elevW = ctx.font.widthOfTextAtSize(elevStr, 7);
+  textSimple(ctx, elevStr, dimX - 22 - elevW, y0 + 3, 7);
 
   for (const c of cuts) {
     drawCutMark(ctx, xAt(ctx, c.x), y0 - 50, y1 + 8, c.n);
@@ -1234,7 +1222,7 @@ export async function generateBeamPdf(
   const lastF = supportFaces(project, project.spans.length);
   const xMin = first.left;
   const xMax = Math.max(lastF.right, xMin + 1);
-  const originLeft = 118;
+  const originLeft = 142;
   const originRight = 48;
   const usable = PAGE_W - originLeft - originRight;
   const scale = usable / (xMax - xMin);
