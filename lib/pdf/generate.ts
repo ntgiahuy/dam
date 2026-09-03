@@ -387,10 +387,12 @@ function drawMainShopPiece(
   const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
   if (bar.hookStart > 0) dimV(ctx, x1 - 11, y, y + dir * hs, String(Math.round(bar.hookStart)), 6);
   if (bar.hookEnd > 0) dimV(ctx, x2 + 8, y, y + dir * he, String(Math.round(bar.hookEnd)), 6);
-  if (bar.straight > 80) dimH(ctx, x1, x2, y - dir * 16, String(Math.round(bar.straight)), 6);
+  if (bar.straight > 80) {
+    dimH(ctx, x1, x2, y - dir * 15, String(Math.round(bar.cutLength)), 6.3);
+  }
   if (bar.spliceLapMm && bar.spliceLapMm > 0) {
     const lapX1 = xAt(ctx, bar.x2 - bar.spliceLapMm);
-    dimH(ctx, lapX1, x2, y + dir * 12, `nối ${Math.round(bar.spliceLapMm)}`, 5.6);
+    dimH(ctx, lapX1, x2, y + dir * 13, String(Math.round(bar.spliceLapMm)), 6.2);
   }
   drawShopSpec(ctx, x1, x2, y, mark, shopSpec(qty, bar, family), "right");
 }
@@ -403,13 +405,13 @@ function drawMainShopRows(ctx: Ctx, bars: ResolvedBar[], y: number, dir: 1 | -1)
       if (!bar) continue;
       for (const q of splitQty(bar.qty || 1, bar.face)) {
         drawMainShopPiece(ctx, bar, q, yy, dir);
-        yy += 32;
+        yy += MAIN_SHOP_H;
       }
       continue;
     }
     for (const bar of group) {
       drawMainShopPiece(ctx, bar, bar.qty || 1, yy, dir);
-      yy += 32;
+      yy += MAIN_SHOP_H;
     }
   }
   return yy;
@@ -458,7 +460,7 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
   }
 }
 
-const MAIN_SHOP_H = 32;
+const MAIN_SHOP_H = 40;
 const EXTRA_SHOP_H = 44;
 const MOMENT_GAP = 18;
 
@@ -769,8 +771,10 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   for (const b of model.mainBottom) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.85);
     if (b.spliceLapMm && b.spliceLapMm > 0) {
-      const lapX = xAt(ctx, b.x2);
-      line(ctx, lapX, botY - 3.2, lapX, botY + 3.2, 0.7);
+      const lapX1 = xAt(ctx, b.x2 - b.spliceLapMm);
+      const lapX2 = xAt(ctx, b.x2);
+      line(ctx, lapX2, botY - 3.2, lapX2, botY + 3.2, 0.7);
+      dimH(ctx, lapX1, lapX2, botY + 10, String(Math.round(b.spliceLapMm)), 5.8);
     }
   }
   for (const b of model.extraTop) {
@@ -828,12 +832,25 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   const steelMarkX = xStart - 36;
   const steelSpecX = xStart - 28;
   if (mt && model.mainTop[0]) {
-    markCircle(ctx, steelMarkX, topY, String(mt.markNum), 5.8);
+    markCircle(ctx, steelMarkX, topY, mt.mark, 5.8);
     textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
   }
-  if (mb && model.mainBottom[0]) {
-    markCircle(ctx, steelMarkX, botY, String(mb.markNum), 5.8);
+  const bottomSpliced = model.mainBottom.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
+  if (mb && model.mainBottom[0] && !bottomSpliced) {
+    markCircle(ctx, steelMarkX, botY, mb.mark, 5.8);
     textAboveLine(ctx, barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), steelSpecX, botY, 6.5, "left", false, 3.2);
+  }
+  if (bottomSpliced) {
+    for (const b of model.mainBottom) {
+      const row = markForBar(model.schedule, b);
+      if (!row) continue;
+      const midX = xAt(ctx, (b.x1 + b.x2) / 2);
+      markCircle(ctx, midX, botY, row.mark, 5.6);
+      textAboveLine(ctx, barNotation(b.qty, b.dia), midX + 8, botY, 6.2, "left", false, 3.0);
+      if (b.straight > 400) {
+        dimH(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY - 11, String(Math.round(b.cutLength)), 5.8);
+      }
+    }
   }
 
   const elev = ctx.project.info.elevation;
@@ -1029,7 +1046,7 @@ function drawCrossSection(
       ctx,
       leftX,
       topY,
-      String(mt.markNum),
+      mt.mark,
       barNotation(model.mainTop[0].qty, model.mainTop[0].dia),
       topXs[0],
       "left",
@@ -1043,7 +1060,7 @@ function drawCrossSection(
       ctx,
       leftX,
       botY,
-      String(mb.markNum),
+      mb.mark,
       barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia),
       botXs[0],
       "left",

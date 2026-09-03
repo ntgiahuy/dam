@@ -969,20 +969,19 @@ export function computeModel(project: BeamProject): ComputedModel {
   const schedule: ScheduleRow[] = [];
   let mark = 1;
 
-  const pushGroup = (
-    bars: ResolvedBar[],
+  const markLetter = (i: number) => {
+    if (i < 26) return String.fromCharCode(97 + i);
+    return `${String.fromCharCode(97 + (i % 26))}${Math.floor(i / 26)}`;
+  };
+
+  const pushRows = (
+    groups: ResolvedBar[][],
     shapeFor: (b: ResolvedBar) => BarShape,
+    markFor: (index: number, bar: ResolvedBar) => { mark: string; markNum: number; sub?: number },
   ) => {
-    const map = new Map<string, ResolvedBar[]>();
-    for (const b of bars) {
-      const k = groupKey(b);
-      const arr = map.get(k) ?? [];
-      arr.push(b);
-      map.set(k, arr);
-    }
-    const groups = [...map.values()].sort((a, b) => a[0].x1 - b[0].x1);
-    for (const g of groups) {
+    groups.forEach((g, index) => {
       const b = g[0];
+      if (!b) return;
       const qtyEach = g.reduce((s, x) => s + x.qty, 0);
       const qtyTotal = qtyEach * sl;
       const barLength = Math.round(b.cutLength);
@@ -998,10 +997,11 @@ export function computeModel(project: BeamProject): ComputedModel {
             : shape === "l-right"
               ? [Math.round(b.straight), b.hookEnd]
               : [Math.round(b.straight)];
-      const markStr = b.kind === "main" ? `${mark}a` : String(mark);
+      const id = markFor(index, b);
       schedule.push({
-        mark: markStr,
-        markNum: mark,
+        mark: id.mark,
+        markNum: id.markNum,
+        sub: id.sub,
         family,
         shape,
         segs,
@@ -1014,6 +1014,54 @@ export function computeModel(project: BeamProject): ComputedModel {
         weight,
         bars: g,
       });
+    });
+  };
+
+  const groupsOf = (bars: ResolvedBar[]) => {
+    const map = new Map<string, ResolvedBar[]>();
+    for (const b of bars) {
+      const k = groupKey(b);
+      const arr = map.get(k) ?? [];
+      arr.push(b);
+      map.set(k, arr);
+    }
+    return [...map.values()].sort((a, b) => a[0].x1 - b[0].x1);
+  };
+
+  const pushGroup = (
+    bars: ResolvedBar[],
+    shapeFor: (b: ResolvedBar) => BarShape,
+  ) => {
+    const groups = groupsOf(bars);
+    pushRows(groups, shapeFor, () => {
+      const markStr = String(mark);
+      const n = mark;
+      mark += 1;
+      return { mark: markStr, markNum: n };
+    });
+  };
+
+  /** Thép chủ: một số hiệu, các đoạn cắt là 1a, 1b, 1c… */
+  const pushMainFamily = (
+    bars: ResolvedBar[],
+    shapeFor: (b: ResolvedBar) => BarShape,
+  ) => {
+    const clusters = new Map<string, ResolvedBar[]>();
+    for (const b of bars) {
+      const k = `${b.face}|${b.kind}|${b.dia}`;
+      const arr = clusters.get(k) ?? [];
+      arr.push(b);
+      clusters.set(k, arr);
+    }
+    const ordered = [...clusters.values()].sort((a, b) => a[0].x1 - b[0].x1);
+    for (const cluster of ordered) {
+      const groups = groupsOf(cluster);
+      const n = mark;
+      pushRows(groups, shapeFor, (i) => ({
+        mark: `${n}${markLetter(i)}`,
+        markNum: n,
+        sub: i,
+      }));
       mark += 1;
     }
   };
@@ -1026,9 +1074,9 @@ export function computeModel(project: BeamProject): ComputedModel {
     return "straight";
   };
 
-  // Số hiệu theo mẫu shop: 1a = T1, 2a = B1, tiếp theo T2 rồi B2, đai cuối.
-  pushGroup(mainTop, barShape("top"));
-  pushGroup(mainBottom, barShape("bottom"));
+  // Số hiệu: T1 = 1a/1b…, B1 = 2a/2b… (đoạn cắt), rồi T2/B2, đai cuối.
+  pushMainFamily(mainTop, barShape("top"));
+  pushMainFamily(mainBottom, barShape("bottom"));
   pushGroup(extraTop, barShape("top"));
   pushGroup(extraBottom, barShape("bottom"));
 
