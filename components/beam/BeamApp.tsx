@@ -193,7 +193,6 @@ export function BeamApp() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const model = useMemo(() => computeModel(project), [project]);
   const lastAxis = project.spans.length;
 
   useEffect(() => {
@@ -283,7 +282,7 @@ export function BeamApp() {
         throw new Error("Không tải được font chữ cho PDF.");
       }
       const [regular, bold] = await Promise.all(fontRes.map((r) => r.arrayBuffer()));
-      const bytes = await generateBeamPdf(project, { regular, bold });
+      const bytes = await generateBeamPdf(workingProject, { regular, bold });
       downloadPdf(bytes, `KetCauDam_${project.info.name}.pdf`);
       setStatus("Đã xuất PDF — kiểm tra thư mục Tải xuống.");
     } catch (e) {
@@ -321,6 +320,29 @@ export function BeamApp() {
     startType: 1,
     endType: 1,
   }));
+
+  const workingProject = useMemo(() => {
+    if (!selectedBar) return project;
+    if (tab === "mainBottom") {
+      return {
+        ...project,
+        mainBottom: project.mainBottom.map((b) =>
+          b.id === selectedBar ? persistMainBar({ ...mainForm, id: b.id }, "bottom") : b,
+        ),
+      };
+    }
+    if (tab === "mainTop") {
+      return {
+        ...project,
+        mainTop: project.mainTop.map((b) =>
+          b.id === selectedBar ? persistMainBar({ ...mainForm, id: b.id }, "top") : b,
+        ),
+      };
+    }
+    return project;
+  }, [project, selectedBar, tab, mainForm]);
+
+  const model = useMemo(() => computeModel(workingProject), [workingProject]);
 
   useEffect(() => {
     if (tab === "extraTop") {
@@ -1066,7 +1088,7 @@ export function BeamApp() {
         </div>
 
         <BeamPreview
-          project={project}
+          project={workingProject}
           tab={tab}
           selectedSpan={selectedSpan}
           selectedSupport={selectedSupport}

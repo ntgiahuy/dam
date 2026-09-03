@@ -146,11 +146,23 @@ export function mergeRanges(ranges: { x1: number; x2: number }[]) {
   return out;
 }
 
-/** Vùng được nối: chiều dài thép tăng cường gối (bổ sung lớp trên). */
+/**
+ * Vùng được nối = đoạn M- gối theo công thức l₀/4 (dạng 1),
+ * không bắt buộc đã khai báo thép bổ sung lớp trên.
+ * Nếu gối đã có thép tăng cường thì lấy thêm đúng đoạn đã bố trí.
+ */
 export function supportHoggingSpliceZones(project: BeamProject) {
-  return mergeRanges(
-    resolveExtraBars(project, project.extraTop, "top").map((b) => ({ x1: b.x1, x2: b.x2 })),
-  );
+  const last = project.spans.length;
+  const formula: { x1: number; x2: number }[] = [];
+  for (let axis = 0; axis <= last; axis++) {
+    const g = hoggingBarAtSupport(project, axis, 1, 1);
+    if (g.x2 - g.x1 > 1) formula.push({ x1: g.x1, x2: g.x2 });
+  }
+  const drawn = resolveExtraBars(project, project.extraTop, "top").map((b) => ({
+    x1: b.x1,
+    x2: b.x2,
+  }));
+  return mergeRanges([...formula, ...drawn]);
 }
 
 function bestLapPlacement(
@@ -189,7 +201,7 @@ export function splitMainBarToStock(
   if (zones.length === 0) {
     return {
       bars: [continuous],
-      note: "Không cắt được: chưa có thép tăng cường gối (Thép bổ sung lớp trên) để đặt đầu nối.",
+      note: "Không cắt được: không tính được vùng gối (l₀/4) để đặt đầu nối.",
       ok: false,
     };
   }
@@ -222,7 +234,7 @@ export function splitMainBarToStock(
     if (!ov) {
       return {
         bars: [continuous],
-        note: `Không cắt được: không có đoạn thép tăng cường gối đủ ${Math.round(lapMm)} mm trong tầm thanh 11,7 m.`,
+        note: `Không cắt được: vùng gối l₀/4 không đủ ${Math.round(lapMm)} mm trong tầm thanh 11,7 m.`,
         ok: false,
       };
     }
