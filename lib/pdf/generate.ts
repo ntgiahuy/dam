@@ -351,21 +351,66 @@ function drawShopSpec(
   textAboveLine(ctx, spec, specX, y, size, "left", false, 3.4);
 }
 
-function drawMainShopRows(ctx: Ctx, bar: ResolvedBar, row: ScheduleRow | undefined, y: number, dir: 1 | -1) {
+function groupMainShopSources(bars: ResolvedBar[]) {
+  const map = new Map<string, ResolvedBar[]>();
+  for (const b of bars) {
+    const arr = map.get(b.sourceId) ?? [];
+    arr.push(b);
+    map.set(b.sourceId, arr);
+  }
+  return [...map.values()].map((g) => g.sort((a, b) => a.x1 - b.x1));
+}
+
+function mainShopRowCount(bars: ResolvedBar[]) {
+  let n = 0;
+  for (const group of groupMainShopSources(bars)) {
+    if (group.length <= 1) n += splitQty(group[0]?.qty || 1, group[0]?.face ?? "bottom").length;
+    else n += group.length;
+  }
+  return n;
+}
+
+function drawMainShopPiece(
+  ctx: Ctx,
+  bar: ResolvedBar,
+  qty: number,
+  y: number,
+  dir: 1 | -1,
+) {
+  const row = markForBar(ctx.model.schedule, bar);
   const family = row?.family ?? barFamilyOf(bar);
   const mark = row?.mark ?? "1a";
-  const parts = splitQty(bar.qty || 1, bar.face);
+  const x1 = xAt(ctx, bar.x1);
+  const x2 = xAt(ctx, bar.x2);
+  drawHookedBar(ctx, x1, x2, y, bar.hookStart, bar.hookEnd, dir, 1.15);
+  const hs = Math.max(bar.hookStart * ctx.scale * 0.28, bar.hookStart > 0 ? 9 : 0);
+  const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
+  if (bar.hookStart > 0) dimV(ctx, x1 - 11, y, y + dir * hs, String(Math.round(bar.hookStart)), 6);
+  if (bar.hookEnd > 0) dimV(ctx, x2 + 8, y, y + dir * he, String(Math.round(bar.hookEnd)), 6);
+  if (bar.straight > 80) dimH(ctx, x1, x2, y - dir * 16, String(Math.round(bar.straight)), 6);
+  if (bar.spliceLapMm && bar.spliceLapMm > 0) {
+    const lapX1 = xAt(ctx, bar.x2 - bar.spliceLapMm);
+    dimH(ctx, lapX1, x2, y + dir * 12, `nối ${Math.round(bar.spliceLapMm)}`, 5.6);
+  }
+  drawShopSpec(ctx, x1, x2, y, mark, shopSpec(qty, bar, family), "right");
+}
+
+function drawMainShopRows(ctx: Ctx, bars: ResolvedBar[], y: number, dir: 1 | -1) {
   let yy = y;
-  for (const q of parts) {
-    const x1 = xAt(ctx, bar.x1);
-    const x2 = xAt(ctx, bar.x2);
-    drawHookedBar(ctx, x1, x2, yy, bar.hookStart, bar.hookEnd, dir, 1.15);
-    const hs = Math.max(bar.hookStart * ctx.scale * 0.28, bar.hookStart > 0 ? 9 : 0);
-    const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
-    if (bar.hookStart > 0) dimV(ctx, x1 - 11, yy, yy + dir * hs, String(Math.round(bar.hookStart)), 6);
-    if (bar.hookEnd > 0) dimV(ctx, x2 + 8, yy, yy + dir * he, String(Math.round(bar.hookEnd)), 6);
-    drawShopSpec(ctx, x1, x2, yy, mark, shopSpec(q, bar, family), "right");
-    yy += 32;
+  for (const group of groupMainShopSources(bars)) {
+    if (group.length <= 1) {
+      const bar = group[0];
+      if (!bar) continue;
+      for (const q of splitQty(bar.qty || 1, bar.face)) {
+        drawMainShopPiece(ctx, bar, q, yy, dir);
+        yy += 32;
+      }
+      continue;
+    }
+    for (const bar of group) {
+      drawMainShopPiece(ctx, bar, bar.qty || 1, yy, dir);
+      yy += 32;
+    }
   }
   return yy;
 }
@@ -419,14 +464,12 @@ const MOMENT_GAP = 18;
 
 function drawExplodedShops(ctx: Ctx, yStart: number) {
   const { model } = ctx;
-  const mt = model.mainTop[0];
-  const mb = model.mainBottom[0];
-  const mtRow = model.schedule.find((r) => r.family === "T1");
-  const mbRow = model.schedule.find((r) => r.family === "B1");
+  const mt = model.mainTop;
+  const mb = model.mainBottom;
   const topLayers = extraLayers(model.extraTop);
   const botLayers = extraLayers(model.extraBottom);
-  const t1n = mt ? splitQty(mt.qty || 1, "top").length : 0;
-  const b1n = mb ? splitQty(mb.qty || 1, "bottom").length : 0;
+  const t1n = mainShopRowCount(mt);
+  const b1n = mainShopRowCount(mb);
   const gap = topLayers.length && botLayers.length ? MOMENT_GAP : 0;
   const total =
     t1n * MAIN_SHOP_H +
@@ -437,7 +480,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   drawSupportGuides(ctx, yStart - 8, yStart + Math.max(total, 12) + 6);
 
   let y = yStart;
-  if (mt) y = drawMainShopRows(ctx, mt, mtRow, y, 1);
+  if (mt.length) y = drawMainShopRows(ctx, mt, y, 1);
 
   if (topLayers.length) {
     y += 6;
@@ -458,7 +501,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
     }
   }
 
-  if (mb) y = drawMainShopRows(ctx, mb, mbRow, y, -1) + 6;
+  if (mb.length) y = drawMainShopRows(ctx, mb, y, -1) + 6;
   return y;
 }
 
@@ -725,6 +768,10 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   }
   for (const b of model.mainBottom) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.85);
+    if (b.spliceLapMm && b.spliceLapMm > 0) {
+      const lapX = xAt(ctx, b.x2);
+      line(ctx, lapX, botY - 3.2, lapX, botY + 3.2, 0.7);
+    }
   }
   for (const b of model.extraTop) {
     drawHookedBar(

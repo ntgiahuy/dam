@@ -27,6 +27,8 @@ import {
   canShiftAxisRange,
   computeModel,
   defaultBottomMainHookMm,
+  describeBottomMainAutoCut,
+  normalizeLapMultiple,
   placeAxisRange,
   shiftAxisRange,
   stirrupZonesForSpan,
@@ -49,6 +51,7 @@ import type {
 } from "@/lib/types";
 import {
   DIAMETERS,
+  LAP_MULTIPLES,
   extraEndTypeOptions,
   LAYER_LABELS,
   MAX_SPAN_COUNT,
@@ -101,11 +104,14 @@ function axisOptions(n: number) {
 }
 
 function barListLabel(b: MainBar) {
-  const base = `${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
-  if (!b.hooksBothEnds) return base;
-  const h =
-    b.hookHeightMm && b.hookHeightMm > 0 ? b.hookHeightMm : defaultBottomMainHookMm(b.dia);
-  return `${base} · móc ${h}`;
+  const parts = [`${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`];
+  if (b.hooksBothEnds) {
+    const h =
+      b.hookHeightMm && b.hookHeightMm > 0 ? b.hookHeightMm : defaultBottomMainHookMm(b.dia);
+    parts.push(`móc ${h}`);
+  }
+  if (b.autoCut) parts.push(`cắt ${normalizeLapMultiple(b.lapMultiple)}D`);
+  return parts.join(" · ");
 }
 
 function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
@@ -130,6 +136,8 @@ function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
     ...bar,
     hooksBothEnds: hooks,
     hookHeightMm,
+    autoCut: Boolean(bar.autoCut),
+    lapMultiple: normalizeLapMultiple(bar.lapMultiple),
   };
 }
 
@@ -296,6 +304,8 @@ export function BeamApp() {
       startAxis: 0,
       endAxis: lastAxis,
       hooksBothEnds: face === "bottom" ? false : undefined,
+      autoCut: face === "bottom" ? false : undefined,
+      lapMultiple: face === "bottom" ? 30 : undefined,
     }),
     [lastAxis],
   );
@@ -789,6 +799,12 @@ export function BeamApp() {
               onEdit={() => editMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               showBothEndHooks={tab === "mainBottom"}
+              showAutoCut={tab === "mainBottom"}
+              autoCutHint={
+                tab === "mainBottom" && mainForm.autoCut
+                  ? describeBottomMainAutoCut(project, mainForm)
+                  : ""
+              }
               onRegionMove={(start, end) => {
                 selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
                 void end;
@@ -1168,6 +1184,8 @@ function MainBarPanel({
   onDelete,
   onRegionMove,
   showBothEndHooks = false,
+  showAutoCut = false,
+  autoCutHint = "",
 }: {
   title: string;
   bars: MainBar[];
@@ -1181,6 +1199,8 @@ function MainBarPanel({
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
   showBothEndHooks?: boolean;
+  showAutoCut?: boolean;
+  autoCutHint?: string;
 }) {
   const addBlocked = mainBarDuplicate(bars, form);
   const editBlocked = mainBarDuplicate(bars, form, selected);
@@ -1272,6 +1292,49 @@ function MainBarPanel({
             ) : null}
           </div>
         )}
+        {showAutoCut && (
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex h-8 cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={Boolean(form.autoCut)}
+                onCheckedChange={(checked) => {
+                  const on = checked === true;
+                  setForm({
+                    ...form,
+                    autoCut: on,
+                    lapMultiple: normalizeLapMultiple(form.lapMultiple),
+                  });
+                }}
+              />
+              Cắt thép tự động
+            </label>
+            {form.autoCut ? (
+              <Field label="Chiều dài nối" className="w-36">
+                <Select
+                  value={normalizeLapMultiple(form.lapMultiple)}
+                  onChange={(e) =>
+                    setForm({ ...form, lapMultiple: normalizeLapMultiple(Number(e.target.value)) })
+                  }
+                >
+                  {LAP_MULTIPLES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}D
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
+          </div>
+        )}
+        {showAutoCut && form.autoCut && autoCutHint ? (
+          <p
+            className={`mt-2 text-[11px] leading-snug ${
+              autoCutHint.startsWith("Không cắt được") ? "text-amber-400" : "text-zinc-400"
+            }`}
+          >
+            {autoCutHint}
+          </p>
+        ) : null}
         <div className="mt-3">
           <CrudButtons
             onAdd={onAdd}

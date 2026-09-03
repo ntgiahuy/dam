@@ -183,9 +183,9 @@ export function BeamPreview({
           );
         })}
 
-        {model.mainBottom.map((b) => (
+        {model.mainBottom.map((b, i) => (
             <RebarMark
-              key={b.sourceId}
+              key={`${b.sourceId}-${b.pieceIndex ?? i}-${Math.round(b.x1)}`}
               b={b}
               x={x}
               y={planes.botMain}
@@ -400,16 +400,29 @@ function RebarMark({
   if (b.hookStart > 0) parts.push(`L ${x1} ${y}`);
   parts.push(`L ${x2} ${y}`);
   if (b.hookEnd > 0) parts.push(`L ${x2} ${y + dir * hookPx}`);
+  const lap = b.spliceLapMm && b.spliceLapMm > 0 ? b.spliceLapMm : 0;
   return (
-    <path
-      d={parts.join(" ")}
-      fill="none"
-      stroke={color}
-      strokeWidth={width}
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      opacity={opacity}
-      pointerEvents="none"
-    />
+    <g pointerEvents="none" opacity={opacity}>
+      <path
+        d={parts.join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth={width}
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      {lap > 0 ? (
+        <line
+          x1={x(b.x2 - lap)}
+          x2={x2}
+          y1={y}
+          y2={y}
+          stroke={color}
+          strokeWidth={width + 1.4}
+          strokeLinecap="butt"
+          opacity={0.45}
+        />
+      ) : null}
+    </g>
   );
 }

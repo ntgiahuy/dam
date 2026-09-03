@@ -1,4 +1,4 @@
-import type { BeamProject, ExtraBar, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
+import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
 
@@ -118,6 +118,157 @@ export function hoggingEdgeHookMm(H: number) {
 /** Chiều cao móc mặc định thép chủ lớp dưới: max(20d, 400). */
 export function defaultBottomMainHookMm(dia: number) {
   return Math.max(20 * Math.max(dia || 0, 0), 400);
+}
+
+/** Chiều dài thanh thương phẩm (mm). */
+export const STOCK_BAR_MM = 11700;
+
+export function normalizeLapMultiple(value?: number): LapMultiple {
+  if (value === 35 || value === 40) return value;
+  return 30;
+}
+
+export function lapLengthMm(dia: number, multiple?: number) {
+  return normalizeLapMultiple(multiple) * Math.max(dia || 0, 0);
+}
+
+export function mergeRanges(ranges: { x1: number; x2: number }[]) {
+  const sorted = ranges
+    .map((r) => ({ x1: Math.min(r.x1, r.x2), x2: Math.max(r.x1, r.x2) }))
+    .filter((r) => r.x2 - r.x1 > 1)
+    .sort((a, b) => a.x1 - b.x1);
+  const out: { x1: number; x2: number }[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (!last || r.x1 > last.x2 + 1) out.push({ ...r });
+    else last.x2 = Math.max(last.x2, r.x2);
+  }
+  return out;
+}
+
+/** Vùng được nối: chiều dài thép tăng cường gối (bổ sung lớp trên). */
+export function supportHoggingSpliceZones(project: BeamProject) {
+  return mergeRanges(
+    resolveExtraBars(project, project.extraTop, "top").map((b) => ({ x1: b.x1, x2: b.x2 })),
+  );
+}
+
+function bestLapPlacement(
+  start: number,
+  maxEnd: number,
+  lap: number,
+  zones: { x1: number; x2: number }[],
+) {
+  let best: { ovL: number; ovR: number } | null = null;
+  for (const z of zones) {
+    const a = Math.max(z.x1, start);
+    const b = Math.min(z.x2, maxEnd);
+    if (b - a + 1e-6 < lap) continue;
+    const ovR = b;
+    const ovL = ovR - lap;
+    if (ovL <= start + 200) continue;
+    if (!best || ovR > best.ovR + 1e-6) best = { ovL, ovR };
+  }
+  return best;
+}
+
+export function splitMainBarToStock(
+  continuous: ResolvedBar,
+  zones: { x1: number; x2: number }[],
+  lapMm: number,
+): { bars: ResolvedBar[]; note: string; ok: boolean } {
+  const stock = STOCK_BAR_MM;
+  const need = continuous.cutLength;
+  if (need <= stock + 0.5) {
+    return {
+      bars: [{ ...continuous, pieceIndex: 0, spliceLapMm: 0 }],
+      note: `Không cần cắt (L=${Math.round(need)} ≤ 11,7 m).`,
+      ok: true,
+    };
+  }
+  if (zones.length === 0) {
+    return {
+      bars: [continuous],
+      note: "Không cắt được: chưa có thép tăng cường gối (Thép bổ sung lớp trên) để đặt đầu nối.",
+      ok: false,
+    };
+  }
+  if (!(lapMm > 0)) {
+    return { bars: [continuous], note: "Không cắt được: chiều dài nối không hợp lệ.", ok: false };
+  }
+
+  const pieces: ResolvedBar[] = [];
+  let start = continuous.x1;
+  let leftHook = continuous.hookStart;
+  for (let guard = 0; guard < 24; guard++) {
+    const remaining = continuous.x2 - start;
+    const thisLastCut = remaining + leftHook + continuous.hookEnd;
+    if (thisLastCut <= stock + 0.5) {
+      pieces.push({
+        ...continuous,
+        x1: start,
+        x2: continuous.x2,
+        hookStart: leftHook,
+        hookEnd: continuous.hookEnd,
+        straight: remaining,
+        cutLength: thisLastCut,
+        pieceIndex: pieces.length,
+        spliceLapMm: 0,
+      });
+      break;
+    }
+    const maxEnd = start + (stock - leftHook);
+    const ov = bestLapPlacement(start, Math.min(maxEnd, continuous.x2), lapMm, zones);
+    if (!ov) {
+      return {
+        bars: [continuous],
+        note: `Không cắt được: không có đoạn thép tăng cường gối đủ ${Math.round(lapMm)} mm trong tầm thanh 11,7 m.`,
+        ok: false,
+      };
+    }
+    const straight = ov.ovR - start;
+    pieces.push({
+      ...continuous,
+      x1: start,
+      x2: ov.ovR,
+      hookStart: leftHook,
+      hookEnd: 0,
+      straight,
+      cutLength: straight + leftHook,
+      pieceIndex: pieces.length,
+      spliceLapMm: lapMm,
+    });
+    start = ov.ovL;
+    leftHook = 0;
+  }
+
+  const last = pieces[pieces.length - 1];
+  if (!last || last.x2 < continuous.x2 - 0.5) {
+    return {
+      bars: [continuous],
+      note: "Không cắt được: hết vùng gối trước khi phủ hết chiều dài dầm.",
+      ok: false,
+    };
+  }
+  const lens = pieces.map((p) => Math.round(p.cutLength));
+  return {
+    bars: pieces,
+    note: `Cắt ${pieces.length} đoạn: ${lens.join(" + ")} mm · nối ${Math.round(lapMm)} mm tại gối · ưu tiên 11,7 m.`,
+    ok: true,
+  };
+}
+
+export function describeBottomMainAutoCut(project: BeamProject, bar: MainBar) {
+  if (!bar.autoCut) return "";
+  const [continuous] = resolveMainBars(project, [{ ...bar, autoCut: false }], "bottom");
+  if (!continuous) return "";
+  const lap = lapLengthMm(bar.dia, bar.lapMultiple);
+  const plan = splitMainBarToStock(continuous, supportHoggingSpliceZones(project), lap);
+  const mul = normalizeLapMultiple(bar.lapMultiple);
+  if (plan.ok && plan.bars.length > 1) {
+    return `${plan.note} (${mul}D).`;
+  }
+  return plan.note;
 }
 
 function beamEndCoverStartX(project: BeamProject) {
@@ -323,6 +474,9 @@ export interface ResolvedBar {
   hookEnd: number;
   straight: number;
   cutLength: number;
+  pieceIndex?: number;
+  /** Chiều dài chồng mối bên phải (mm), khi thanh được cắt/ghép. */
+  spliceLapMm?: number;
 }
 
 export function extraBarGeometry(project: BeamProject, bar: ExtraBar, face: "top" | "bottom") {
@@ -476,7 +630,8 @@ export function resolveMainBars(
   const xs = axisPositions(project.spans);
   const H = typicalH(project.spans);
   const last = project.spans.length;
-  return bars.map((b) => {
+  const zones = face === "bottom" ? supportHoggingSpliceZones(project) : [];
+  return bars.flatMap((b) => {
     let x1 = xs[Math.min(b.startAxis, xs.length - 1)] ?? 0;
     let x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
     const atStart = b.startAxis === 0;
@@ -502,7 +657,7 @@ export function resolveMainBars(
     if (atEnd) x2 = beamEndCoverEndX(project);
     const straight = Math.max(x2 - x1, 0);
     const cutLength = straight + hookStart + hookEnd;
-    return {
+    const continuous: ResolvedBar = {
       sourceId: b.id,
       face,
       kind: "main",
@@ -518,6 +673,11 @@ export function resolveMainBars(
       straight,
       cutLength,
     };
+    if (face === "bottom" && b.autoCut) {
+      const lap = lapLengthMm(b.dia, b.lapMultiple);
+      return splitMainBarToStock(continuous, zones, lap).bars;
+    }
+    return [continuous];
   });
 }
 

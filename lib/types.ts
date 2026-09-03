@@ -43,6 +43,9 @@ export interface Support {
   axisName: string;
 }
 
+export const LAP_MULTIPLES = [30, 35, 40] as const;
+export type LapMultiple = (typeof LAP_MULTIPLES)[number];
+
 export interface MainBar {
   id: string;
   dia: number;
@@ -53,6 +56,10 @@ export interface MainBar {
   hooksBothEnds?: boolean;
   /** Chiều cao móc (mm), dùng khi `hooksBothEnds`. */
   hookHeightMm?: number;
+  /** Chỉ thép chủ lớp dưới: cắt/ghép thanh khi dài hơn 11,7 m. */
+  autoCut?: boolean;
+  /** Bội số D cho mỗi đầu nối (30D / 35D / 40D). */
+  lapMultiple?: LapMultiple;
 }
 
 export interface ExtraBar {
