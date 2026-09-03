@@ -1184,13 +1184,13 @@ function drawCrossSection(
     drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), touch, "right");
   }
 
-  const titleY = boxY + H + 42;
+  const titleY = boxY + H + 32;
   const titleSize = 10;
   textSimple(ctx, title, cx + W / 2, titleY, titleSize, true, "center");
   const titleW = ctx.fontBold.widthOfTextAtSize(title, titleSize);
-  const underlineY = titleY + titleSize * 0.95;
+  const underlineY = titleY + titleSize * 0.92;
   line(ctx, cx + W / 2 - titleW / 2 - 1, underlineY, cx + W / 2 + titleW / 2 + 1, underlineY, 0.9);
-  textSimple(ctx, "TL: 1/25", cx + W / 2, underlineY + 6, 7, false, "center");
+  textSimple(ctx, "TL: 1/25", cx + W / 2, underlineY + 4, 7, false, "center");
 }
 
 function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | undefined) {
@@ -1446,7 +1446,7 @@ export async function generateBeamPdf(
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
 
-  const tableY = Math.min(sectTop + boxH + 68, PAGE_H - 220);
+  const tableY = Math.min(sectTop + boxH + 96, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
