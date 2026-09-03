@@ -524,6 +524,43 @@ function buildCuts(ctx: Ctx): CutLoc[] {
   });
 }
 
+function uniqueHoggingRanges(bars: ResolvedBar[]) {
+  const sorted = [...bars].sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2);
+  const out: { x1: number; x2: number }[] = [];
+  for (const b of sorted) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.x1 - b.x1) < 40 && Math.abs(last.x2 - b.x2) < 40) continue;
+    if (b.x2 - b.x1 < 40) continue;
+    out.push({ x1: b.x1, x2: b.x2 });
+  }
+  return out;
+}
+
+function a1LabelForRange(ctx: Ctx, x1: number, x2: number) {
+  const { project, model } = ctx;
+  const items: { count: number; dia: number; spacing: number }[] = [];
+  project.spans.forEach((sp, i) => {
+    const zones = stirrupZonesForSpan(project, i, model.extraTop);
+    const x0 = model.xs[i];
+    const left1 = x0;
+    const left2 = x0 + zones.left.length;
+    const right1 = x0 + zones.left.length + zones.mid.length;
+    const right2 = x0 + sp.L;
+    if (zones.left.count > 0 && left2 > x1 && left1 < x2) {
+      items.push({ count: zones.left.count, dia: zones.dia, spacing: zones.left.spacing });
+    }
+    if (zones.right.count > 0 && right2 > x1 && right1 < x2) {
+      items.push({ count: zones.right.count, dia: zones.dia, spacing: zones.right.spacing });
+    }
+  });
+  if (!items.length) return "";
+  const dia = items[0].dia;
+  const spacing = items[0].spacing;
+  const counts = new Set(items.map((it) => it.count));
+  if (counts.size === 1) return `${items[0].count}Ø${dia}a${spacing}`;
+  return `Ø${dia}a${spacing}`;
+}
+
 function drawCutMark(ctx: Ctx, x: number, y0: number, y1: number, n: number) {
   line(ctx, x, y0, x, y1, 0.4);
   const s = 3.6;
@@ -569,24 +606,41 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   });
 
   const dimY = y0 - 28;
-  const segs: { a: number; b: number }[] = [];
-  if (Math.abs(first.axis - first.left) > 8) segs.push({ a: first.left, b: first.axis });
-  project.spans.forEach((_, i) => {
-    const zones = stirrupZonesForSpan(project, i, model.extraTop);
-    const L = project.spans[i].L;
-    const parts = [zones.left.length, zones.mid.length, zones.right.length];
-    const sumZ = parts.reduce((s, v) => s + v, 0) || 1;
-    let c = model.xs[i];
-    for (const p of parts) {
-      const len = (p / sumZ) * L;
-      if (len > 8) segs.push({ a: c, b: c + len });
-      c += len;
+  const hogging = uniqueHoggingRanges(model.extraTop);
+  if (hogging.length) {
+    let cursor = first.left;
+    for (const r of hogging) {
+      if (r.x1 - cursor > 80) {
+        dimH(ctx, xAt(ctx, cursor), xAt(ctx, r.x1), dimY, String(Math.round(r.x1 - cursor)), 6);
+      }
+      const a1 = a1LabelForRange(ctx, r.x1, r.x2);
+      const len = String(Math.round(r.x2 - r.x1));
+      dimH(ctx, xAt(ctx, r.x1), xAt(ctx, r.x2), dimY, a1 ? `${len}  ${a1}` : len, 6.2);
+      cursor = r.x2;
     }
-  });
-  if (Math.abs(lastF.right - lastF.axis) > 8) segs.push({ a: lastF.axis, b: lastF.right });
-  for (const s of segs) {
-    if (s.b - s.a < 8) continue;
-    dimH(ctx, xAt(ctx, s.a), xAt(ctx, s.b), dimY, String(Math.round(s.b - s.a)), 6);
+    if (lastF.right - cursor > 80) {
+      dimH(ctx, xAt(ctx, cursor), xAt(ctx, lastF.right), dimY, String(Math.round(lastF.right - cursor)), 6);
+    }
+  } else {
+    const segs: { a: number; b: number }[] = [];
+    if (Math.abs(first.axis - first.left) > 8) segs.push({ a: first.left, b: first.axis });
+    project.spans.forEach((_, i) => {
+      const zones = stirrupZonesForSpan(project, i, model.extraTop);
+      const L = project.spans[i].L;
+      const parts = [zones.left.length, zones.mid.length, zones.right.length];
+      const sumZ = parts.reduce((s, v) => s + v, 0) || 1;
+      let c = model.xs[i];
+      for (const p of parts) {
+        const len = (p / sumZ) * L;
+        if (len > 8) segs.push({ a: c, b: c + len });
+        c += len;
+      }
+    });
+    if (Math.abs(lastF.right - lastF.axis) > 8) segs.push({ a: lastF.axis, b: lastF.right });
+    for (const s of segs) {
+      if (s.b - s.a < 8) continue;
+      dimH(ctx, xAt(ctx, s.a), xAt(ctx, s.b), dimY, String(Math.round(s.b - s.a)), 6);
+    }
   }
 
   project.spans.forEach((sp, i) => {
@@ -638,7 +692,9 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   }
 
   const stMark = model.schedule.find((r) => r.family === "D")?.mark ?? "9";
+  const hoggingForLabels = uniqueHoggingRanges(model.extraTop);
   for (const lb of model.stirrups.labels) {
+    if (hoggingForLabels.some((r) => lb.x >= r.x1 && lb.x <= r.x2)) continue;
     const x = xAt(ctx, lb.x);
     markCircle(ctx, x - 28, y0 - 12, stMark, 5.8);
     textSimple(ctx, lb.text.replace(/^\d+/, (m) => m), x - 21, y0 - 9.5, 6.2);
