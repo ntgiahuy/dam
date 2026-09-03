@@ -539,7 +539,7 @@ export function BeamApp() {
       <header className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-3 py-2">
         <div className="mr-2">
           <div className="text-sm font-bold tracking-wide text-sky-300">Shop drawing thép dầm</div>
-          <div className="text-[11px] text-zinc-400">Shop thép dầm · thống kê cốt thép</div>
+          <div className="text-[11px] text-zinc-400">Shop thép dầm · thống kê cốt thép · GiaHuy.Net</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button
