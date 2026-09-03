@@ -37,7 +37,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 2. Khai báo thép chủ / bổ sung lớp trên và lớp dưới (Thêm / Sửa / Xóa).
    - Thép chủ lớp trên / lớp dưới: không thêm hai dòng giống hệt (cùng Ø, số lượng và đoạn trục, ví dụ hai lần `2Ø18 (0→3)`). Đoạn khác thì được.
    - Thép chủ **lớp dưới**: mặc định **không móc**. Tick **Có móc 2 đầu** rồi nhập **chiều cao móc (mm)** nếu cần móc đứng hai đầu thanh (mặc định max(20d, 400) khi mới tick).
-   - Thép chủ dài hơn **11,7 m** được cắt tự động khi xuất PDF. Chọn nối **30D / 35D / 40D**. **Lớp dưới** chỉ nối **trong** vùng gối l₀/4; **lớp trên** chỉ nối **ngoài** l₀/4 (giữa nhịp). PDF tách **1a / 1b / 1c** kèm DIM.
+   - Thép chủ dài hơn **11,7 m** được cắt tự động khi xuất PDF. **Cắt thép tự động** mặc định **bật**. Chọn nối **30D / 35D / 40D**. **Lớp dưới** chỉ nối **trong** vùng gối l₀/4; **lớp trên** chỉ nối **ngoài** l₀/4 (giữa nhịp). PDF tách **1a / 1b / 1c** kèm DIM.
    - Thép bổ sung: không thêm hai dòng giống hệt (cùng lớp, Ø, số lượng và đoạn trục, ví dụ hai lần `Lớp 2: 2Ø20 (0→1)`). Vẫn được nhiều thanh cùng lớp nếu đoạn khác nhau (`0→1`, `0→2`, …).
    - Thép bổ sung **lớp trên**: vị trí **0→0, 1→1, 2→2…** (một gối). Bấm **Thêm** tự chuyển sang gối kế.
    - Thép bổ sung **lớp dưới**: vị trí **0→1, 1→2, 2→3…** (một nhịp). Bấm **Thêm** tự chuyển sang nhịp kế.

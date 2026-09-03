@@ -85,8 +85,15 @@ function migrateLoadedProject(raw: BeamProject, fromV2: boolean): BeamProject {
     startType: map(b.startType) as EndType,
     endType: map(b.endType) as EndType,
   });
+  const enableCut = (b: MainBar): MainBar => ({
+    ...b,
+    autoCut: true,
+    lapMultiple: normalizeLapMultiple(b.lapMultiple),
+  });
   return {
     ...raw,
+    mainBottom: (raw.mainBottom ?? []).map(enableCut),
+    mainTop: (raw.mainTop ?? []).map(enableCut),
     extraBottom: (raw.extraBottom ?? []).map(fix),
     extraTop: (raw.extraTop ?? []).map((b) => {
       const x = fix(b);
@@ -104,6 +111,10 @@ function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
 }
 
+function mainAutoCutOn(bar: Pick<MainBar, "autoCut">) {
+  return bar.autoCut !== false;
+}
+
 function barListLabel(b: MainBar) {
   const parts = [`${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`];
   if (b.hooksBothEnds) {
@@ -111,7 +122,7 @@ function barListLabel(b: MainBar) {
       b.hookHeightMm && b.hookHeightMm > 0 ? b.hookHeightMm : defaultBottomMainHookMm(b.dia);
     parts.push(`móc ${h}`);
   }
-  if (b.autoCut) parts.push(`cắt ${normalizeLapMultiple(b.lapMultiple)}D`);
+  if (mainAutoCutOn(b)) parts.push(`cắt ${normalizeLapMultiple(b.lapMultiple)}D`);
   return parts.join(" · ");
 }
 
@@ -204,7 +215,9 @@ export function BeamApp() {
     try {
       const raw3 = localStorage.getItem(STORE_KEY);
       if (raw3) {
-        setProject(migrateLoadedProject(JSON.parse(raw3) as BeamProject, false));
+        const next = migrateLoadedProject(JSON.parse(raw3) as BeamProject, false);
+        setProject(next);
+        localStorage.setItem(STORE_KEY, JSON.stringify(next));
         return;
       }
       const raw2 = localStorage.getItem(STORE_KEY_V2);
@@ -343,15 +356,10 @@ export function BeamApp() {
         ),
       };
     }
-    const anyOn =
-      Boolean(mainForm.autoCut) ||
-      next.mainBottom.some((b) => b.autoCut) ||
-      next.mainTop.some((b) => b.autoCut);
-    if (!anyOn) return next;
     const lap = normalizeLapMultiple(
       mainForm.lapMultiple ??
-        next.mainTop.find((b) => b.autoCut)?.lapMultiple ??
-        next.mainBottom.find((b) => b.autoCut)?.lapMultiple,
+        next.mainTop.find((b) => mainAutoCutOn(b))?.lapMultiple ??
+        next.mainBottom.find((b) => mainAutoCutOn(b))?.lapMultiple,
     );
     return {
       ...next,
@@ -389,6 +397,12 @@ export function BeamApp() {
         const pinned = extraBottomAtSpan(Math.min(f.startAxis, f.endAxis), lastAxis);
         if (f.startAxis === pinned.startAxis && f.endAxis === pinned.endAxis) return f;
         return { ...f, ...pinned };
+      });
+    }
+    if (tab === "mainBottom" || tab === "mainTop") {
+      setMainForm((f) => {
+        if (f.autoCut === true && f.lapMultiple) return f;
+        return { ...f, autoCut: true, lapMultiple: normalizeLapMultiple(f.lapMultiple) };
       });
     }
   }, [tab, lastAxis]);
@@ -535,6 +549,8 @@ export function BeamApp() {
               persist(createEmptyProject());
               setSelectedSpan(0);
               setSelectedSupport(0);
+              setSelectedBar(null);
+              setMainForm(draftMain("bottom"));
               setStatus("Đã tạo dầm mới.");
             }}
           >
@@ -835,8 +851,9 @@ export function BeamApp() {
               setForm={setMainForm}
               selected={selectedBar}
               onSelect={(b) => {
+                const face = tab === "mainTop" ? "top" : "bottom";
                 setSelectedBar(b.id);
-                setMainForm(b);
+                setMainForm(persistMainBar({ ...b, autoCut: true }, face));
               }}
               lastAxis={lastAxis}
               onAdd={() => addMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
@@ -1354,7 +1371,7 @@ function MainBarPanel({
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex h-8 cursor-pointer items-center gap-2 text-sm">
                 <Checkbox
-                  checked={Boolean(form.autoCut)}
+                  checked={mainAutoCutOn(form)}
                   onCheckedChange={(checked) => {
                     const on = checked === true;
                     const lapMultiple = normalizeLapMultiple(form.lapMultiple);
@@ -1368,7 +1385,7 @@ function MainBarPanel({
                 />
                 Cắt thép tự động
               </label>
-              {form.autoCut ? (
+              {mainAutoCutOn(form) ? (
                 <Field label="Chiều dài nối" className="w-36">
                   <Select
                     value={normalizeLapMultiple(form.lapMultiple)}
