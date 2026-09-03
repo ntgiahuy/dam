@@ -524,16 +524,34 @@ function buildCuts(ctx: Ctx): CutLoc[] {
   });
 }
 
-function uniqueHoggingRanges(bars: ResolvedBar[]) {
+function uniqueHoggingRanges(project: BeamProject, bars: ResolvedBar[]) {
   const sorted = [...bars].sort((a, b) => a.x1 - b.x1 || a.x2 - b.x2);
-  const out: { x1: number; x2: number }[] = [];
+  const out: { x1: number; x2: number; axis: number }[] = [];
   for (const b of sorted) {
     const last = out[out.length - 1];
     if (last && Math.abs(last.x1 - b.x1) < 40 && Math.abs(last.x2 - b.x2) < 40) continue;
     if (b.x2 - b.x1 < 40) continue;
-    out.push({ x1: b.x1, x2: b.x2 });
+    let axis = (b.x1 + b.x2) / 2;
+    let best = Infinity;
+    for (let i = 0; i < project.supports.length; i++) {
+      const ax = supportFaces(project, i).axis;
+      if (ax < b.x1 - 8 || ax > b.x2 + 8) continue;
+      const d = Math.abs(ax - (b.x1 + b.x2) / 2);
+      if (d < best) {
+        best = d;
+        axis = ax;
+      }
+    }
+    out.push({ x1: b.x1, x2: b.x2, axis });
   }
   return out;
+}
+
+function dimHWithA1Below(ctx: Ctx, x1: number, x2: number, y: number, dimLabel: string, a1: string) {
+  dimH(ctx, x1, x2, y, dimLabel, 6.2);
+  if (!a1) return;
+  const mid = (Math.min(x1, x2) + Math.max(x1, x2)) / 2;
+  textSimple(ctx, a1, mid, y + 8.5, 5.8, false, "center");
 }
 
 function a1LabelForRange(ctx: Ctx, x1: number, x2: number) {
@@ -605,17 +623,34 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     textCentered(ctx, sup.axisName || String(i), ax, y1 + 66, 8, true);
   });
 
-  const dimY = y0 - 28;
-  const hogging = uniqueHoggingRanges(model.extraTop);
+  const dimY = y0 - 32;
+  const hogging = uniqueHoggingRanges(project, model.extraTop);
   if (hogging.length) {
     let cursor = first.left;
     for (const r of hogging) {
       if (r.x1 - cursor > 80) {
         dimH(ctx, xAt(ctx, cursor), xAt(ctx, r.x1), dimY, String(Math.round(r.x1 - cursor)), 6);
       }
-      const a1 = a1LabelForRange(ctx, r.x1, r.x2);
-      const len = String(Math.round(r.x2 - r.x1));
-      dimH(ctx, xAt(ctx, r.x1), xAt(ctx, r.x2), dimY, a1 ? `${len}  ${a1}` : len, 6.2);
+      if (r.axis - r.x1 > 8) {
+        dimHWithA1Below(
+          ctx,
+          xAt(ctx, r.x1),
+          xAt(ctx, r.axis),
+          dimY,
+          String(Math.round(r.axis - r.x1)),
+          a1LabelForRange(ctx, r.x1, r.axis),
+        );
+      }
+      if (r.x2 - r.axis > 8) {
+        dimHWithA1Below(
+          ctx,
+          xAt(ctx, r.axis),
+          xAt(ctx, r.x2),
+          dimY,
+          String(Math.round(r.x2 - r.axis)),
+          a1LabelForRange(ctx, r.axis, r.x2),
+        );
+      }
       cursor = r.x2;
     }
     if (lastF.right - cursor > 80) {
@@ -692,7 +727,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   }
 
   const stMark = model.schedule.find((r) => r.family === "D")?.mark ?? "9";
-  const hoggingForLabels = uniqueHoggingRanges(model.extraTop);
+  const hoggingForLabels = uniqueHoggingRanges(project, model.extraTop);
   for (const lb of model.stirrups.labels) {
     if (hoggingForLabels.some((r) => lb.x >= r.x1 && lb.x <= r.x2)) continue;
     const x = xAt(ctx, lb.x);
