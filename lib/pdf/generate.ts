@@ -199,7 +199,15 @@ function dimH(ctx: Ctx, x1: number, x2: number, y: number, label: string, size =
   }
 }
 
-function dimV(ctx: Ctx, x: number, y1: number, y2: number, label: string, size = 6.5) {
+function dimV(
+  ctx: Ctx,
+  x: number,
+  y1: number,
+  y2: number,
+  label: string,
+  size = 6.5,
+  labelSide: "left" | "right" = "right",
+) {
   const a = Math.min(y1, y2);
   const b = Math.max(y1, y2);
   if (b - a < 2) return;
@@ -215,7 +223,7 @@ function dimV(ctx: Ctx, x: number, y1: number, y2: number, label: string, size =
   } else {
     line(ctx, x, a, x, b, 0.35);
   }
-  const tx = x + 3.6;
+  const tx = labelSide === "left" ? x - 3.6 - tw : x + 3.6;
   ctx.page.drawRectangle({
     x: tx - 1.1,
     y: ty(mid + size * 0.42),
@@ -717,12 +725,47 @@ function extraLayerXs(left: number, right: number, qty: number) {
   return barXs(left, right, n);
 }
 
-function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number) {
-  rect(ctx, x, y, w, h, 0.7);
-  const hx = x + w;
-  const hy = y;
-  line(ctx, hx - 0.3, hy + 7, hx + 5, hy - 2.5, 0.7);
-  line(ctx, hx + 5, hy - 2.5, hx - 11, hy - 2.5, 0.7);
+/** Circular arc in page-top coordinates (0° = +x, 90° = +y / down). */
+function arcDeg(ctx: Ctx, cx: number, cy: number, r: number, startDeg: number, endDeg: number, t: number) {
+  const steps = 14;
+  const s = (startDeg * Math.PI) / 180;
+  const e = (endDeg * Math.PI) / 180;
+  let px = cx + r * Math.cos(s);
+  let py = cy + r * Math.sin(s);
+  for (let i = 1; i <= steps; i++) {
+    const a = s + ((e - s) * i) / steps;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    line(ctx, px, py, x, y, t);
+    px = x;
+    py = y;
+  }
+}
+
+function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number, t = 0.7) {
+  const r = Math.min(7.4, w * 0.22, h * 0.18);
+  const hook = Math.min(8.6, w * 0.3, h * 0.16);
+  const L = x;
+  const R = x + w;
+  const T = y;
+  const B = y + h;
+  line(ctx, L + r, T, R - r, T, t);
+  line(ctx, L, T + r, L, B - r, t);
+  line(ctx, L + r, B, R - r, B, t);
+  line(ctx, R, T + r, R, B - r, t);
+  arcDeg(ctx, L + r, T + r, r, 180, 270, t);
+  arcDeg(ctx, L + r, B - r, r, 90, 180, t);
+  arcDeg(ctx, R - r, B - r, r, 0, 90, t);
+  arcDeg(ctx, R - r, T + r, r, 270, 296, t);
+  const a1 = (296 * Math.PI) / 180;
+  const x1 = R - r + r * Math.cos(a1);
+  const y1 = T + r + r * Math.sin(a1);
+  line(ctx, x1, y1, x1 - hook * 0.78, y1 + hook * 0.78, t);
+  arcDeg(ctx, R - r, T + r, r, 0, -26, t);
+  const a2 = (-26 * Math.PI) / 180;
+  const x2 = R - r + r * Math.cos(a2);
+  const y2 = T + r + r * Math.sin(a2);
+  line(ctx, x2, y2, x2 - hook * 0.78, y2 + hook * 0.78, t);
 }
 
 function drawLayerCallout(
@@ -737,19 +780,19 @@ function drawLayerCallout(
   const size = 6.6;
   const tw = ctx.font.widthOfTextAtSize(text, size);
   const pad = 2.4;
+  const stroke = 0.65;
   markCircle(ctx, bubbleX, y, mark, 6.4);
   if (side === "left") {
     const tx = bubbleX + 9;
-    line(ctx, bubbleX + 6.4, y, tx - 0.6, y, 0.4);
-    line(ctx, tx + tw + pad, y, tickX, y, 0.4);
+    line(ctx, bubbleX + 6.4, y, tx - 0.6, y, stroke);
+    line(ctx, tx + tw + pad, y, tickX, y, stroke);
     textAboveLine(ctx, text, tx, y, size, "left", false, 3.2);
   } else {
     const tx = bubbleX - 9;
-    line(ctx, tickX, y, tx - tw - pad, y, 0.4);
-    line(ctx, tx + 0.6, y, bubbleX - 6.4, y, 0.4);
+    line(ctx, tickX, y, tx - tw - pad, y, stroke);
+    line(ctx, tx + 0.6, y, bubbleX - 6.4, y, stroke);
     textAboveLine(ctx, text, tx, y, size, "right", false, 3.2);
   }
-  line(ctx, tickX, y - 5, tickX, y + 5, 0.45);
 }
 
 function drawCrossSection(
@@ -787,8 +830,7 @@ function drawCrossSection(
   const extraBot = cut.kind === "span" ? cut.extraBot : cut.extraBot.filter((b) => covers(b, cut.x, 20));
 
   const extraY = (fromTop: boolean, layer: number) => {
-    const gapMm = Math.max(1, layer) * 50;
-    const gap = Math.max(7, gapMm * SECTION_SCALE);
+    const gap = extraLayerOffsetMm(layer) * SECTION_SCALE;
     return fromTop ? topY + gap : botY - gap;
   };
 
@@ -800,19 +842,21 @@ function drawCrossSection(
     return [...map.entries()].sort((a, b) => a[0] - b[0]);
   };
 
-  const drawnTopExtras: { y: number; bar: ResolvedBar }[] = [];
-  const drawnBotExtras: { y: number; bar: ResolvedBar }[] = [];
+  const drawnTopExtras: { y: number; bar: ResolvedBar; xs: number[] }[] = [];
+  const drawnBotExtras: { y: number; bar: ResolvedBar; xs: number[] }[] = [];
   for (const [layer, b] of extrasByLayer(extraTop)) {
     const y = extraY(true, layer);
-    placeDots(ctx, extraLayerXs(innerL, innerR, b.qty), y, barR);
-    line(ctx, innerL - 1, (topY + y) / 2, innerR + 1, (topY + y) / 2, 0.35);
-    drawnTopExtras.push({ y, bar: b });
+    const xs = extraLayerXs(innerL, innerR, b.qty);
+    placeDots(ctx, xs, y, barR);
+    if (xs.length > 1) line(ctx, xs[0] + barR + 0.6, y, xs[xs.length - 1] - barR - 0.6, y, 0.35);
+    drawnTopExtras.push({ y, bar: b, xs });
   }
   for (const [layer, b] of extrasByLayer(extraBot)) {
     const y = extraY(false, layer);
-    placeDots(ctx, extraLayerXs(innerL, innerR, b.qty), y, barR);
-    line(ctx, innerL - 1, (botY + y) / 2, innerR + 1, (botY + y) / 2, 0.35);
-    drawnBotExtras.push({ y, bar: b });
+    const xs = extraLayerXs(innerL, innerR, b.qty);
+    placeDots(ctx, xs, y, barR);
+    if (xs.length > 1) line(ctx, xs[0] + barR + 0.6, y, xs[xs.length - 1] - barR - 0.6, y, 0.35);
+    drawnBotExtras.push({ y, bar: b, xs });
   }
 
   dimH(ctx, cx, cx + W / 2, boxY + H + 12, String(model.B1 || Math.round(model.B / 2)), 5.8);
@@ -824,31 +868,46 @@ function drawCrossSection(
   const st = model.schedule.find((r) => r.family === "D");
   const leftX = ox + 10;
   const dimX = cx - 16;
+  const stirrupY = boxY + H / 2;
+  dimV(ctx, dimX, boxY, boxY + H, String(model.H), 6.2, "left");
   if (mt && model.mainTop[0] && topN) {
-    drawLayerCallout(ctx, leftX, topY, String(mt.markNum), barNotation(model.mainTop[0].qty, model.mainTop[0].dia), cx, "left");
+    drawLayerCallout(
+      ctx,
+      leftX,
+      topY,
+      String(mt.markNum),
+      barNotation(model.mainTop[0].qty, model.mainTop[0].dia),
+      topXs[0],
+      "left",
+    );
   }
   if (st) {
-    const hy = boxY + H / 2;
-    drawLayerCallout(ctx, leftX, hy, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, dimX - 4, "left");
-    line(ctx, dimX + 20, hy, cx + inset, hy, 0.4);
-    line(ctx, cx + inset, hy - 5, cx + inset, hy + 5, 0.45);
+    drawLayerCallout(ctx, leftX, stirrupY, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, cx + inset, "left");
   }
   if (mb && model.mainBottom[0] && botN) {
-    drawLayerCallout(ctx, leftX, botY, String(mb.markNum), barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), cx, "left");
+    drawLayerCallout(
+      ctx,
+      leftX,
+      botY,
+      String(mb.markNum),
+      barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia),
+      botXs[0],
+      "left",
+    );
   }
-  dimV(ctx, dimX, boxY, boxY + H, String(model.H), 6.2);
 
-  const rightX = cx + W + 28;
-  const rightTick = cx + W;
+  const rightX = cx + W + 40;
   for (const e of drawnTopExtras) {
     const row = markForBar(model.schedule, e.bar);
     if (!row) continue;
-    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), rightTick, "right");
+    const touch = e.xs[e.xs.length - 1] ?? innerR;
+    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), touch, "right");
   }
   for (const e of drawnBotExtras) {
     const row = markForBar(model.schedule, e.bar);
     if (!row) continue;
-    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), rightTick, "right");
+    const touch = e.xs[e.xs.length - 1] ?? innerR;
+    drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), touch, "right");
   }
 
   const titleY = boxY + H + 42;
@@ -868,8 +927,7 @@ function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | 
   const h = Math.max(model.stirrups.innerH * s, 36);
   const x = ox + 24;
   const y = oy + 8;
-  rect(ctx, x, y, w, h, 0.9);
-  line(ctx, x, y + 8, x - 10, y + 2, 0.8);
+  drawStirrupFrame(ctx, x, y, w, h, 0.9);
   dimH(ctx, x, x + w, y + h + 12, String(Math.round(model.stirrups.innerB)), 6.2);
   dimV(ctx, x + w + 10, y, y + h, String(Math.round(model.stirrups.innerH)), 6.2);
   dimV(ctx, x - 14, y, y + 10, String(Math.round(model.stirrups.hook)), 5.8);
@@ -885,8 +943,7 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     const bh = Math.min(h - 8, 22);
     const sx = x + w / 2 - bw / 2;
     const sy = cy - bh / 2;
-    rect(ctx, sx, sy, bw, bh, 0.65);
-    line(ctx, sx, sy + 4, sx - 7, sy - 2, 0.65);
+    drawStirrupFrame(ctx, sx, sy, bw, bh, 0.65);
     textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), sx + bw / 2, sy + bh + 7, 5.6, false, "center");
     textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), sx + bw + 3, cy + 2, 5.6);
     textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), sx - 12, sy + 2, 5.6);
@@ -1009,23 +1066,23 @@ function drawSummaryTable(ctx: Ctx, x: number, y: number) {
   const rowH = 24;
   const nRows = 4;
   const gridH = nRows * rowH;
-  const h = gridH + 52;
   const titleSize = 10.5;
   textSimple(ctx, "TỔNG HỢP CỐT THÉP", x + w / 2, y + 2, titleSize, true, "center");
   const titleW = ctx.fontBold.widthOfTextAtSize("TỔNG HỢP CỐT THÉP", titleSize);
   line(ctx, x + w / 2 - titleW / 2, y + titleSize * 0.95, x + w / 2 + titleW / 2, y + titleSize * 0.95, 0.7);
   const ty0 = y + 20;
-  rect(ctx, x, ty0, w, h, 0.9);
-  line(ctx, x + labW, ty0, x + labW, ty0 + gridH, 0.45);
+  rect(ctx, x, ty0, w, gridH, 0.9);
+  line(ctx, x + labW, ty0, x + labW, ty0 + gridH, 0.5);
   for (let i = 1; i < Math.max(dias.length, 1); i++) {
-    line(ctx, x + labW + i * colW, ty0, x + labW + i * colW, ty0 + gridH, 0.4);
+    line(ctx, x + labW + i * colW, ty0, x + labW + i * colW, ty0 + gridH, 0.45);
   }
   const labels = ["ĐƯỜNG KÍNH (mm):", "CHIỀU DÀI (m):", "TRỌNG LƯỢNG (kg):", "SỐ THANH 11.7m:"];
   const textTop = (row: number, size = 7.5) => ty0 + row * rowH + (rowH - size * 0.78) / 2;
   labels.forEach((lb, i) => {
-    if (i > 0) line(ctx, x, ty0 + i * rowH, x + w, ty0 + i * rowH, 0.35);
+    if (i > 0) line(ctx, x, ty0 + i * rowH, x + w, ty0 + i * rowH, 0.4);
     textSimple(ctx, lb, x + 8, textTop(i, 7), 7);
   });
+  line(ctx, x, ty0 + gridH, x + w, ty0 + gridH, 0.95);
   dias.forEach((d, i) => {
     const cx = x + labW + i * colW + colW / 2;
     textSimple(ctx, `Ø${d.dia}`, cx, textTop(0, 8), 8, true, "center");
@@ -1104,7 +1161,7 @@ export async function generateBeamPdf(
   const n = Math.max(uniqueCuts.length, 1);
   const boxW = Math.max(model.B * SECTION_SCALE, 28);
   const boxH = Math.max(model.H * SECTION_SCALE, 48);
-  const cellW = 70 + boxW + 62;
+  const cellW = 70 + boxW + 78;
   const stirrupW = stirrupRow ? 140 : 16;
   const avail = PAGE_W - 36 - stirrupW;
   const pitch = Math.min(cellW + 8, avail / n);

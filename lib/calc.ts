@@ -12,12 +12,11 @@ export const EXTRA_LAYER_SPACING_MM = 50;
 
 /**
  * Offset from the main-bar plane toward mid-depth.
- * Layer 1 sits in that plane (between the two main bars).
- * Layer 2 is 50 mm inward; layer 3 is 50 mm beyond layer 2.
+ * Layer 1 is 50 mm inward; layer 2 is 100 mm; layer 3 is 150 mm.
  */
 export function extraLayerOffsetMm(layer: number) {
   const n = Math.max(1, Math.round(Number.isFinite(layer) ? layer : 1));
-  return (n - 1) * EXTRA_LAYER_SPACING_MM;
+  return n * EXTRA_LAYER_SPACING_MM;
 }
 
 export function hookLength(dia: number, type: number, override?: number) {
