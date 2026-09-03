@@ -116,7 +116,7 @@ function barListLabel(b: MainBar) {
 }
 
 function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
-  const autoCut = Boolean(bar.autoCut);
+  const autoCut = bar.autoCut !== false;
   const lapMultiple = normalizeLapMultiple(bar.lapMultiple);
   if (face === "top") {
     return {
@@ -308,7 +308,7 @@ export function BeamApp() {
       startAxis: 0,
       endAxis: lastAxis,
       hooksBothEnds: face === "bottom" ? false : undefined,
-      autoCut: false,
+      autoCut: true,
       lapMultiple: 30,
     }),
     [lastAxis],
@@ -844,11 +844,11 @@ export function BeamApp() {
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               showBothEndHooks={tab === "mainBottom"}
               showAutoCut
-              autoCutHint={
-                mainForm.autoCut
-                  ? describeMainAutoCut(project, mainForm, tab === "mainTop" ? "top" : "bottom")
-                  : ""
-              }
+              autoCutHint={describeMainAutoCut(
+                project,
+                mainForm,
+                tab === "mainTop" ? "top" : "bottom",
+              )}
               onAutoCutChange={(autoCut, lapMultiple) => {
                 const key = tab === "mainTop" ? "mainTop" : "mainBottom";
                 const face = key === "mainTop" ? "top" : "bottom";
@@ -1384,7 +1384,7 @@ function MainBarPanel({
             ) : null}
           </div>
         )}
-        {showAutoCut && form.autoCut && autoCutHint ? (
+        {showAutoCut && autoCutHint ? (
           <p
             className={`mt-2 text-[11px] leading-snug ${
               autoCutHint.startsWith("Không cắt được") ? "text-amber-400" : "text-zinc-400"

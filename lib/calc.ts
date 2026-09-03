@@ -275,8 +275,7 @@ export function describeMainAutoCut(
   bar: MainBar,
   face: "top" | "bottom" = "bottom",
 ) {
-  if (!bar.autoCut) return "";
-  const [continuous] = resolveMainBars(project, [{ ...bar, autoCut: false }], face);
+  const [continuous] = resolveMainBars(project, [bar], face, { split: false });
   if (!continuous) return "";
   const lap = lapLengthMm(bar.dia, bar.lapMultiple);
   const plan = splitMainBarToStock(continuous, supportHoggingSpliceZones(project), lap);
@@ -646,6 +645,7 @@ export function resolveMainBars(
   project: BeamProject,
   bars: MainBar[],
   face: "top" | "bottom",
+  opts?: { split?: boolean },
 ): ResolvedBar[] {
   const xs = axisPositions(project.spans);
   const H = typicalH(project.spans);
@@ -693,11 +693,9 @@ export function resolveMainBars(
       straight,
       cutLength,
     };
-    if (b.autoCut) {
-      const lap = lapLengthMm(b.dia, b.lapMultiple);
-      return splitMainBarToStock(continuous, zones, lap).bars;
-    }
-    return [continuous];
+    if (opts?.split === false) return [continuous];
+    const lap = lapLengthMm(b.dia, b.lapMultiple);
+    return splitMainBarToStock(continuous, zones, lap).bars;
   });
 }
 
