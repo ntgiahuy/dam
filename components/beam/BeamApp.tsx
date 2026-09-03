@@ -553,7 +553,7 @@ export function BeamApp() {
               className="h-10 w-auto sm:h-[44px]"
             />
           </a>
-          <div className="min-w-0 border-l border-[#30363d] pl-4">
+          <div className="min-w-0 border-l border-[#8b949e] pl-4">
             <div className="text-sm font-bold tracking-wide text-[#79b8ff] sm:text-base">
               Shop drawing thép dầm
             </div>
