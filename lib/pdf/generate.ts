@@ -427,13 +427,16 @@ function groupMainShopSources(bars: ResolvedBar[]) {
   return [...map.values()].map((g) => g.sort((a, b) => a.x1 - b.x1));
 }
 
-function mainShopRowCount(bars: ResolvedBar[]) {
-  let n = 0;
+function mainShopBlockH(bars: ResolvedBar[]) {
+  let h = 0;
   for (const group of groupMainShopSources(bars)) {
-    if (group.length <= 1) n += splitQty(group[0]?.qty || 1, group[0]?.face ?? "bottom").length;
-    else n += group.length;
+    if (group.length <= 1) {
+      h += splitQty(group[0]?.qty || 1, group[0]?.face ?? "bottom").length * MAIN_SHOP_H;
+    } else {
+      h += SPLICE_BLOCK_H;
+    }
   }
-  return n;
+  return h;
 }
 
 function drawMainShopPiece(
@@ -441,45 +444,51 @@ function drawMainShopPiece(
   bar: ResolvedBar,
   qty: number,
   y: number,
-  dir: 1 | -1,
+  hookDir: 1 | -1,
+  dimSide: 1 | -1,
 ) {
   const row = markForBar(ctx.model.schedule, bar);
   const family = row?.family ?? barFamilyOf(bar);
   const mark = row?.mark ?? "1a";
   const x1 = xAt(ctx, bar.x1);
   const x2 = xAt(ctx, bar.x2);
-  drawHookedBar(ctx, x1, x2, y, bar.hookStart, bar.hookEnd, dir, 1.15);
-  const hs = Math.max(bar.hookStart * ctx.scale * 0.28, bar.hookStart > 0 ? 9 : 0);
-  const he = Math.max(bar.hookEnd * ctx.scale * 0.28, bar.hookEnd > 0 ? 9 : 0);
-  if (bar.hookStart > 0) dimV(ctx, x1 - 11, y, y + dir * hs, String(Math.round(bar.hookStart)), 6);
-  if (bar.hookEnd > 0) dimV(ctx, x2 + 8, y, y + dir * he, String(Math.round(bar.hookEnd)), 6);
-  const markX = placeBarMarks([{ x1, x2 }], 6.6)[0] ?? (x1 + x2) / 2;
+  drawHookedBar(ctx, x1, x2, y, bar.hookStart, bar.hookEnd, hookDir, 1.05);
+  const hs = Math.max(bar.hookStart * ctx.scale * 0.24, bar.hookStart > 0 ? 7 : 0);
+  const he = Math.max(bar.hookEnd * ctx.scale * 0.24, bar.hookEnd > 0 ? 7 : 0);
+  if (bar.hookStart > 0) dimV(ctx, x1 - 10, y, y + hookDir * hs, String(Math.round(bar.hookStart)), 5.6);
+  if (bar.hookEnd > 0) dimV(ctx, x2 + 7, y, y + hookDir * he, String(Math.round(bar.hookEnd)), 5.6);
+  const markX = placeBarMarks([{ x1, x2 }], 6.2)[0] ?? (x1 + x2) / 2;
   if (bar.straight > 80) {
-    dimH(ctx, x1, x2, y - dir * 15, String(Math.round(bar.cutLength)), 6.3, markX);
+    dimH(ctx, x1, x2, y + dimSide * 10, String(Math.round(bar.cutLength)), 6, markX);
   }
   if (bar.spliceLapMm && bar.spliceLapMm > 0) {
     const lapX1 = xAt(ctx, bar.x2 - bar.spliceLapMm);
-    dimH(ctx, lapX1, x2, y + dir * 13, String(Math.round(bar.spliceLapMm)), 6.2);
+    dimH(ctx, lapX1, x2, y - dimSide * 9, String(Math.round(bar.spliceLapMm)), 5.8);
   }
   drawShopSpec(ctx, x1, x2, y, mark, shopSpec(qty, bar, family), markX);
 }
 
-function drawMainShopRows(ctx: Ctx, bars: ResolvedBar[], y: number, dir: 1 | -1) {
+function drawMainShopRows(ctx: Ctx, bars: ResolvedBar[], y: number, hookDir: 1 | -1) {
   let yy = y;
   for (const group of groupMainShopSources(bars)) {
     if (group.length <= 1) {
       const bar = group[0];
       if (!bar) continue;
+      const dimSide = (hookDir === 1 ? -1 : 1) as 1 | -1;
       for (const q of splitQty(bar.qty || 1, bar.face)) {
-        drawMainShopPiece(ctx, bar, q, yy, dir);
+        drawMainShopPiece(ctx, bar, q, yy + 10, hookDir, dimSide);
         yy += MAIN_SHOP_H;
       }
       continue;
     }
-    for (const bar of group) {
-      drawMainShopPiece(ctx, bar, bar.qty || 1, yy, dir);
-      yy += MAIN_SHOP_H;
+    const y0 = yy + SPLICE_PAD;
+    for (let i = 0; i < group.length; i++) {
+      const lower = i % 2 === 1;
+      const yBar = y0 + (lower ? SPLICE_LANE : 0);
+      const dimSide = (lower ? 1 : -1) as 1 | -1;
+      drawMainShopPiece(ctx, group[i], group[i].qty || 1, yBar, hookDir, dimSide);
     }
+    yy += SPLICE_BLOCK_H;
   }
   return yy;
 }
@@ -521,7 +530,7 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const mark = row?.mark ?? "";
     const markX = markXs[i] ?? (x1 + x2) / 2;
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
-    dimH(ctx, x1, x2, y - 22, String(Math.round(b.straight)), 6.2, markX);
+    dimH(ctx, x1, x2, y - 11, String(Math.round(b.straight)), 5.8, markX);
     const hs = Math.max(b.hookStart * ctx.scale * 0.28, b.hookStart > 0 ? 8 : 0);
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
@@ -531,9 +540,12 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
   });
 }
 
-const MAIN_SHOP_H = 40;
-const EXTRA_SHOP_H = 44;
-const MOMENT_GAP = 18;
+const MAIN_SHOP_H = 24;
+const EXTRA_SHOP_H = 26;
+const MOMENT_GAP = 6;
+const SPLICE_LANE = 16;
+const SPLICE_PAD = 11;
+const SPLICE_BLOCK_H = SPLICE_PAD + SPLICE_LANE + SPLICE_PAD;
 
 function drawExplodedShops(ctx: Ctx, yStart: number) {
   const { model } = ctx;
@@ -541,41 +553,39 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   const mb = model.mainBottom;
   const topLayers = extraLayers(model.extraTop);
   const botLayers = extraLayers(model.extraBottom);
-  const t1n = mainShopRowCount(mt);
-  const b1n = mainShopRowCount(mb);
   const gap = topLayers.length && botLayers.length ? MOMENT_GAP : 0;
   const total =
-    t1n * MAIN_SHOP_H +
+    mainShopBlockH(mt) +
     topLayers.length * EXTRA_SHOP_H +
     gap +
     botLayers.length * EXTRA_SHOP_H +
-    b1n * MAIN_SHOP_H;
-  drawSupportGuides(ctx, yStart - 8, yStart + Math.max(total, 12) + 6);
+    mainShopBlockH(mb);
+  drawSupportGuides(ctx, yStart - 4, yStart + Math.max(total, 10) + 4);
 
   let y = yStart;
   if (mt.length) y = drawMainShopRows(ctx, mt, y, 1);
 
   if (topLayers.length) {
-    y += 6;
+    y += 2;
     for (const [, bars] of topLayers) {
-      textSimple(ctx, "M-", 108, y + 2, 8, true, "right");
+      textSimple(ctx, "M-", 108, y + 1, 7, true, "right");
       drawExtraShopRow(ctx, bars, model.schedule, y, 1);
       y += EXTRA_SHOP_H;
     }
   }
 
-  if (gap) y += gap - 6;
+  if (gap) y += gap;
 
   if (botLayers.length) {
     for (const [, bars] of botLayers) {
-      textSimple(ctx, "M+", 108, y + 2, 8, true, "right");
+      textSimple(ctx, "M+", 108, y + 1, 7, true, "right");
       drawExtraShopRow(ctx, bars, model.schedule, y, -1);
       y += EXTRA_SHOP_H;
     }
   }
 
-  if (mb.length) y = drawMainShopRows(ctx, mb, y, -1) + 6;
-  return y;
+  if (mb.length) y = drawMainShopRows(ctx, mb, y, -1);
+  return y + 2;
 }
 
 type CutLoc = {
@@ -1421,7 +1431,7 @@ export async function generateBeamPdf(
   uniqueCuts.sort((a, b) => a.n - b.n);
 
   const stirrupRow = model.schedule.find((r) => r.family === "D");
-  const sectTop = Math.max(y + 10, 430);
+  const sectTop = y + 8;
   const n = Math.max(uniqueCuts.length, 1);
   const boxW = Math.max(model.B * SECTION_SCALE, 28);
   const boxH = Math.max(model.H * SECTION_SCALE, 48);
@@ -1436,7 +1446,7 @@ export async function generateBeamPdf(
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
 
-  const tableY = Math.min(sectTop + boxH + 92, PAGE_H - 240);
+  const tableY = Math.min(sectTop + boxH + 68, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
