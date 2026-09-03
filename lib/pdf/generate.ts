@@ -530,7 +530,7 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const mark = row?.mark ?? "";
     const markX = markXs[i] ?? (x1 + x2) / 2;
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
-    dimH(ctx, x1, x2, y - 11, String(Math.round(b.straight)), 5.8, markX);
+    dimH(ctx, x1, x2, y + (dir === 1 ? 11 : -11), String(Math.round(b.straight)), 5.8, markX);
     const hs = Math.max(b.hookStart * ctx.scale * 0.28, b.hookStart > 0 ? 8 : 0);
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
@@ -542,7 +542,8 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
 
 const MAIN_SHOP_H = 24;
 const EXTRA_SHOP_H = 26;
-const MOMENT_GAP = 6;
+const MOMENT_GAP = 8;
+const EXTRA_BAND_PAD = 24;
 const SPLICE_LANE = 16;
 const SPLICE_PAD = 11;
 const SPLICE_BLOCK_H = SPLICE_PAD + SPLICE_LANE + SPLICE_PAD;
@@ -553,12 +554,17 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   const mb = model.mainBottom;
   const topLayers = extraLayers(model.extraTop);
   const botLayers = extraLayers(model.extraBottom);
+  const hasExtras = topLayers.length > 0 || botLayers.length > 0;
   const gap = topLayers.length && botLayers.length ? MOMENT_GAP : 0;
+  const padTop = mt.length && hasExtras ? EXTRA_BAND_PAD : 0;
+  const padBot = mb.length && hasExtras ? EXTRA_BAND_PAD : 0;
   const total =
     mainShopBlockH(mt) +
+    padTop +
     topLayers.length * EXTRA_SHOP_H +
     gap +
     botLayers.length * EXTRA_SHOP_H +
+    padBot +
     mainShopBlockH(mb);
   drawSupportGuides(ctx, yStart - 4, yStart + Math.max(total, 10) + 4);
 
@@ -566,7 +572,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   if (mt.length) y = drawMainShopRows(ctx, mt, y, 1);
 
   if (topLayers.length) {
-    y += 2;
+    y += padTop || 2;
     for (const [, bars] of topLayers) {
       textSimple(ctx, "M-", 108, y + 1, 7, true, "right");
       drawExtraShopRow(ctx, bars, model.schedule, y, 1);
@@ -584,7 +590,10 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
     }
   }
 
-  if (mb.length) y = drawMainShopRows(ctx, mb, y, -1);
+  if (mb.length) {
+    if (hasExtras) y += padBot;
+    y = drawMainShopRows(ctx, mb, y, -1);
+  }
   return y + 2;
 }
 
