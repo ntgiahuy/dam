@@ -770,15 +770,8 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     if (!row) return;
     const midX = xAt(ctx, (bar.x1 + bar.x2) / 2);
     const barY = planeY + side * extraLayerOffsetMm(bar.layer) * mmToPt;
-    const nearStart = xAt(ctx, bar.x1) < xStart + 28;
-    if (nearStart) {
-      const y = side > 0 ? y0 - 12 : y1 + 10;
-      markCircle(ctx, xStart - 36, y, String(row.markNum), 5.6);
-      textAboveLine(ctx, barNotation(bar.qty, bar.dia), xStart - 28, y, 6.3, "left", false, 3.2);
-      return;
-    }
-    markCircle(ctx, midX - 18, barY - 8, String(row.markNum), 5.6);
-    textAboveLine(ctx, barNotation(bar.qty, bar.dia), midX - 11, barY, 6.3, "left", false, 3.2);
+    markCircle(ctx, midX, barY, String(row.markNum), 5.6);
+    textAboveLine(ctx, barNotation(bar.qty, bar.dia), midX + 8, barY, 6.3, "left", false, 3.2);
   };
   for (const b of model.extraTop) call(b, topY, 1);
   for (const b of model.extraBottom) call(b, botY, -1);
