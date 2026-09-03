@@ -49,6 +49,10 @@ export interface MainBar {
   qty: number;
   startAxis: number;
   endAxis: number;
+  /** Chỉ thép chủ lớp dưới: móc đứng cả hai đầu thanh. Mặc định không móc. */
+  hooksBothEnds?: boolean;
+  /** Chiều cao móc (mm), dùng khi `hooksBothEnds`. */
+  hookHeightMm?: number;
 }
 
 export interface ExtraBar {

@@ -115,6 +115,11 @@ export function hoggingEdgeHookMm(H: number) {
   return roundTo((Math.max(H || 500, 1) * 2) / 3, 50);
 }
 
+/** Chiều cao móc mặc định thép chủ lớp dưới: max(20d, 400). */
+export function defaultBottomMainHookMm(dia: number) {
+  return Math.max(20 * Math.max(dia || 0, 0), 400);
+}
+
 function beamEndCoverStartX(project: BeamProject) {
   return supportFaces(project, 0).left + BEAM_END_COVER_MM;
 }
@@ -478,9 +483,21 @@ export function resolveMainBars(
     const atEnd = b.endAxis === last;
     const startType = atStart ? 3 : 0;
     const endType = atEnd ? 3 : 0;
-    const hook = face === "top" ? hoggingEdgeHookMm(H) : Math.max(20 * b.dia, 400);
-    const hookStart = startType ? hook : 0;
-    const hookEnd = endType ? hook : 0;
+    let hookStart = 0;
+    let hookEnd = 0;
+    if (face === "top") {
+      const hook = hoggingEdgeHookMm(H);
+      hookStart = startType ? hook : 0;
+      hookEnd = endType ? hook : 0;
+    } else if (b.hooksBothEnds) {
+      const entered = b.hookHeightMm;
+      const hook =
+        entered != null && Number.isFinite(entered) && entered > 0
+          ? entered
+          : defaultBottomMainHookMm(b.dia);
+      hookStart = hook;
+      hookEnd = hook;
+    }
     if (atStart) x1 = beamEndCoverStartX(project);
     if (atEnd) x2 = beamEndCoverEndX(project);
     const straight = Math.max(x2 - x1, 0);

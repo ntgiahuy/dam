@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, Panel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -25,6 +26,7 @@ import {
   applySupportToAll,
   canShiftAxisRange,
   computeModel,
+  defaultBottomMainHookMm,
   placeAxisRange,
   shiftAxisRange,
   stirrupZonesForSpan,
@@ -99,7 +101,36 @@ function axisOptions(n: number) {
 }
 
 function barListLabel(b: MainBar) {
-  return `${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
+  const base = `${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`;
+  if (!b.hooksBothEnds) return base;
+  const h =
+    b.hookHeightMm && b.hookHeightMm > 0 ? b.hookHeightMm : defaultBottomMainHookMm(b.dia);
+  return `${base} · móc ${h}`;
+}
+
+function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
+  if (face === "top") {
+    return {
+      id: bar.id,
+      dia: bar.dia,
+      qty: bar.qty,
+      startAxis: bar.startAxis,
+      endAxis: bar.endAxis,
+    };
+  }
+  const hooks = Boolean(bar.hooksBothEnds);
+  const hookHeightMm = hooks
+    ? bar.hookHeightMm && bar.hookHeightMm > 0
+      ? bar.hookHeightMm
+      : defaultBottomMainHookMm(bar.dia)
+    : bar.hookHeightMm && bar.hookHeightMm > 0
+      ? bar.hookHeightMm
+      : undefined;
+  return {
+    ...bar,
+    hooksBothEnds: hooks,
+    hookHeightMm,
+  };
 }
 
 /** Trùng dòng thép chủ: cùng số lượng, đường kính và đoạn trục. */
@@ -264,6 +295,7 @@ export function BeamApp() {
       qty: 2,
       startAxis: 0,
       endAxis: lastAxis,
+      hooksBothEnds: face === "bottom" ? false : undefined,
     }),
     [lastAxis],
   );
@@ -340,7 +372,7 @@ export function BeamApp() {
       setStatus(null);
       return;
     }
-    const bar = { ...mainForm, id: uid("bar") };
+    const bar = persistMainBar({ ...mainForm, id: uid("bar") }, key === "mainBottom" ? "bottom" : "top");
     persist({ ...project, [key]: [...project[key], bar] });
     setSelectedBar(bar.id);
     setError(null);
@@ -355,7 +387,11 @@ export function BeamApp() {
     }
     persist({
       ...project,
-      [key]: project[key].map((b) => (b.id === selectedBar ? { ...mainForm, id: b.id } : b)),
+      [key]: project[key].map((b) =>
+        b.id === selectedBar
+          ? persistMainBar({ ...mainForm, id: b.id }, key === "mainBottom" ? "bottom" : "top")
+          : b,
+      ),
     });
     setError(null);
     setStatus(`Đã sửa ${barListLabel(mainForm)}.`);
@@ -752,6 +788,7 @@ export function BeamApp() {
               onAdd={() => addMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onEdit={() => editMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
+              showBothEndHooks={tab === "mainBottom"}
               onRegionMove={(start, end) => {
                 selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
                 void end;
@@ -1130,6 +1167,7 @@ function MainBarPanel({
   onEdit,
   onDelete,
   onRegionMove,
+  showBothEndHooks = false,
 }: {
   title: string;
   bars: MainBar[];
@@ -1142,6 +1180,7 @@ function MainBarPanel({
   onEdit: () => void;
   onDelete: () => void;
   onRegionMove?: (start: number, end: number) => void;
+  showBothEndHooks?: boolean;
 }) {
   const addBlocked = mainBarDuplicate(bars, form);
   const editBlocked = mainBarDuplicate(bars, form, selected);
@@ -1195,6 +1234,44 @@ function MainBarPanel({
             </Select>
           </Field>
         </div>
+        {showBothEndHooks && (
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex h-8 cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={Boolean(form.hooksBothEnds)}
+                onCheckedChange={(checked) => {
+                  const on = checked === true;
+                  setForm({
+                    ...form,
+                    hooksBothEnds: on,
+                    hookHeightMm:
+                      on && !(form.hookHeightMm && form.hookHeightMm > 0)
+                        ? defaultBottomMainHookMm(form.dia)
+                        : form.hookHeightMm,
+                  });
+                }}
+              />
+              Có móc 2 đầu
+            </label>
+            {form.hooksBothEnds ? (
+              <Field label="Chiều cao móc (mm)" className="w-40">
+                <Input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={form.hookHeightMm ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setForm({
+                      ...form,
+                      hookHeightMm: raw === "" ? undefined : Number(raw) || 0,
+                    });
+                  }}
+                />
+              </Field>
+            ) : null}
+          </div>
+        )}
         <div className="mt-3">
           <CrudButtons
             onAdd={onAdd}
