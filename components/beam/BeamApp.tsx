@@ -27,7 +27,7 @@ import {
   canShiftAxisRange,
   computeModel,
   defaultBottomMainHookMm,
-  describeBottomMainAutoCut,
+  describeMainAutoCut,
   normalizeLapMultiple,
   placeAxisRange,
   shiftAxisRange,
@@ -41,6 +41,7 @@ import type {
   ConnectionType,
   EndType,
   ExtraBar,
+  LapMultiple,
   MainBar,
   SecondaryKind,
   ShearKind,
@@ -115,6 +116,8 @@ function barListLabel(b: MainBar) {
 }
 
 function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
+  const autoCut = Boolean(bar.autoCut);
+  const lapMultiple = normalizeLapMultiple(bar.lapMultiple);
   if (face === "top") {
     return {
       id: bar.id,
@@ -122,6 +125,8 @@ function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
       qty: bar.qty,
       startAxis: bar.startAxis,
       endAxis: bar.endAxis,
+      autoCut,
+      lapMultiple,
     };
   }
   const hooks = Boolean(bar.hooksBothEnds);
@@ -136,8 +141,8 @@ function persistMainBar(bar: MainBar, face: "top" | "bottom"): MainBar {
     ...bar,
     hooksBothEnds: hooks,
     hookHeightMm,
-    autoCut: Boolean(bar.autoCut),
-    lapMultiple: normalizeLapMultiple(bar.lapMultiple),
+    autoCut,
+    lapMultiple,
   };
 }
 
@@ -303,8 +308,8 @@ export function BeamApp() {
       startAxis: 0,
       endAxis: lastAxis,
       hooksBothEnds: face === "bottom" ? false : undefined,
-      autoCut: face === "bottom" ? false : undefined,
-      lapMultiple: face === "bottom" ? 30 : undefined,
+      autoCut: false,
+      lapMultiple: 30,
     }),
     [lastAxis],
   );
@@ -322,24 +327,41 @@ export function BeamApp() {
   }));
 
   const workingProject = useMemo(() => {
-    if (!selectedBar) return project;
-    if (tab === "mainBottom") {
-      return {
-        ...project,
-        mainBottom: project.mainBottom.map((b) =>
+    let next = project;
+    if (selectedBar && tab === "mainBottom") {
+      next = {
+        ...next,
+        mainBottom: next.mainBottom.map((b) =>
           b.id === selectedBar ? persistMainBar({ ...mainForm, id: b.id }, "bottom") : b,
         ),
       };
-    }
-    if (tab === "mainTop") {
-      return {
-        ...project,
-        mainTop: project.mainTop.map((b) =>
+    } else if (selectedBar && tab === "mainTop") {
+      next = {
+        ...next,
+        mainTop: next.mainTop.map((b) =>
           b.id === selectedBar ? persistMainBar({ ...mainForm, id: b.id }, "top") : b,
         ),
       };
     }
-    return project;
+    const anyOn =
+      Boolean(mainForm.autoCut) ||
+      next.mainBottom.some((b) => b.autoCut) ||
+      next.mainTop.some((b) => b.autoCut);
+    if (!anyOn) return next;
+    const lap = normalizeLapMultiple(
+      mainForm.lapMultiple ??
+        next.mainTop.find((b) => b.autoCut)?.lapMultiple ??
+        next.mainBottom.find((b) => b.autoCut)?.lapMultiple,
+    );
+    return {
+      ...next,
+      mainTop: next.mainTop.map((b) =>
+        persistMainBar({ ...b, autoCut: true, lapMultiple: b.lapMultiple ?? lap }, "top"),
+      ),
+      mainBottom: next.mainBottom.map((b) =>
+        persistMainBar({ ...b, autoCut: true, lapMultiple: b.lapMultiple ?? lap }, "bottom"),
+      ),
+    };
   }, [project, selectedBar, tab, mainForm]);
 
   const model = useMemo(() => computeModel(workingProject), [workingProject]);
@@ -821,12 +843,20 @@ export function BeamApp() {
               onEdit={() => editMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               showBothEndHooks={tab === "mainBottom"}
-              showAutoCut={tab === "mainBottom"}
+              showAutoCut
               autoCutHint={
-                tab === "mainBottom" && mainForm.autoCut
-                  ? describeBottomMainAutoCut(project, mainForm)
+                mainForm.autoCut
+                  ? describeMainAutoCut(project, mainForm, tab === "mainTop" ? "top" : "bottom")
                   : ""
               }
+              onAutoCutChange={(autoCut, lapMultiple) => {
+                const key = tab === "mainTop" ? "mainTop" : "mainBottom";
+                const face = key === "mainTop" ? "top" : "bottom";
+                persist({
+                  ...project,
+                  [key]: project[key].map((b) => persistMainBar({ ...b, autoCut, lapMultiple }, face)),
+                });
+              }}
               onRegionMove={(start, end) => {
                 selectSpan(Math.min(Math.min(start, end), Math.max(0, project.spans.length - 1)));
                 void end;
@@ -1208,6 +1238,7 @@ function MainBarPanel({
   showBothEndHooks = false,
   showAutoCut = false,
   autoCutHint = "",
+  onAutoCutChange,
 }: {
   title: string;
   bars: MainBar[];
@@ -1223,6 +1254,7 @@ function MainBarPanel({
   showBothEndHooks?: boolean;
   showAutoCut?: boolean;
   autoCutHint?: string;
+  onAutoCutChange?: (autoCut: boolean, lapMultiple: LapMultiple) => void;
 }) {
   const addBlocked = mainBarDuplicate(bars, form);
   const editBlocked = mainBarDuplicate(bars, form, selected);
@@ -1321,11 +1353,13 @@ function MainBarPanel({
                 checked={Boolean(form.autoCut)}
                 onCheckedChange={(checked) => {
                   const on = checked === true;
+                  const lapMultiple = normalizeLapMultiple(form.lapMultiple);
                   setForm({
                     ...form,
                     autoCut: on,
-                    lapMultiple: normalizeLapMultiple(form.lapMultiple),
+                    lapMultiple,
                   });
+                  onAutoCutChange?.(on, lapMultiple);
                 }}
               />
               Cắt thép tự động
@@ -1334,9 +1368,11 @@ function MainBarPanel({
               <Field label="Chiều dài nối" className="w-36">
                 <Select
                   value={normalizeLapMultiple(form.lapMultiple)}
-                  onChange={(e) =>
-                    setForm({ ...form, lapMultiple: normalizeLapMultiple(Number(e.target.value)) })
-                  }
+                  onChange={(e) => {
+                    const lapMultiple = normalizeLapMultiple(Number(e.target.value));
+                    setForm({ ...form, lapMultiple });
+                    if (form.autoCut) onAutoCutChange?.(true, lapMultiple);
+                  }}
                 >
                   {LAP_MULTIPLES.map((n) => (
                     <option key={n} value={n}>

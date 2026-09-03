@@ -270,9 +270,13 @@ export function splitMainBarToStock(
   };
 }
 
-export function describeBottomMainAutoCut(project: BeamProject, bar: MainBar) {
+export function describeMainAutoCut(
+  project: BeamProject,
+  bar: MainBar,
+  face: "top" | "bottom" = "bottom",
+) {
   if (!bar.autoCut) return "";
-  const [continuous] = resolveMainBars(project, [{ ...bar, autoCut: false }], "bottom");
+  const [continuous] = resolveMainBars(project, [{ ...bar, autoCut: false }], face);
   if (!continuous) return "";
   const lap = lapLengthMm(bar.dia, bar.lapMultiple);
   const plan = splitMainBarToStock(continuous, supportHoggingSpliceZones(project), lap);
@@ -281,6 +285,10 @@ export function describeBottomMainAutoCut(project: BeamProject, bar: MainBar) {
     return `${plan.note} (${mul}D).`;
   }
   return plan.note;
+}
+
+export function describeBottomMainAutoCut(project: BeamProject, bar: MainBar) {
+  return describeMainAutoCut(project, bar, "bottom");
 }
 
 function beamEndCoverStartX(project: BeamProject) {
@@ -642,7 +650,7 @@ export function resolveMainBars(
   const xs = axisPositions(project.spans);
   const H = typicalH(project.spans);
   const last = project.spans.length;
-  const zones = face === "bottom" ? supportHoggingSpliceZones(project) : [];
+  const zones = supportHoggingSpliceZones(project);
   return bars.flatMap((b) => {
     let x1 = xs[Math.min(b.startAxis, xs.length - 1)] ?? 0;
     let x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
@@ -685,7 +693,7 @@ export function resolveMainBars(
       straight,
       cutLength,
     };
-    if (face === "bottom" && b.autoCut) {
+    if (b.autoCut) {
       const lap = lapLengthMm(b.dia, b.lapMultiple);
       return splitMainBarToStock(continuous, zones, lap).bars;
     }

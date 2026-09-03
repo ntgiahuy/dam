@@ -767,6 +767,12 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
 
   for (const b of model.mainTop) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY, b.hookStart, b.hookEnd, 1, 0.85);
+    if (b.spliceLapMm && b.spliceLapMm > 0) {
+      const lapX1 = xAt(ctx, b.x2 - b.spliceLapMm);
+      const lapX2 = xAt(ctx, b.x2);
+      line(ctx, lapX2, topY - 3.2, lapX2, topY + 3.2, 0.7);
+      dimH(ctx, lapX1, lapX2, topY - 10, String(Math.round(b.spliceLapMm)), 5.8);
+    }
   }
   for (const b of model.mainBottom) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.85);
@@ -831,9 +837,22 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   const mt = model.schedule.find((r) => r.family === "T1");
   const steelMarkX = xStart - 36;
   const steelSpecX = xStart - 28;
-  if (mt && model.mainTop[0]) {
+  const topSpliced = model.mainTop.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
+  if (mt && model.mainTop[0] && !topSpliced) {
     markCircle(ctx, steelMarkX, topY, mt.mark, 5.8);
     textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
+  }
+  if (topSpliced) {
+    for (const b of model.mainTop) {
+      const row = markForBar(model.schedule, b);
+      if (!row) continue;
+      const midX = xAt(ctx, (b.x1 + b.x2) / 2);
+      markCircle(ctx, midX, topY, row.mark, 5.6);
+      textAboveLine(ctx, barNotation(b.qty, b.dia), midX + 8, topY, 6.2, "left", false, 3.0);
+      if (b.straight > 400) {
+        dimH(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY + 11, String(Math.round(b.cutLength)), 5.8);
+      }
+    }
   }
   const bottomSpliced = model.mainBottom.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
   if (mb && model.mainBottom[0] && !bottomSpliced) {
