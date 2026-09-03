@@ -554,6 +554,21 @@ function dimHWithA1Below(ctx: Ctx, x1: number, x2: number, y: number, dimLabel: 
   textSimple(ctx, a1, mid, y + 8.5, 5.8, false, "center");
 }
 
+function a2LabelForRange(ctx: Ctx, x1: number, x2: number) {
+  const { project, model } = ctx;
+  const texts: string[] = [];
+  project.spans.forEach((sp, i) => {
+    const zones = stirrupZonesForSpan(project, i, model.extraTop);
+    const x0 = model.xs[i];
+    const mid1 = x0 + zones.left.length;
+    const mid2 = mid1 + zones.mid.length;
+    if (zones.mid.count > 0 && mid2 > x1 && mid1 < x2) {
+      texts.push(`${zones.mid.count}Ø${zones.dia}a${zones.mid.spacing}`);
+    }
+  });
+  return texts[0] ?? "";
+}
+
 function a1LabelForRange(ctx: Ctx, x1: number, x2: number) {
   const { project, model } = ctx;
   const items: { count: number; dia: number; spacing: number }[] = [];
@@ -581,15 +596,16 @@ function a1LabelForRange(ctx: Ctx, x1: number, x2: number) {
 
 function drawCutMark(ctx: Ctx, x: number, y0: number, y1: number, n: number) {
   line(ctx, x, y0, x, y1, 0.4);
-  const s = 3.6;
+  const s = 3.8;
+  const tip = s * 1.35;
   line(ctx, x - s, y0, x + s, y0, 0.45);
-  line(ctx, x - s, y0, x, y0 + s * 1.3, 0.45);
-  line(ctx, x + s, y0, x, y0 + s * 1.3, 0.45);
+  line(ctx, x - s, y0, x, y0 + tip, 0.45);
+  line(ctx, x + s, y0, x, y0 + tip, 0.45);
+  textSimple(ctx, String(n), x, y0 - 10, 7, true, "center");
   line(ctx, x - s, y1, x + s, y1, 0.45);
-  line(ctx, x - s, y1, x, y1 - s * 1.3, 0.45);
-  line(ctx, x + s, y1, x, y1 - s * 1.3, 0.45);
-  textSimple(ctx, String(n), x, y0 - 1, 7, true, "center");
-  textSimple(ctx, String(n), x, y1 + 9, 7, true, "center");
+  line(ctx, x - s, y1, x, y1 - tip, 0.45);
+  line(ctx, x + s, y1, x, y1 - tip, 0.45);
+  textSimple(ctx, String(n), x, y1 + 3.4, 7, true, "center");
 }
 
 function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
@@ -629,7 +645,14 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     let cursor = first.left;
     for (const r of hogging) {
       if (r.x1 - cursor > 80) {
-        dimH(ctx, xAt(ctx, cursor), xAt(ctx, r.x1), dimY, String(Math.round(r.x1 - cursor)), 6);
+        dimHWithA1Below(
+          ctx,
+          xAt(ctx, cursor),
+          xAt(ctx, r.x1),
+          dimY,
+          String(Math.round(r.x1 - cursor)),
+          a2LabelForRange(ctx, cursor, r.x1),
+        );
       }
       if (r.axis - r.x1 > 8) {
         dimHWithA1Below(
@@ -654,7 +677,14 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
       cursor = r.x2;
     }
     if (lastF.right - cursor > 80) {
-      dimH(ctx, xAt(ctx, cursor), xAt(ctx, lastF.right), dimY, String(Math.round(lastF.right - cursor)), 6);
+      dimHWithA1Below(
+        ctx,
+        xAt(ctx, cursor),
+        xAt(ctx, lastF.right),
+        dimY,
+        String(Math.round(lastF.right - cursor)),
+        a2LabelForRange(ctx, cursor, lastF.right),
+      );
     }
   } else {
     const segs: { a: number; b: number }[] = [];
@@ -727,12 +757,12 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   }
 
   const stMark = model.schedule.find((r) => r.family === "D")?.mark ?? "9";
-  const hoggingForLabels = uniqueHoggingRanges(project, model.extraTop);
-  for (const lb of model.stirrups.labels) {
-    if (hoggingForLabels.some((r) => lb.x >= r.x1 && lb.x <= r.x2)) continue;
-    const x = xAt(ctx, lb.x);
-    markCircle(ctx, x - 28, y0 - 12, stMark, 5.8);
-    textSimple(ctx, lb.text.replace(/^\d+/, (m) => m), x - 21, y0 - 9.5, 6.2);
+  if (!hogging.length) {
+    for (const lb of model.stirrups.labels) {
+      const x = xAt(ctx, lb.x);
+      markCircle(ctx, x - 28, y0 - 12, stMark, 5.8);
+      textSimple(ctx, lb.text.replace(/^\d+/, (m) => m), x - 21, y0 - 9.5, 6.2);
+    }
   }
 
   const call = (bar: ResolvedBar, planeY: number, side: 1 | -1) => {
@@ -779,7 +809,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   dimV(ctx, xStart - 22, y0, y1, String(model.H), 7);
 
   for (const c of cuts) {
-    drawCutMark(ctx, xAt(ctx, c.x), y0 - 18, y1 + 20, c.n);
+    drawCutMark(ctx, xAt(ctx, c.x), y0 - 50, y1 + 8, c.n);
   }
 
   const extraBotY = y1 + 32;
@@ -1222,7 +1252,7 @@ export async function generateBeamPdf(
     borderWidth: 1.05,
   });
 
-  const elevTop = 66;
+  const elevTop = 82;
   const beamH = 52;
   let y = drawElevation(ctx, elevTop, beamH, cuts);
 
