@@ -768,18 +768,25 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   const call = (bar: ResolvedBar, planeY: number, side: 1 | -1) => {
     const row = markForBar(model.schedule, bar);
     if (!row) return;
-    const x = xAt(ctx, (bar.x1 + bar.x2) / 2);
+    const midX = xAt(ctx, (bar.x1 + bar.x2) / 2);
     const barY = planeY + side * extraLayerOffsetMm(bar.layer) * mmToPt;
-    markCircle(ctx, x - 18, barY - 8, String(row.markNum), 5.6);
-    textAboveLine(ctx, barNotation(bar.qty, bar.dia), x - 11, barY, 6.3, "left", false, 3.2);
+    const nearStart = xAt(ctx, bar.x1) < xStart + 28;
+    if (nearStart) {
+      const y = side > 0 ? y0 - 12 : y1 + 10;
+      markCircle(ctx, xStart - 36, y, String(row.markNum), 5.6);
+      textAboveLine(ctx, barNotation(bar.qty, bar.dia), xStart - 28, y, 6.3, "left", false, 3.2);
+      return;
+    }
+    markCircle(ctx, midX - 18, barY - 8, String(row.markNum), 5.6);
+    textAboveLine(ctx, barNotation(bar.qty, bar.dia), midX - 11, barY, 6.3, "left", false, 3.2);
   };
   for (const b of model.extraTop) call(b, topY, 1);
   for (const b of model.extraBottom) call(b, botY, -1);
 
   const mb = model.schedule.find((r) => r.family === "B1");
   const mt = model.schedule.find((r) => r.family === "T1");
-  const steelMarkX = xStart - 20;
-  const steelSpecX = xStart - 12;
+  const steelMarkX = xStart - 36;
+  const steelSpecX = xStart - 28;
   if (mt && model.mainTop[0]) {
     markCircle(ctx, steelMarkX, topY, String(mt.markNum), 5.8);
     textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
@@ -791,10 +798,14 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
 
   const elev = ctx.project.info.elevation;
   const elevStr = elev === 0 ? "±0.000" : elev > 0 ? `+${elev.toFixed(3)}` : elev.toFixed(3);
-  const dimX = xStart - 44;
+  const dimX = xStart - 58;
   dimV(ctx, dimX, y0, y1, String(model.H), 7, "left");
   const elevW = ctx.font.widthOfTextAtSize(elevStr, 7);
-  textSimple(ctx, elevStr, dimX - 22 - elevW, y0 + 3, 7);
+  const elevX = dimX - 26 - elevW;
+  const elevTextY = y0 - 12;
+  textSimple(ctx, elevStr, elevX, elevTextY, 7);
+  line(ctx, elevX, elevTextY + 7.4, elevX + elevW, elevTextY + 7.4, 0.85);
+  line(ctx, elevX - 2, y0, dimX - 8, y0, 0.8);
 
   for (const c of cuts) {
     drawCutMark(ctx, xAt(ctx, c.x), y0 - 50, y1 + 8, c.n);
@@ -1222,7 +1233,7 @@ export async function generateBeamPdf(
   const lastF = supportFaces(project, project.spans.length);
   const xMin = first.left;
   const xMax = Math.max(lastF.right, xMin + 1);
-  const originLeft = 142;
+  const originLeft = 150;
   const originRight = 48;
   const usable = PAGE_W - originLeft - originRight;
   const scale = usable / (xMax - xMin);
