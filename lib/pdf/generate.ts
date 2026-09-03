@@ -838,21 +838,9 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
 
   for (const b of model.mainTop) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), topY, b.hookStart, b.hookEnd, 1, 0.85);
-    if (b.spliceLapMm && b.spliceLapMm > 0) {
-      const lapX1 = xAt(ctx, b.x2 - b.spliceLapMm);
-      const lapX2 = xAt(ctx, b.x2);
-      line(ctx, lapX2, topY - 3.2, lapX2, topY + 3.2, 0.7);
-      dimH(ctx, lapX1, lapX2, topY - 10, String(Math.round(b.spliceLapMm)), 5.8);
-    }
   }
   for (const b of model.mainBottom) {
     drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), botY, b.hookStart, b.hookEnd, -1, 0.85);
-    if (b.spliceLapMm && b.spliceLapMm > 0) {
-      const lapX1 = xAt(ctx, b.x2 - b.spliceLapMm);
-      const lapX2 = xAt(ctx, b.x2);
-      line(ctx, lapX2, botY - 3.2, lapX2, botY + 3.2, 0.7);
-      dimH(ctx, lapX1, lapX2, botY + 10, String(Math.round(b.spliceLapMm)), 5.8);
-    }
   }
   for (const b of model.extraTop) {
     drawHookedBar(
@@ -938,50 +926,25 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   ]);
   void extraMarks;
 
-  const mb = model.schedule.find((r) => r.family === "B1");
-  const mt = model.schedule.find((r) => r.family === "T1");
   const steelMarkX = xStart - 36;
   const steelSpecX = xStart - 28;
-  const topSpliced = model.mainTop.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
-  if (mt && model.mainTop[0] && !topSpliced) {
-    markCircle(ctx, steelMarkX, topY, mt.mark, 5.8);
-    textAboveLine(ctx, barNotation(model.mainTop[0].qty, model.mainTop[0].dia), steelSpecX, topY, 6.5, "left", false, 3.2);
-  }
-  if (topSpliced) {
-    const placed = drawMarksOnPlane(model.mainTop.map((bar) => ({ bar, y: topY, fullMark: true })));
-    for (const b of model.mainTop) {
-      if (b.straight <= 400) continue;
-      dimH(
-        ctx,
-        xAt(ctx, b.x1),
-        xAt(ctx, b.x2),
-        topY + 11,
-        String(Math.round(b.cutLength)),
-        5.8,
-        placed.get(b),
-      );
+  const drawElevFamilyMarks = (bars: ResolvedBar[], y: number) => {
+    const families: { num: number; qty: number; dia: number }[] = [];
+    const seen = new Set<number>();
+    for (const b of bars) {
+      const row = markForBar(model.schedule, b);
+      if (!row || seen.has(row.markNum)) continue;
+      seen.add(row.markNum);
+      families.push({ num: row.markNum, qty: b.qty, dia: b.dia });
     }
-  }
-  const bottomSpliced = model.mainBottom.some((b) => (b.pieceIndex ?? 0) > 0 || (b.spliceLapMm ?? 0) > 0);
-  if (mb && model.mainBottom[0] && !bottomSpliced) {
-    markCircle(ctx, steelMarkX, botY, mb.mark, 5.8);
-    textAboveLine(ctx, barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia), steelSpecX, botY, 6.5, "left", false, 3.2);
-  }
-  if (bottomSpliced) {
-    const placed = drawMarksOnPlane(model.mainBottom.map((bar) => ({ bar, y: botY, fullMark: true })));
-    for (const b of model.mainBottom) {
-      if (b.straight <= 400) continue;
-      dimH(
-        ctx,
-        xAt(ctx, b.x1),
-        xAt(ctx, b.x2),
-        botY - 11,
-        String(Math.round(b.cutLength)),
-        5.8,
-        placed.get(b),
-      );
-    }
-  }
+    families.forEach((f, i) => {
+      const yy = y + (i - (families.length - 1) / 2) * 13;
+      markCircle(ctx, steelMarkX, yy, String(f.num), 5.8);
+      textAboveLine(ctx, barNotation(f.qty, f.dia), steelSpecX, yy, 6.5, "left", false, 3.2);
+    });
+  };
+  drawElevFamilyMarks(model.mainTop, topY);
+  drawElevFamilyMarks(model.mainBottom, botY);
 
   const elev = ctx.project.info.elevation;
   const elevStr = elev === 0 ? "±0.000" : elev > 0 ? `+${elev.toFixed(3)}` : elev.toFixed(3);
