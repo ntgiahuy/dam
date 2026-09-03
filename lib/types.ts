@@ -56,7 +56,7 @@ export interface MainBar {
   hooksBothEnds?: boolean;
   /** Chiều cao móc (mm), dùng khi `hooksBothEnds`. */
   hookHeightMm?: number;
-  /** Chỉ thép chủ lớp dưới: cắt/ghép thanh khi dài hơn 11,7 m. */
+  /** Cắt/ghép khi dài hơn 11,7 m. Lớp dưới nối trong l₀/4 gối; lớp trên nối ngoài l₀/4. */
   autoCut?: boolean;
   /** Bội số D cho mỗi đầu nối (30D / 35D / 40D). */
   lapMultiple?: LapMultiple;

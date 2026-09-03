@@ -147,9 +147,8 @@ export function mergeRanges(ranges: { x1: number; x2: number }[]) {
 }
 
 /**
- * Vùng được nối = đoạn M- gối theo công thức l₀/4 (dạng 1),
- * không bắt buộc đã khai báo thép bổ sung lớp trên.
- * Nếu gối đã có thép tăng cường thì lấy thêm đúng đoạn đã bố trí.
+ * Vùng M- gối theo công thức l₀/4 (dạng 1).
+ * Lớp dưới chỉ được nối trong các đoạn này.
  */
 export function supportHoggingSpliceZones(project: BeamProject) {
   const last = project.spans.length;
@@ -163,6 +162,26 @@ export function supportHoggingSpliceZones(project: BeamProject) {
     x2: b.x2,
   }));
   return mergeRanges([...formula, ...drawn]);
+}
+
+/**
+ * Vùng giữa nhịp, ngoài l₀/4 mỗi bên gối.
+ * Lớp trên chỉ được nối trong các đoạn này.
+ */
+export function midspanOutsideHoggingZones(project: BeamProject) {
+  const zones: { x1: number; x2: number }[] = [];
+  for (let i = 0; i < project.spans.length; i++) {
+    const l0 = clearSpanMm(project, i);
+    const ext = hoggingExtraExtensionMm(l0);
+    const left = supportFaces(project, i).right + ext;
+    const right = supportFaces(project, i + 1).left - ext;
+    if (right - left > 1) zones.push({ x1: left, x2: right });
+  }
+  return mergeRanges(zones);
+}
+
+export function spliceZonesForMain(project: BeamProject, face: "top" | "bottom") {
+  return face === "top" ? midspanOutsideHoggingZones(project) : supportHoggingSpliceZones(project);
 }
 
 function bestLapPlacement(
@@ -188,6 +207,7 @@ export function splitMainBarToStock(
   continuous: ResolvedBar,
   zones: { x1: number; x2: number }[],
   lapMm: number,
+  zoneLabel = "tại gối",
 ): { bars: ResolvedBar[]; note: string; ok: boolean } {
   const stock = STOCK_BAR_MM;
   const need = continuous.cutLength;
@@ -201,7 +221,7 @@ export function splitMainBarToStock(
   if (zones.length === 0) {
     return {
       bars: [continuous],
-      note: "Không cắt được: không tính được vùng gối (l₀/4) để đặt đầu nối.",
+      note: `Không cắt được: không có vùng nối (${zoneLabel}) để đặt đầu nối.`,
       ok: false,
     };
   }
@@ -234,7 +254,7 @@ export function splitMainBarToStock(
     if (!ov) {
       return {
         bars: [continuous],
-        note: `Không cắt được: vùng gối l₀/4 không đủ ${Math.round(lapMm)} mm trong tầm thanh 11,7 m.`,
+        note: `Không cắt được: vùng nối ${zoneLabel} không đủ ${Math.round(lapMm)} mm trong tầm thanh 11,7 m.`,
         ok: false,
       };
     }
@@ -258,14 +278,14 @@ export function splitMainBarToStock(
   if (!last || last.x2 < continuous.x2 - 0.5) {
     return {
       bars: [continuous],
-      note: "Không cắt được: hết vùng gối trước khi phủ hết chiều dài dầm.",
+      note: `Không cắt được: hết vùng nối (${zoneLabel}) trước khi phủ hết chiều dài dầm.`,
       ok: false,
     };
   }
   const lens = pieces.map((p) => Math.round(p.cutLength));
   return {
     bars: pieces,
-    note: `Cắt ${pieces.length} đoạn: ${lens.join(" + ")} mm · nối ${Math.round(lapMm)} mm tại gối · ưu tiên 11,7 m.`,
+    note: `Cắt ${pieces.length} đoạn: ${lens.join(" + ")} mm · nối ${Math.round(lapMm)} mm ${zoneLabel} · ưu tiên 11,7 m.`,
     ok: true,
   };
 }
@@ -278,7 +298,8 @@ export function describeMainAutoCut(
   const [continuous] = resolveMainBars(project, [bar], face, { split: false });
   if (!continuous) return "";
   const lap = lapLengthMm(bar.dia, bar.lapMultiple);
-  const plan = splitMainBarToStock(continuous, supportHoggingSpliceZones(project), lap);
+  const zoneLabel = face === "top" ? "ngoài l₀/4" : "tại gối";
+  const plan = splitMainBarToStock(continuous, spliceZonesForMain(project, face), lap, zoneLabel);
   const mul = normalizeLapMultiple(bar.lapMultiple);
   if (plan.ok && plan.bars.length > 1) {
     return `${plan.note} (${mul}D).`;
@@ -650,7 +671,7 @@ export function resolveMainBars(
   const xs = axisPositions(project.spans);
   const H = typicalH(project.spans);
   const last = project.spans.length;
-  const zones = supportHoggingSpliceZones(project);
+  const zones = spliceZonesForMain(project, face);
   return bars.flatMap((b) => {
     let x1 = xs[Math.min(b.startAxis, xs.length - 1)] ?? 0;
     let x2 = xs[Math.min(b.endAxis, xs.length - 1)] ?? x1;
@@ -695,7 +716,8 @@ export function resolveMainBars(
     };
     if (opts?.split === false) return [continuous];
     const lap = lapLengthMm(b.dia, b.lapMultiple);
-    return splitMainBarToStock(continuous, zones, lap).bars;
+    const zoneLabel = face === "top" ? "ngoài l₀/4" : "tại gối";
+    return splitMainBarToStock(continuous, zones, lap, zoneLabel).bars;
   });
 }
 

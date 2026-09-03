@@ -844,6 +844,7 @@ export function BeamApp() {
               onDelete={() => delMain(tab === "mainBottom" ? "mainBottom" : "mainTop")}
               showBothEndHooks={tab === "mainBottom"}
               showAutoCut
+              spliceFace={tab === "mainTop" ? "top" : "bottom"}
               autoCutHint={describeMainAutoCut(
                 project,
                 mainForm,
@@ -1237,6 +1238,7 @@ function MainBarPanel({
   onRegionMove,
   showBothEndHooks = false,
   showAutoCut = false,
+  spliceFace = "bottom",
   autoCutHint = "",
   onAutoCutChange,
 }: {
@@ -1253,6 +1255,7 @@ function MainBarPanel({
   onRegionMove?: (start: number, end: number) => void;
   showBothEndHooks?: boolean;
   showAutoCut?: boolean;
+  spliceFace?: "top" | "bottom";
   autoCutHint?: string;
   onAutoCutChange?: (autoCut: boolean, lapMultiple: LapMultiple) => void;
 }) {
@@ -1347,41 +1350,48 @@ function MainBarPanel({
           </div>
         )}
         {showAutoCut && (
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="flex h-8 cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                checked={Boolean(form.autoCut)}
-                onCheckedChange={(checked) => {
-                  const on = checked === true;
-                  const lapMultiple = normalizeLapMultiple(form.lapMultiple);
-                  setForm({
-                    ...form,
-                    autoCut: on,
-                    lapMultiple,
-                  });
-                  onAutoCutChange?.(on, lapMultiple);
-                }}
-              />
-              Cắt thép tự động
-            </label>
-            {form.autoCut ? (
-              <Field label="Chiều dài nối" className="w-36">
-                <Select
-                  value={normalizeLapMultiple(form.lapMultiple)}
-                  onChange={(e) => {
-                    const lapMultiple = normalizeLapMultiple(Number(e.target.value));
-                    setForm({ ...form, lapMultiple });
-                    if (form.autoCut) onAutoCutChange?.(true, lapMultiple);
+          <div className="mt-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex h-8 cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={Boolean(form.autoCut)}
+                  onCheckedChange={(checked) => {
+                    const on = checked === true;
+                    const lapMultiple = normalizeLapMultiple(form.lapMultiple);
+                    setForm({
+                      ...form,
+                      autoCut: on,
+                      lapMultiple,
+                    });
+                    onAutoCutChange?.(on, lapMultiple);
                   }}
-                >
-                  {LAP_MULTIPLES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}D
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ) : null}
+                />
+                Cắt thép tự động
+              </label>
+              {form.autoCut ? (
+                <Field label="Chiều dài nối" className="w-36">
+                  <Select
+                    value={normalizeLapMultiple(form.lapMultiple)}
+                    onChange={(e) => {
+                      const lapMultiple = normalizeLapMultiple(Number(e.target.value));
+                      setForm({ ...form, lapMultiple });
+                      if (form.autoCut) onAutoCutChange?.(true, lapMultiple);
+                    }}
+                  >
+                    {LAP_MULTIPLES.map((n) => (
+                      <option key={n} value={n}>
+                        {n}D
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : null}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+              {spliceFace === "top"
+                ? "Lớp trên: nối chỉ ngoài vùng l₀/4 (giữa nhịp)."
+                : "Lớp dưới: nối chỉ trong vùng gối l₀/4."}
+            </p>
           </div>
         )}
         {showAutoCut && autoCutHint ? (
