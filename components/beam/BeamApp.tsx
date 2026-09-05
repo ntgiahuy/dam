@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Download,
   FilePlus,
+  FolderOpen,
   Pencil,
   Plus,
   Save,
@@ -35,6 +36,12 @@ import {
   syncSpanSupportGeometry,
 } from "@/lib/calc";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
+import {
+  downloadProjectFile,
+  migrateLoadedProject,
+  parseProjectFile,
+  SHOP_DAM_FILENAME,
+} from "@/lib/project-file";
 import { createEmptyProject, createSampleD1, defaultSpanStirrups, normalizeSpanStirrups, syncGeometry } from "@/lib/sample";
 import type {
   BeamProject,
@@ -68,44 +75,6 @@ import { uid } from "@/lib/utils";
 
 const STORE_KEY = "thep-dam-project-v3";
 const STORE_KEY_V2 = "thep-dam-project-v2";
-
-function migrateV2EndType(t: number): EndType {
-  if (t === 0) return 3;
-  if (t === 1) return 2;
-  if (t === 2) return 1;
-  if (t === 3) return 4;
-  if (t === 4) return 4;
-  return 2;
-}
-
-function migrateLoadedProject(raw: BeamProject, fromV2: boolean): BeamProject {
-  const map = fromV2 ? migrateV2EndType : (t: number) => (t === 1 || t === 2 || t === 3 || t === 4 ? t : 2);
-  const fix = (b: ExtraBar): ExtraBar => ({
-    ...b,
-    startType: map(b.startType) as EndType,
-    endType: map(b.endType) as EndType,
-  });
-  const enableCut = (b: MainBar): MainBar => ({
-    ...b,
-    autoCut: true,
-    lapMultiple: normalizeLapMultiple(b.lapMultiple),
-  });
-  return {
-    ...raw,
-    mainBottom: (raw.mainBottom ?? []).map(enableCut),
-    mainTop: (raw.mainTop ?? []).map(enableCut),
-    extraBottom: (raw.extraBottom ?? []).map(fix),
-    extraTop: (raw.extraTop ?? []).map((b) => {
-      const x = fix(b);
-      return {
-        ...x,
-        startType: (x.startType === 1 ? 1 : 2) as EndType,
-        endType: (x.endType === 1 ? 1 : 2) as EndType,
-      };
-    }),
-    stirrups: (raw.stirrups ?? []).map(normalizeSpanStirrups),
-  };
-}
 
 function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
@@ -208,6 +177,7 @@ export function BeamApp() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const lastAxis = project.spans.length;
 
@@ -326,6 +296,40 @@ export function BeamApp() {
     }),
     [lastAxis],
   );
+
+  function applyOpenedProject(next: BeamProject) {
+    persist(next);
+    setSelectedSpan(0);
+    setSelectedSupport(0);
+    setSelectedBar(null);
+    setMainForm(draftMain("bottom"));
+    setTab("spans");
+    setError(null);
+  }
+
+  function saveProjectAsFile() {
+    try {
+      downloadProjectFile(project);
+      setError(null);
+      setStatus(`Đã tải ${SHOP_DAM_FILENAME}.`);
+    } catch {
+      setStatus(null);
+      setError("Không tải được file JSON.");
+    }
+  }
+
+  async function openProjectFile(file: File | undefined) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const next = parseProjectFile(JSON.parse(text) as unknown);
+      applyOpenedProject(next);
+      setStatus(`Đã mở ${file.name}.`);
+    } catch {
+      setStatus(null);
+      setError(`Không đọc được file. Chọn ${SHOP_DAM_FILENAME}.`);
+    }
+  }
 
   const [mainForm, setMainForm] = useState<MainBar>(() => draftMain("bottom"));
   const [extraForm, setExtraForm] = useState<ExtraBar>(() => ({
@@ -576,6 +580,27 @@ export function BeamApp() {
             }}
           >
             <FilePlus /> Mới
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              void openProjectFile(file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <FolderOpen /> Open
+          </Button>
+          <Button variant="secondary" size="sm" onClick={saveProjectAsFile}>
+            <Save /> Save As
           </Button>
           <Button
             variant="success"

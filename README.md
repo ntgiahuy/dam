@@ -48,6 +48,6 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
 6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm.
 
-Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Mẫu D1** khôi phục bộ số liệu demo.
+Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Save As** tải file `[Giahuy.net]-shop_dam.json`; **Open** mở lại file đó để sửa. **Mẫu D1** khôi phục bộ số liệu demo.
 
 Nhấp vào nhịp hoặc gối trên bản vẽ preview để chọn đối tượng đang sửa.
