@@ -14,6 +14,7 @@ import {
   type ResolvedBar,
   type ScheduleRow,
 } from "../calc";
+import { extraCDirs } from "../extra-ties";
 
 const PAGE_W = 1684;
 const PAGE_H = 1191;
@@ -606,6 +607,8 @@ type CutLoc = {
   extraBot: ResolvedBar[];
   spacing: number;
   antiBuckling: boolean;
+  extraCCx: boolean;
+  extraCCy: boolean;
 };
 
 function buildCuts(ctx: Ctx): CutLoc[] {
@@ -624,6 +627,10 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       antiBuckling: Boolean(
         project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.antiBuckling,
       ),
+      extraCCx: extraCDirs(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]).cx
+        && Boolean(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.extraC),
+      extraCCy: extraCDirs(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]).cy
+        && Boolean(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.extraC),
     });
   });
   project.spans.forEach((_, i) => {
@@ -638,6 +645,8 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       extraBot: model.extraBottom.filter((b) => covers(b, x, 80)),
       spacing: zones.mid.spacing,
       antiBuckling: Boolean(project.stirrups[i]?.antiBuckling),
+      extraCCx: extraCDirs(project.stirrups[i]).cx && Boolean(project.stirrups[i]?.extraC),
+      extraCCy: extraCDirs(project.stirrups[i]).cy && Boolean(project.stirrups[i]?.extraC),
     });
   });
   raw.sort((a, b) => a.x - b.x);
@@ -650,7 +659,7 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       .map((b) => markForBar(model.schedule, b)?.mark ?? `${b.dia}-${Math.round(b.cutLength)}`)
       .sort()
       .join(",");
-    return `${c.kind}|${et}|${eb}|${c.spacing}|${c.antiBuckling ? "cp" : ""}`;
+    return `${c.kind}|${et}|${eb}|${c.spacing}|${c.antiBuckling ? "cp" : ""}|${c.extraCCx ? "cx" : ""}|${c.extraCCy ? "cy" : ""}`;
   };
   const ids = new Map<string, number>();
   let next = 1;
@@ -1111,13 +1120,21 @@ function drawCrossSection(
   const botXs = botN ? barXs(innerL, innerR, botN) : [];
   if (topN) placeDots(ctx, topXs, topY, barR);
   if (botN) placeDots(ctx, botXs, botY, barR);
-  if (cut.antiBuckling) {
+  {
     const midY = (topY + botY) / 2;
+    const midX = (innerL + innerR) / 2;
     const hook = 5.2;
-    line(ctx, innerL, midY - hook, innerL, midY, 0.7);
-    line(ctx, innerL, midY, innerR, midY, 0.7);
-    line(ctx, innerR, midY, innerR, midY - hook, 0.7);
-    placeDots(ctx, [innerL, innerR], midY, barR);
+    if (cut.extraCCy) {
+      line(ctx, midX + hook, topY, midX, topY, 0.7);
+      line(ctx, midX, topY, midX, botY, 0.7);
+      line(ctx, midX, botY, midX + hook, botY, 0.7);
+    }
+    if (cut.extraCCx) {
+      line(ctx, innerL, midY - hook, innerL, midY, 0.7);
+      line(ctx, innerL, midY, innerR, midY, 0.7);
+      line(ctx, innerR, midY, innerR, midY - hook, 0.7);
+    }
+    if (cut.antiBuckling) placeDots(ctx, [innerL, innerR], midY, barR);
   }
 
   const extraTop = cut.kind === "support" ? cut.extraTop : cut.extraTop.filter((b) => covers(b, cut.x, 20));

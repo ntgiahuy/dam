@@ -5,7 +5,7 @@ import {
   extrasForSpanSection,
   mainsQtyForSpan,
 } from "../lib/calc";
-import { antiBucklingSchedule, extraTieAllowC } from "../lib/extra-ties";
+import { antiBucklingSchedule, extraCDirs, extraCSpacingOf, extraTieAllowC } from "../lib/extra-ties";
 import { createEmptyProject } from "../lib/sample";
 import type { ExtraBar } from "../lib/types";
 
@@ -55,5 +55,8 @@ empty.stirrups[0] = { ...empty.stirrups[0], antiBuckling: true, extraC: true, an
 assert(extraTieAllowC(empty, 0), "C allowed with chống phình");
 const skin = antiBucklingSchedule(empty);
 assert(skin.length === 1 && skin[0].qtyEach === 2 && skin[0].dia === 12, "2Ø12 chống phình");
+assert(extraCSpacingOf(undefined) === 200, "C spacing default");
+assert(extraCDirs({ extraCCx: false, extraCCy: false } as never).cx && extraCDirs({ extraCCx: false, extraCCy: false } as never).cy, "keep one dir");
+assert(extraCDirs({ extraCCx: true, extraCCy: false } as never).cy === false, "Cy can be off");
 
 console.log("extra-layer tests ok");

@@ -101,8 +101,14 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   const extraDouble = Boolean(r.extraDouble) && !extraNested;
   const antiBuckling = Boolean(r.antiBuckling);
   const extraC = Boolean(r.extraC) || antiBuckling;
+  const extraCSpacing = Number(r.extraCSpacing) >= 50 ? Number(r.extraCSpacing) : 200;
+  const extraCCx = r.extraCCx !== false;
+  const extraCCy = r.extraCCy !== false;
   const extras = {
     extraC,
+    extraCSpacing,
+    extraCCx: extraCCx || extraCCy ? extraCCx : true,
+    extraCCy: extraCCx || extraCCy ? extraCCy : true,
     extraNested,
     extraDouble,
     antiBuckling,

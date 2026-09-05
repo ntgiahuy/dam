@@ -12,6 +12,8 @@ import type { ExtraBar, StirrupKind } from "@/lib/types";
 export function StirrupSketch({
   kind = "don",
   extraC = false,
+  extraCCx = true,
+  extraCCy = true,
   extraNested = false,
   extraDouble = false,
   antiBuckling = false,
@@ -25,6 +27,8 @@ export function StirrupSketch({
 }: {
   kind?: StirrupKind;
   extraC?: boolean;
+  extraCCx?: boolean;
+  extraCCy?: boolean;
   extraNested?: boolean;
   extraDouble?: boolean;
   antiBuckling?: boolean;
@@ -122,17 +126,16 @@ export function StirrupSketch({
           />
         </>
       ) : null}
+      {extraC && extraCCy ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
+      {extraC && extraCCx ? <CTieH x1={sx} x2={sx + sw} y={sy + sh / 2} /> : null}
       {antiBuckling ? (
         <g>
-          <CTieH x1={sx} x2={sx + sw} y={sy + sh / 2} />
           <circle cx={sx} cy={sy + sh / 2} r={barR} fill="#e879f9" />
           <circle cx={sx + sw} cy={sy + sh / 2} r={barR} fill="#e879f9" />
           <text x={sx + sw + 6} y={sy + sh / 2 + 3} fill="#f0abfc" fontSize={8}>
             CP
           </text>
         </g>
-      ) : extraC ? (
-        <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} />
       ) : null}
 
       {[1, 2, 3].map((layer) => {

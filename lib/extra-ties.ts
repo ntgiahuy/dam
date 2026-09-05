@@ -16,7 +16,20 @@ export const EXTRA_TIE_SPACING_MM = 200;
 /** Dầm rộng: đai lồng/kép cấu tạo khi B ≥ 350 (GiaHuy). */
 export const WIDE_BEAM_MM = 350;
 
-export type ExtraTieKind = "c" | "nested" | "double";
+export type ExtraTieKind = "c" | "c-cx" | "c-cy" | "nested" | "double";
+
+export function extraCSpacingOf(raw?: SpanStirrups) {
+  const n = Number(raw?.extraCSpacing);
+  return n >= 50 ? n : EXTRA_TIE_SPACING_MM;
+}
+
+/** Mặc định cả hai phương; không cho tắt hết. */
+export function extraCDirs(raw?: SpanStirrups) {
+  const cx = raw?.extraCCx !== false;
+  const cy = raw?.extraCCy !== false;
+  if (!cx && !cy) return { cx: true, cy: true };
+  return { cx, cy };
+}
 
 export interface ExtraTieResolved {
   key: ExtraTieKind;
@@ -138,6 +151,17 @@ function countAlongSpans(
   }, 0);
 }
 
+function countCAlongSpans(project: BeamProject, axis: "cx" | "cy") {
+  return project.spans.reduce((n, span, i) => {
+    if (!spanHas(project, i, "extraC")) return n;
+    const raw = project.stirrups[i] ?? project.stirrups[0];
+    const dirs = extraCDirs(raw);
+    if (axis === "cx" && !dirs.cx) return n;
+    if (axis === "cy" && !dirs.cy) return n;
+    return n + zoneCount(span.L, extraCSpacingOf(raw));
+  }, 0);
+}
+
 function countMainStations(project: BeamProject) {
   return project.spans.reduce((n, span, i) => {
     if (!spanHas(project, i, "extraDouble")) return n;
@@ -164,7 +188,7 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
     flags,
     antiBuckling: anti,
     cHint: anti
-      ? "Đai C nằm ngang, móc 2 cây chống phình tại giữa H."
+      ? "Đai C: Cx ngang móc chống phình; Cy đứng móc thép giữa. Khoảng cách mặc định 200 mm."
       : allowC
         ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
         : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
@@ -218,23 +242,39 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 
   const nestedW = wrapWidthMm(innerB, bars, dia, wrapNested(bars));
   const doubleW = wrapWidthMm(innerB, bars, dia, wrapDouble(bars));
-  const skinOn = project.stirrups.some((s) => s.antiBuckling);
-  const cSpan = skinOn ? innerB : innerH;
+  const dirs = extraCDirs(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
+  const cOn = used.extraC && allowC;
+  const typicalCSpacing = extraCSpacingOf(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
 
   const items: ExtraTieResolved[] = [
     {
-      key: "c",
-      label: skinOn ? "Đai C (ngang thép chống phình)" : "Đai C (móc thép giữa)",
+      key: "c-cx",
+      label: "Đai C phương Cx",
       allowed: allowC,
-      enabled: used.extraC && allowC,
+      enabled: cOn && dirs.cx,
       disableHint: extraTieStatus(project).cHint,
-      spacing: EXTRA_TIE_SPACING_MM,
-      widthMm: skinOn ? innerB : 0,
-      heightMm: skinOn ? 0 : innerH,
-      lengthMm: extraCLengthMm(cSpan),
+      spacing: typicalCSpacing,
+      widthMm: innerB,
+      heightMm: 0,
+      lengthMm: extraCLengthMm(innerB),
       copies: 1,
       countEach: 0,
-      segs: [EXTRA_TIE_HOOK_MM, cSpan, EXTRA_TIE_HOOK_MM],
+      segs: [EXTRA_TIE_HOOK_MM, innerB, EXTRA_TIE_HOOK_MM],
+      shape: "u-bottom",
+    },
+    {
+      key: "c-cy",
+      label: "Đai C phương Cy",
+      allowed: allowC,
+      enabled: cOn && dirs.cy,
+      disableHint: extraTieStatus(project).cHint,
+      spacing: typicalCSpacing,
+      widthMm: 0,
+      heightMm: innerH,
+      lengthMm: extraCLengthMm(innerH),
+      copies: 1,
+      countEach: 0,
+      segs: [EXTRA_TIE_HOOK_MM, innerH, EXTRA_TIE_HOOK_MM],
       shape: "u-bottom",
     },
     {
@@ -273,12 +313,18 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 
   return items.map((item) => {
     if (!item.enabled) return item;
-    const flagKey =
-      item.key === "c" ? "extraC" : item.key === "nested" ? "extraNested" : "extraDouble";
     const stations =
       item.key === "double"
         ? countMainStations(project)
-        : countAlongSpans(project, item.spacing, flagKey);
+        : item.key === "c-cx"
+          ? countCAlongSpans(project, "cx")
+          : item.key === "c-cy"
+            ? countCAlongSpans(project, "cy")
+            : countAlongSpans(
+                project,
+                item.spacing,
+                item.key === "nested" ? "extraNested" : "extraDouble",
+              );
     return { ...item, countEach: stations * item.copies };
   });
 }

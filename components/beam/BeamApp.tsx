@@ -37,7 +37,14 @@ import {
   stirrupZonesForSpan,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
-import { ANTI_BUCKLING_DIAS, extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
+import {
+  ANTI_BUCKLING_DIAS,
+  extraCDirs,
+  extraCSpacingOf,
+  extraTieStatus,
+  extraTiesHint,
+  normalizeAntiBucklingDia,
+} from "@/lib/extra-ties";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
   migrateLoadedProject,
@@ -1112,7 +1119,12 @@ export function BeamApp() {
                             return;
                           }
                           if (antiOn && !on) return;
-                          patchStirrup({ extraC: on });
+                          patchStirrup({
+                            extraC: on,
+                            extraCSpacing: extraCSpacingOf(src),
+                            extraCCx: extraCDirs(src).cx,
+                            extraCCy: extraCDirs(src).cy,
+                          });
                         }}
                       />
                       {label}
@@ -1129,7 +1141,7 @@ export function BeamApp() {
                           : null;
                   return (
                     <Panel title="Thép bổ sung">
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                      <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
                         <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
                           <Checkbox
                             checked={antiOn}
@@ -1138,6 +1150,9 @@ export function BeamApp() {
                               patchStirrup({
                                 antiBuckling: on,
                                 extraC: on ? true : src.extraC,
+                                extraCCx: on ? true : extraCDirs(src).cx,
+                                extraCSpacing: extraCSpacingOf(src),
+                                extraCCy: extraCDirs(src).cy,
                                 antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
                               });
                             }}
@@ -1160,7 +1175,49 @@ export function BeamApp() {
                             </option>
                           ))}
                         </Select>
-                        {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
+                        <div className="min-w-[220px]">
+                          {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
+                          {extraC ? (
+                            <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
+                                <Input
+                                  className="h-8 w-[88px]"
+                                  type="number"
+                                  min={50}
+                                  value={extraCSpacingOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({ extraC: true, extraCSpacing: Number(e.target.value) || 0 })
+                                  }
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-zinc-200">
+                                <Checkbox
+                                  checked={extraCDirs(src).cx}
+                                  onCheckedChange={(value) => {
+                                    const on = value === true;
+                                    const cy = extraCDirs(src).cy;
+                                    if (!on && !cy) return;
+                                    patchStirrup({ extraC: true, extraCCx: on, extraCCy: cy });
+                                  }}
+                                />
+                                Bố trí theo phương Cx
+                              </label>
+                              <label className="flex items-center gap-2 text-sm text-zinc-200">
+                                <Checkbox
+                                  checked={extraCDirs(src).cy}
+                                  onCheckedChange={(value) => {
+                                    const on = value === true;
+                                    const cx = extraCDirs(src).cx;
+                                    if (!on && !cx) return;
+                                    patchStirrup({ extraC: true, extraCCx: cx, extraCCy: on });
+                                  }}
+                                />
+                                Bố trí theo phương Cy
+                              </label>
+                            </div>
+                          ) : null}
+                        </div>
                         {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
                         {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
                       </div>
@@ -1176,8 +1233,8 @@ export function BeamApp() {
                         <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
                       ) : (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Thép chống phình Ø: 2 cây tại giữa H, mỗi bên đai 1 cây. Tick sẽ bật đai C nằm ngang
-                          móc 2 cây này. Đai C đứng (chủ lẻ) = h₀ + 100; đai C ngang = b₀ + 100.
+                          Thép chống phình Ø: 2 cây tại giữa H. Tick sẽ bật đai C — Cx ngang móc 2 cây này,
+                          Cy đứng móc giữa. Khoảng đai C nhập bên dưới (mặc định 200).
                         </p>
                       )}
                     </Panel>
@@ -1187,6 +1244,8 @@ export function BeamApp() {
               <StirrupSketch
                 kind={project.stirrups[selectedSpan]?.kind ?? "don"}
                 extraC={Boolean(project.stirrups[selectedSpan]?.extraC)}
+                extraCCx={extraCDirs(project.stirrups[selectedSpan]).cx}
+                extraCCy={extraCDirs(project.stirrups[selectedSpan]).cy}
                 extraNested={Boolean(project.stirrups[selectedSpan]?.extraNested)}
                 extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
                 antiBuckling={Boolean(project.stirrups[selectedSpan]?.antiBuckling)}
