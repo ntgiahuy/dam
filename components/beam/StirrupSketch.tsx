@@ -118,6 +118,17 @@ export function StirrupSketch({
       ) : null}
       {extraC ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
 
+      {[1, 2, 3].map((layer) => {
+        const yT = topY + extraLayerOffsetMm(layer) * mmToPx;
+        const yB = botY - extraLayerOffsetMm(layer) * mmToPx;
+        return (
+          <g key={`guide-${layer}`} opacity={0.35}>
+            <line x1={sx} y1={yT} x2={sx + sw} y2={yT} stroke="#38bdf8" strokeDasharray="3 3" strokeWidth={0.7} />
+            <line x1={sx} y1={yB} x2={sx + sw} y2={yB} stroke="#fb923c" strokeDasharray="3 3" strokeWidth={0.7} />
+          </g>
+        );
+      })}
+
       {byLayer(extraTop).map(([layer, bar]) => {
         const y = topY + extraLayerOffsetMm(layer) * mmToPx;
         const xs = extraBarXsInSection(sx, sx + sw, bar.qty, layer, topXs.length ? topXs : [sx, sx + sw]);
@@ -176,8 +187,10 @@ export function StirrupSketch({
         <circle key={`mb-${x}`} cx={x} cy={botY} r={barR} fill="#ff2f2f" />
       ))}
       <DimLabels x={box.x} y={box.y} w={box.w} h={box.h} B={B} H={H} />
-      <text x={115} y={276} textAnchor="middle" fill="#a1a1aa" fontSize={8}>
-        L1 giữa chủ · L2 +25 · L3 +50 · đỏ: chủ
+      <text x={115} y={276} textAnchor="middle" fill="#a1a1aa" fontSize={7.4}>
+        {extraTop.length + extraBottom.length
+          ? "L1 giữa chủ · L2 +25 · L3 +50 · đỏ: chủ"
+          : "Chưa có thép tăng cường trên nhịp này"}
       </text>
     </svg>
   );

@@ -30,6 +30,7 @@ import {
   defaultBottomMainHookMm,
   describeMainAutoCut,
   extrasForSpanSection,
+  mainsQtyForSpan,
   normalizeLapMultiple,
   placeAxisRange,
   shiftAxisRange,
@@ -1170,8 +1171,8 @@ export function BeamApp() {
                 B={span?.B ?? 200}
                 H={span?.H ?? 500}
                 cover={project.info.cover || 25}
-                mainTopQty={project.mainTop.reduce((m, b) => Math.max(m, b.qty), 0) || 2}
-                mainBottomQty={project.mainBottom.reduce((m, b) => Math.max(m, b.qty), 0) || 2}
+                mainTopQty={mainsQtyForSpan(project.mainTop, selectedSpan, "top") || 2}
+                mainBottomQty={mainsQtyForSpan(project.mainBottom, selectedSpan, "bottom") || 2}
                 extraTop={extrasForSpanSection(project.extraTop, selectedSpan, "top")}
                 extraBottom={extrasForSpanSection(project.extraBottom, selectedSpan, "bottom")}
               />

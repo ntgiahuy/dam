@@ -26,7 +26,21 @@ export function barPositions(left: number, right: number, n: number) {
   return Array.from({ length: count }, (_, i) => left + ((right - left) * i) / (count - 1));
 }
 
-/** Lớp 1 nằm giữa các thép chủ; lớp 2–3 trải trên bề rộng trong đai. */
+/** Thanh có mặt trên tiết diện nhịp `spanIndex` (lớp dưới xuyên nhịp; lớp trên tại gối hoặc vượt nhịp). */
+export function coversSpanSection(
+  startAxis: number,
+  endAxis: number,
+  spanIndex: number,
+  face: "top" | "bottom",
+) {
+  const a = Math.min(startAxis, endAxis);
+  const e = Math.max(startAxis, endAxis);
+  if (face === "bottom") return a <= spanIndex && e >= spanIndex + 1;
+  if (a === e) return a === spanIndex || a === spanIndex + 1;
+  return a <= spanIndex && e >= spanIndex;
+}
+
+/** Lớp 1: từng thanh nằm giữa 2 thép chủ kề nhau. Lớp 2–3: trải trên bề rộng trong đai. */
 export function extraBarXsInSection(
   left: number,
   right: number,
@@ -35,14 +49,46 @@ export function extraBarXsInSection(
   mainXs: number[],
 ): number[] {
   const n = Math.max(1, Math.min(qty || 1, 8));
-  const mains = mainXs.length >= 2 ? mainXs : [left, right];
-  const a = mains[0];
-  const b = mains[mains.length - 1];
-  if (layer <= 1 && b > a) {
-    const pad = (b - a) / (2 * Math.max(mains.length, 2));
-    return barPositions(a + pad, b - pad, n);
-  }
+  const mains = (mainXs.length >= 2 ? [...mainXs] : [left, right]).sort((x, y) => x - y);
+  if (layer <= 1) return extrasBetweenMains(mains, n);
   return barPositions(left, right, n);
+}
+
+/** Chia thép tăng cường lớp 1 vào khe giữa các thép chủ (ưu tiên khe giữa). */
+export function extrasBetweenMains(mains: number[], qty: number): number[] {
+  const n = Math.max(1, qty);
+  const sorted = [...mains].sort((a, b) => a - b);
+  const gaps: [number, number][] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i + 1] > sorted[i]) gaps.push([sorted[i], sorted[i + 1]]);
+  }
+  if (!gaps.length) {
+    const x = sorted[0] ?? 0;
+    return Array.from({ length: n }, () => x);
+  }
+  const counts = new Array(gaps.length).fill(0);
+  for (let k = 0; k < n; k++) {
+    let best = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let g = 0; g < gaps.length; g++) {
+      const centerBias = Math.abs(g - (gaps.length - 1) / 2);
+      const score = counts[g] * 100 + centerBias;
+      if (score < bestScore) {
+        bestScore = score;
+        best = g;
+      }
+    }
+    counts[best] += 1;
+  }
+  const xs: number[] = [];
+  for (let g = 0; g < gaps.length; g++) {
+    const count = counts[g];
+    if (!count) continue;
+    const [a, b] = gaps[g];
+    const step = (b - a) / (count + 1);
+    for (let k = 1; k <= count; k++) xs.push(a + step * k);
+  }
+  return xs;
 }
 
 /** Thép tăng cường có mặt trên tiết diện nhịp đang chọn. */
@@ -51,13 +97,19 @@ export function extrasForSpanSection(
   spanIndex: number,
   face: "top" | "bottom",
 ): ExtraBar[] {
-  return extras.filter((b) => {
-    const a = Math.min(b.startAxis, b.endAxis);
-    const e = Math.max(b.startAxis, b.endAxis);
-    if (face === "bottom") return a <= spanIndex && e >= spanIndex + 1;
-    if (a === e) return a === spanIndex || a === spanIndex + 1;
-    return a <= spanIndex && e >= spanIndex;
-  });
+  return extras.filter((b) => coversSpanSection(b.startAxis, b.endAxis, spanIndex, face));
+}
+
+/** Số thép chủ lớn nhất trên nhịp (dùng cho minh họa mặt cắt đai). */
+export function mainsQtyForSpan(
+  bars: { qty: number; startAxis: number; endAxis: number }[],
+  spanIndex: number,
+  face: "top" | "bottom",
+) {
+  return bars.reduce((max, b) => {
+    if (!coversSpanSection(b.startAxis, b.endAxis, spanIndex, face)) return max;
+    return Math.max(max, b.qty || 0);
+  }, 0);
 }
 
 export function hookLength(dia: number, type: number, override?: number) {
