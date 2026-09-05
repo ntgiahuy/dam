@@ -88,16 +88,35 @@ export function parseProjectFile(raw: unknown): BeamProject {
   return syncGeometry(migrated, migrated.spans.length);
 }
 
-export function downloadProjectFile(project: BeamProject) {
-  const blob = new Blob([serializeProjectFile(project)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = SHOP_DAM_FILENAME;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+/** Mở hộp thoại Save As; không tải thẳng vào thư mục Downloads. */
+export async function saveProjectAsFile(
+  project: BeamProject,
+): Promise<"saved" | "cancelled"> {
+  const picker = window.showSaveFilePicker;
+  if (typeof picker !== "function") {
+    throw new Error("Trình duyệt không mở được hộp thoại Save As. Dùng Chrome hoặc Edge.");
+  }
+  try {
+    const handle = await picker({
+      suggestedName: SHOP_DAM_FILENAME,
+      excludeAcceptAllOption: false,
+      types: [
+        {
+          description: "Shop dầm GiaHuy JSON",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(serializeProjectFile(project));
+    await writable.close();
+    return "saved";
+  } catch (error) {
+    if (isAbortError(error)) return "cancelled";
+    throw error;
+  }
 }

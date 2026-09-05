@@ -37,9 +37,9 @@ import {
 } from "@/lib/calc";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
-  downloadProjectFile,
   migrateLoadedProject,
   parseProjectFile,
+  saveProjectAsFile,
   SHOP_DAM_FILENAME,
 } from "@/lib/project-file";
 import { createEmptyProject, createSampleD1, defaultSpanStirrups, normalizeSpanStirrups, syncGeometry } from "@/lib/sample";
@@ -307,14 +307,15 @@ export function BeamApp() {
     setError(null);
   }
 
-  function saveProjectAsFile() {
+  async function saveProjectToDisk() {
     try {
-      downloadProjectFile(project);
+      const result = await saveProjectAsFile(project);
+      if (result === "cancelled") return;
       setError(null);
-      setStatus(`Đã tải ${SHOP_DAM_FILENAME}.`);
-    } catch {
+      setStatus(`Đã lưu ${SHOP_DAM_FILENAME}.`);
+    } catch (e) {
       setStatus(null);
-      setError("Không tải được file JSON.");
+      setError(e instanceof Error ? e.message : "Không lưu được file JSON.");
     }
   }
 
@@ -599,7 +600,7 @@ export function BeamApp() {
           >
             <FolderOpen /> Open
           </Button>
-          <Button variant="secondary" size="sm" onClick={saveProjectAsFile}>
+          <Button variant="secondary" size="sm" onClick={() => void saveProjectToDisk()}>
             <Save /> Save As
           </Button>
           <Button
