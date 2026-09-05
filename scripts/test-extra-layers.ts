@@ -16,6 +16,7 @@ import {
   extraCSpacingOf,
   extraDoubleDiaOf,
   extraNestedDiaOf,
+  extraNestedDirs,
   extraTieAllowC,
   extraTieAllowNested,
   extraTieFlagsForSpan,
@@ -77,17 +78,30 @@ assert(extraCDirs({ extraCCx: true, extraCCy: false } as never).cy === false, "C
 
 assert(!extraTieAllowNested(empty), "lồng/kép ẩn khi chưa có thép chủ");
 empty.spans[0] = { ...empty.spans[0], B: 400 };
-assert(!extraTieAllowNested(empty), "B rộng không đủ — cần ≥ 4 thanh chủ");
+assert(!extraTieAllowNested(empty), "chưa có đủ thép chủ trên + dưới");
 const with3 = {
   ...empty,
+  mainTop: [{ id: "t3", qty: 3, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
   mainBottom: [{ id: "m", qty: 3, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
 };
 assert(!extraTieAllowNested(with3), "3 thanh chủ — chưa hiện lồng/kép");
-const with4 = {
+const with4botOnly = {
   ...empty,
   mainBottom: [{ id: "m", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
 };
-assert(extraTieAllowNested(with4), "4 thanh chủ — hiện đai lồng/kép");
+assert(!extraTieAllowNested(with4botOnly), "chỉ lớp dưới 4 — cần lớp trên bằng lớp dưới");
+const withUneven = {
+  ...empty,
+  mainTop: [{ id: "t", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+  mainBottom: [{ id: "m", qty: 2, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+};
+assert(!extraTieAllowNested(withUneven), "trên 4 dưới 2 — không đai lồng/kép");
+const with4 = {
+  ...empty,
+  mainTop: [{ id: "t", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+  mainBottom: [{ id: "m", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+};
+assert(extraTieAllowNested(with4), "trên = dưới = 4 — hiện đai lồng/kép");
 
 assert(normalizeExtraTieDia(10) === 10, "Ø10 ok");
 assert(normalizeExtraTieDia(16, 8) === 8, "Ø16 invalid → fallback");
@@ -120,7 +134,10 @@ const kinds = model.schedule.map((r) => r.extraKind).filter(Boolean);
 assert(kinds.includes("c-cx"), "schedule C-Cx");
 assert(kinds.includes("c-cy"), "schedule C-Cy");
 assert(kinds.includes("nested-cx"), "schedule lồng Cx");
-assert(kinds.includes("nested-cy"), "schedule lồng Cy");
+assert(!kinds.includes("nested-cy"), "lồng không bố trí Cy");
+assert(extraNestedDirs().cx && !extraNestedDirs().cy, "lồng chỉ Cx");
+assert(extraTieFlagsForSpan(shop, 0).extraNestedCx, "flags lồng Cx");
+assert(!extraTieFlagsForSpan(shop, 0).extraNestedCy, "flags không lồng Cy");
 assert(kinds.includes("anti"), "schedule chống phình");
 assert(model.schedule.some((r) => r.extraKind === "c-cx" && r.dia === 8), "C Ø8");
 assert(model.schedule.some((r) => r.extraKind === "nested-cx" && r.dia === 10), "lồng Ø10");

@@ -34,11 +34,9 @@ export function extraNestedSpacingOf(raw?: SpanStirrups) {
   return n >= 50 ? n : EXTRA_TIE_SPACING_MM;
 }
 
-export function extraNestedDirs(raw?: SpanStirrups) {
-  const cx = raw?.extraNestedCx !== false;
-  const cy = raw?.extraNestedCy !== false;
-  if (!cx && !cy) return { cx: true, cy: true };
-  return { cx, cy };
+/** Đai lồng chỉ bố trí theo Cx — giống đai kép, không chọn phương. */
+export function extraNestedDirs(_raw?: SpanStirrups) {
+  return { cx: true, cy: false };
 }
 
 export function extraDoubleSpacingOf(raw?: SpanStirrups) {
@@ -68,6 +66,12 @@ export function barsAcrossLayer(project: BeamProject): number {
   const layers = [...project.mainBottom, ...project.mainTop];
   if (!layers.length) return 0;
   return Math.max(...layers.map((b) => b.qty), 0);
+}
+
+/** Số thanh chủ trên một mặt (lớp) — lấy qty lớn nhất của các thanh mặt đó. */
+export function mainLayerQty(bars: { qty?: number }[] | undefined) {
+  if (!bars?.length) return 0;
+  return Math.max(...bars.map((b) => Number(b.qty) || 0), 0);
 }
 
 export function hasOddMainLayer(project: BeamProject): boolean {
@@ -159,9 +163,11 @@ export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolea
   return project.stirrups.some((s) => s.antiBuckling);
 }
 
-/** Shop thép cột `Ye`: đai lồng / đai kép chỉ khi một cạnh ≥ 4 thanh chủ. */
+/** Đai lồng / kép: lớp trên = lớp dưới và mỗi lớp ≥ 4 thanh chủ. */
 export function extraTieAllowNested(project: BeamProject): boolean {
-  return barsAcrossLayer(project) >= 4;
+  const top = mainLayerQty(project.mainTop);
+  const bot = mainLayerQty(project.mainBottom);
+  return top >= 4 && top === bot;
 }
 
 /** Cờ đai bổ sung đã được phép trên một nhịp — dùng khi vẽ PDF/mặt cắt. */
@@ -347,8 +353,8 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
         ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
         : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
     innerHint: allowInner
-      ? "≥ 4 thanh thép chủ trên một lớp — được chọn đai lồng / đai kép (shop thép cột)."
-      : "Cần ≥ 4 thanh thép chủ trên một lớp mới hiện đai lồng / đai kép (shop thép cột).",
+      ? "Lớp trên = lớp dưới và ≥ 4 thanh/lớp — được chọn đai lồng / đai kép."
+      : "Cần thép chủ lớp trên bằng lớp dưới, mỗi lớp ≥ 4 thanh.",
   };
 }
 
@@ -415,7 +421,6 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
   const nestedH = wrapWidthMm(innerH, bars, dia, wrapNested(bars));
   const doubleW = doubleShortSideMm(innerB, bars, dia);
   const dirs = extraCDirs(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
-  const nestedDirs = extraNestedDirs(project.stirrups.find((s) => s.extraNested) ?? project.stirrups[0]);
   const cOn = used.extraC && allowC;
   const typicalCSpacing = extraCSpacingOf(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
   const typicalNestedSpacing = extraNestedSpacingOf(
@@ -469,7 +474,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       key: "nested-cx",
       label: "Đai lồng phương Cx",
       allowed: allowInner && !doubleOn,
-      enabled: nestedOn && allowInner && nestedDirs.cx,
+      enabled: nestedOn && allowInner,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
       dia: typicalNestedDia,
@@ -485,8 +490,8 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
     {
       key: "nested-cy",
       label: "Đai lồng phương Cy",
-      allowed: allowInner && !doubleOn,
-      enabled: nestedOn && allowInner && nestedDirs.cy,
+      allowed: false,
+      enabled: false,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
       dia: typicalNestedDia,
@@ -534,15 +539,4 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
                 : countAlongSpans(project, item.spacing, "extraDouble");
     return { ...item, countEach: stations * item.copies };
   });
-}
-
-export function extraTiesHint(project: BeamProject): string {
-  const rows = resolveExtraTies(project).filter((r) => r.enabled && r.countEach > 0);
-  const ties = rows
-    .map((r) => `${r.label}: ${r.countEach}Ø${r.dia} L=${r.lengthMm} a${r.spacing}`)
-    .join(" · ");
-  const skin = antiBucklingSchedule(project)
-    .map((r) => `Thép chống phình Ø: ${r.qtyEach}Ø${r.dia} L=${r.lengthMm} (giữa H, đai C ngang)`)
-    .join(" · ");
-  return [ties, skin].filter(Boolean).join(" · ");
 }

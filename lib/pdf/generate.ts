@@ -1225,17 +1225,6 @@ function drawCrossSection(
       line(ctx, innerR, midY, innerR, midY - hook, 0.7);
     }
     if (cut.antiBuckling) placeDots(ctx, [innerL, innerR], midY, barR);
-    const markAt = (kind: NonNullable<ScheduleRow["extraKind"]>, x: number, y: number) => {
-      const row = model.schedule.find((r) => r.extraKind === kind);
-      if (!row) return;
-      markCircle(ctx, x, y, row.mark, 4.8);
-    };
-    if (cut.extraNestedCx && !cut.extraDouble) markAt("nested-cx", midX, topY + (botY - topY) * 0.22);
-    if (cut.extraNestedCy && !cut.extraDouble) markAt("nested-cy", innerL + 10, midY);
-    if (cut.extraDouble) {
-      markAt("double", innerL + (innerR - innerL) * 0.22, midY);
-      markAt("double", innerL + (innerR - innerL) * 0.78, midY);
-    }
   }
 
   const extraTop = cut.kind === "support" ? cut.extraTop : cut.extraTop.filter((b) => covers(b, cut.x, 20));
@@ -1284,7 +1273,7 @@ function drawCrossSection(
   const dimX = cx - 16;
   const stirrupY = boxY + H / 3;
   const antiY = boxY + H / 2;
-  const cY = boxY + (3 * H) / 4;
+  const midX = (innerL + innerR) / 2;
   dimV(ctx, dimX, boxY, boxY + H, String(model.H), 6.2, "left");
   if (mt && model.mainTop[0] && topN) {
     drawLayerCallout(
@@ -1320,20 +1309,6 @@ function drawCrossSection(
       drawLayerCallout(ctx, leftX, antiY, anti.mark, `2Ø${anti.dia}`, innerL, "left");
     }
   }
-  if (cut.extraCCy) {
-    const cyRow = extraRow("c-cy");
-    if (cyRow) {
-      drawLayerCallout(
-        ctx,
-        leftX,
-        cY,
-        String(cyRow.markNum),
-        `Ø${cyRow.dia} a${cyRow.spacing ?? cut.spacing}`,
-        (innerL + innerR) / 2,
-        "left",
-      );
-    }
-  }
   if (mb && model.mainBottom[0] && botN) {
     drawLayerCallout(
       ctx,
@@ -1347,25 +1322,48 @@ function drawCrossSection(
   }
 
   const rightX = cx + W + 40;
-  if (cut.extraCCx) {
-    const cxRow = extraRow("c-cx");
-    if (cxRow) {
-      drawLayerCallout(
-        ctx,
-        rightX,
-        antiY,
-        String(cxRow.markNum),
-        `Ø${cxRow.dia} a${cxRow.spacing ?? cut.spacing}`,
-        innerR,
-        "right",
-      );
+  const occupiedRight = [...drawnTopExtras.map((e) => e.y), ...drawnBotExtras.map((e) => e.y)];
+  const minRightGap = 16;
+  const pickRightY = (preferred: number) => {
+    let y = preferred;
+    const lo = topY + 2;
+    const hi = botY - 2;
+    for (let step = 0; step < 12; step++) {
+      if (occupiedRight.every((other) => Math.abs(y - other) >= minRightGap)) break;
+      y += minRightGap;
     }
-  }
+    y = Math.max(lo, Math.min(hi, y));
+    occupiedRight.push(y);
+    return y;
+  };
+  const drawRightTieCallout = (
+    kind: NonNullable<ScheduleRow["extraKind"]>,
+    preferredY: number,
+    tickX: number,
+  ) => {
+    const row = extraRow(kind);
+    if (!row) return;
+    const spec = `Ø${row.dia} a${row.spacing ?? cut.spacing}`;
+    drawLayerCallout(ctx, rightX, pickRightY(preferredY), String(row.markNum), spec, tickX, "right");
+  };
+
   for (const e of drawnTopExtras) {
     const row = markForBar(model.schedule, e.bar);
     if (!row) continue;
     const touch = e.xs[e.xs.length - 1] ?? innerR;
     drawLayerCallout(ctx, rightX, e.y, String(row.markNum), barNotation(e.bar.qty, e.bar.dia), touch, "right");
+  }
+  // Đai C / lồng: cùng cột phải với số 4 — số hiệu, đường dẫn, Ø, khoảng cách.
+  const belowTopExtra = drawnTopExtras.length
+    ? Math.max(...drawnTopExtras.map((e) => e.y)) + minRightGap
+    : topY + (antiY - topY) * 0.45;
+  if (cut.extraCCx) drawRightTieCallout("c-cx", belowTopExtra, innerR);
+  if (cut.extraCCy) drawRightTieCallout("c-cy", belowTopExtra, midX);
+  if (cut.extraNestedCx && !cut.extraDouble) {
+    drawRightTieCallout("nested-cx", topY + (botY - topY) * 0.22, midX);
+  }
+  if (cut.extraNestedCy && !cut.extraDouble) {
+    drawRightTieCallout("nested-cy", antiY, innerL);
   }
   for (const e of drawnBotExtras) {
     const row = markForBar(model.schedule, e.bar);

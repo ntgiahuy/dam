@@ -105,8 +105,6 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   const extraCCx = r.extraCCx !== false;
   const extraCCy = r.extraCCy !== false;
   const extraNestedSpacing = Number(r.extraNestedSpacing) >= 50 ? Number(r.extraNestedSpacing) : 200;
-  const extraNestedCx = r.extraNestedCx !== false;
-  const extraNestedCy = r.extraNestedCy !== false;
   const extraDoubleSpacing = Number(r.extraDoubleSpacing) >= 50 ? Number(r.extraDoubleSpacing) : 200;
   const tieDiaFallback = [6, 8, 10, 12, 14].includes(Number(r.dia)) ? Number(r.dia) : 6;
   const extraCDia = [6, 8, 10, 12, 14].includes(Number(r.extraCDia))
@@ -127,8 +125,8 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
     extraNested,
     extraNestedDia,
     extraNestedSpacing,
-    extraNestedCx: extraNestedCx || extraNestedCy ? extraNestedCx : true,
-    extraNestedCy: extraNestedCx || extraNestedCy ? extraNestedCy : true,
+    extraNestedCx: extraNested,
+    extraNestedCy: false,
     extraDouble,
     extraDoubleDia,
     extraDoubleSpacing,

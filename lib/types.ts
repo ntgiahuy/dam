@@ -110,13 +110,13 @@ export interface SpanStirrups {
   extraCCx?: boolean;
   /** Đai C theo phương Cy (đứng / chiều cao H). */
   extraCCy?: boolean;
-  /** Đai lồng — chỉ khi ≥ 4 thép chủ một lớp; không dùng cùng đai kép. */
+  /** Đai lồng — Cx only; lớp trên = lớp dưới và ≥ 4 thanh/lớp; không dùng cùng đai kép. */
   extraNested?: boolean;
   extraNestedDia?: number;
   extraNestedSpacing?: number;
   extraNestedCx?: boolean;
   extraNestedCy?: boolean;
-  /** Đai kép — chỉ khi ≥ 4 thép chủ một lớp; không dùng cùng đai lồng. */
+  /** Đai kép — lớp trên = lớp dưới và ≥ 4 thanh/lớp; không dùng cùng đai lồng. */
   extraDouble?: boolean;
   extraDoubleDia?: number;
   extraDoubleSpacing?: number;

@@ -17,7 +17,7 @@ export function StirrupSketch({
   extraCCy = true,
   extraNested = false,
   extraNestedCx = true,
-  extraNestedCy = true,
+  extraNestedCy = false,
   extraDouble = false,
   antiBuckling = false,
   B = 200,

@@ -47,11 +47,9 @@ import {
   extraDoubleDiaOf,
   extraDoubleSpacingOf,
   extraNestedDiaOf,
-  extraNestedDirs,
   extraNestedSpacingOf,
   extraTieAllowNested,
   extraTieStatus,
-  extraTiesHint,
   normalizeAntiBucklingDia,
   normalizeAntiBucklingSegments,
 } from "@/lib/extra-ties";
@@ -1094,14 +1092,6 @@ export function BeamApp() {
                   const extraC = (Boolean(src.extraC) || antiOn) && st.allowC;
                   const extraNested = Boolean(src.extraNested) && !Boolean(src.extraDouble) && st.allowInner;
                   const extraDouble = Boolean(src.extraDouble) && !Boolean(src.extraNested) && st.allowInner;
-                  const hint = extraTiesHint({
-                    ...project,
-                    stirrups: project.stirrups.map((s, i) =>
-                      i === selectedSpan
-                        ? { ...s, extraC, extraNested, extraDouble, antiBuckling: antiOn }
-                        : s,
-                    ),
-                  });
                   const box = (
                     key: "extraC" | "extraNested" | "extraDouble",
                     label: string,
@@ -1126,8 +1116,8 @@ export function BeamApp() {
                               extraDouble: on ? false : src.extraDouble,
                               extraNestedDia: extraNestedDiaOf(src),
                               extraNestedSpacing: extraNestedSpacingOf(src),
-                              extraNestedCx: extraNestedDirs(src).cx,
-                              extraNestedCy: extraNestedDirs(src).cy,
+                              extraNestedCx: on,
+                              extraNestedCy: false,
                             });
                             return;
                           }
@@ -1153,13 +1143,11 @@ export function BeamApp() {
                       {label}
                     </label>
                   );
-                  const disableNote = !st.allowC && !antiOn
-                    ? st.cHint
-                    : extraDouble
-                      ? "Đã chọn đai kép — không dùng đai lồng."
-                      : extraNested
-                        ? "Đã chọn đai lồng — không dùng đai kép."
-                        : null;
+                  const disableNote = extraDouble
+                    ? "Đã chọn đai kép — không dùng đai lồng."
+                    : extraNested
+                      ? "Đã chọn đai lồng — không dùng đai kép."
+                      : null;
                   return (
                     <Panel title="Thép bổ sung">
                       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
@@ -1279,10 +1267,8 @@ export function BeamApp() {
                             </div>
                           ) : null}
                         </div>
-                        {st.allowInner ? (
-                        <>
                         <div className="min-w-[220px]">
-                          {box("extraNested", "Đai lồng", !extraDouble, extraNested)}
+                          {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
                           {extraNested ? (
                             <div className="mt-1.5 space-y-1.5 pl-6">
                               <div className="flex items-center gap-2">
@@ -1316,35 +1302,11 @@ export function BeamApp() {
                                   }
                                 />
                               </div>
-                              <label className="flex items-center gap-2 text-sm text-zinc-200">
-                                <Checkbox
-                                  checked={extraNestedDirs(src).cx}
-                                  onCheckedChange={(value) => {
-                                    const on = value === true;
-                                    const cy = extraNestedDirs(src).cy;
-                                    if (!on && !cy) return;
-                                    patchStirrup({ extraNested: true, extraNestedCx: on, extraNestedCy: cy });
-                                  }}
-                                />
-                                Bố trí theo phương Cx
-                              </label>
-                              <label className="flex items-center gap-2 text-sm text-zinc-200">
-                                <Checkbox
-                                  checked={extraNestedDirs(src).cy}
-                                  onCheckedChange={(value) => {
-                                    const on = value === true;
-                                    const cx = extraNestedDirs(src).cx;
-                                    if (!on && !cx) return;
-                                    patchStirrup({ extraNested: true, extraNestedCx: cx, extraNestedCy: on });
-                                  }}
-                                />
-                                Bố trí theo phương Cy
-                              </label>
                             </div>
                           ) : null}
                         </div>
                         <div className="min-w-[220px]">
-                          {box("extraDouble", "Đai kép", !extraNested, extraDouble)}
+                          {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
                           {extraDouble ? (
                             <div className="mt-1.5 space-y-1.5 pl-6">
                               <div className="flex items-center gap-2">
@@ -1381,8 +1343,6 @@ export function BeamApp() {
                             </div>
                           ) : null}
                         </div>
-                        </>
-                        ) : null}
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
@@ -1393,15 +1353,6 @@ export function BeamApp() {
                       {disableNote ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">{disableNote}</p>
                       ) : null}
-                      {hint ? (
-                        <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
-                      ) : (
-                        <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Thép chống phình Ø: 2 cây tại giữa H. Chọn 1 / 2 / 3 đoạn — L từ tim gối đầu
-                          đến tim gối cuối khoảng đó. Tick sẽ bật đai C — Cx ngang móc 2 cây này, Cy đứng
-                          móc giữa. Khoảng đai C nhập bên dưới (mặc định 200).
-                        </p>
-                      )}
                     </Panel>
                   );
                 })()}
@@ -1414,8 +1365,10 @@ export function BeamApp() {
                 extraNested={
                   extraTieAllowNested(project) && Boolean(project.stirrups[selectedSpan]?.extraNested)
                 }
-                extraNestedCx={extraNestedDirs(project.stirrups[selectedSpan]).cx}
-                extraNestedCy={extraNestedDirs(project.stirrups[selectedSpan]).cy}
+                extraNestedCx={
+                  extraTieAllowNested(project) && Boolean(project.stirrups[selectedSpan]?.extraNested)
+                }
+                extraNestedCy={false}
                 extraDouble={
                   extraTieAllowNested(project) && Boolean(project.stirrups[selectedSpan]?.extraDouble)
                 }
