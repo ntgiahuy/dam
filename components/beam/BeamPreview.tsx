@@ -178,7 +178,7 @@ export function BeamPreview({
                 fontFamily="sans-serif"
                 pointerEvents="none"
               >
-                {i}
+                {sup.axisName || i + 1}
               </text>
             </g>
           );

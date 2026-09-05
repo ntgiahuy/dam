@@ -17,6 +17,11 @@ function span(partial: Partial<Span> & Pick<Span, "L">): Span {
   };
 }
 
+/** Tên trục gối mặc định: 1, 2, 3… */
+export function defaultSupportAxisName(index: number) {
+  return String(index + 1);
+}
+
 function support(i: number, _n: number): Support {
   return {
     id: uid("sup"),
@@ -24,7 +29,7 @@ function support(i: number, _n: number): Support {
     B: 200,
     B1: 100,
     H: 0,
-    axisName: String(i),
+    axisName: defaultSupportAxisName(i),
   };
 }
 

@@ -21,6 +21,7 @@ import {
   extraTieFlagsForSpan,
   nestedHoopFromBarXs,
 } from "../extra-ties";
+import { defaultSupportAxisName } from "../sample";
 
 const PAGE_W = 1684;
 const PAGE_H = 1191;
@@ -887,7 +888,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     rect(ctx, left, y1, Math.max(right - left, 2), colH, 0.7);
     dashV(ctx, ax, y0 - 52, y1 + 54, 3.1, 2.3, 0.28);
     bubble(ctx, ax, y1 + 66, 8.5);
-    textCentered(ctx, sup.axisName || String(i), ax, y1 + 66, 8, true);
+    textCentered(ctx, sup.axisName || defaultSupportAxisName(i), ax, y1 + 66, 8, true);
   });
 
   const dimY = y0 - 32;

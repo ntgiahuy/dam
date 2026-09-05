@@ -842,7 +842,7 @@ export function BeamApp() {
                 <div className="flex flex-wrap items-start gap-4">
                   <div className="min-w-[280px] flex-1 space-y-2">
                     <div className="text-[11px] text-sky-400">
-                      Gối đang chọn: trục {support.axisName || selectedSupport}
+                      Gối đang chọn: trục {support.axisName || selectedSupport + 1}
                     </div>
                     <label className="flex items-center gap-2">
                       <span className="w-52 shrink-0 text-[12px] text-zinc-300">- Chọn liên kết</span>

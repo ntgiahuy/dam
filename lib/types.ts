@@ -40,6 +40,7 @@ export interface Support {
   B: number;
   B1: number;
   H: number;
+  /** Tên trục trên mặt dầm. Mặc định 1, 2, 3… */
   axisName: string;
 }
 
