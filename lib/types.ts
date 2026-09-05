@@ -110,8 +110,12 @@ export interface SpanStirrups {
   extraCCy?: boolean;
   /** Đai lồng — đai cấu tạo trong, không dùng cùng đai kép. */
   extraNested?: boolean;
+  extraNestedSpacing?: number;
+  extraNestedCx?: boolean;
+  extraNestedCy?: boolean;
   /** Đai kép bổ sung — cùng khoảng đai chính; không dùng cùng đai lồng. */
   extraDouble?: boolean;
+  extraDoubleSpacing?: number;
   /** Thép chống phình: 2 cây tại giữa H, mỗi bên đai 1 cây — bật kèm đai C. */
   antiBuckling?: boolean;
   /** Ø thép chống phình: 10 / 12 / 14 / 16. */

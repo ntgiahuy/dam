@@ -41,6 +41,9 @@ import {
   ANTI_BUCKLING_DIAS,
   extraCDirs,
   extraCSpacingOf,
+  extraDoubleSpacingOf,
+  extraNestedDirs,
+  extraNestedSpacingOf,
   extraTieStatus,
   extraTiesHint,
   normalizeAntiBucklingDia,
@@ -1110,12 +1113,22 @@ export function BeamApp() {
                         onCheckedChange={(value) => {
                           if (!allowed) return;
                           const on = value === true;
-                          if (key === "extraNested") {
-                            patchStirrup({ extraNested: on, extraDouble: on ? false : src.extraDouble });
+                            if (key === "extraNested") {
+                            patchStirrup({
+                              extraNested: on,
+                              extraDouble: on ? false : src.extraDouble,
+                              extraNestedSpacing: extraNestedSpacingOf(src),
+                              extraNestedCx: extraNestedDirs(src).cx,
+                              extraNestedCy: extraNestedDirs(src).cy,
+                            });
                             return;
                           }
                           if (key === "extraDouble") {
-                            patchStirrup({ extraDouble: on, extraNested: on ? false : src.extraNested });
+                            patchStirrup({
+                              extraDouble: on,
+                              extraNested: on ? false : src.extraNested,
+                              extraDoubleSpacing: extraDoubleSpacingOf(src),
+                            });
                             return;
                           }
                           if (antiOn && !on) return;
@@ -1218,12 +1231,78 @@ export function BeamApp() {
                             </div>
                           ) : null}
                         </div>
-                        {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
-                        {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
+                        <div className="min-w-[220px]">
+                          {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
+                          {extraNested ? (
+                            <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
+                                <Input
+                                  className="h-8 w-[88px]"
+                                  type="number"
+                                  min={50}
+                                  value={extraNestedSpacingOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({
+                                      extraNested: true,
+                                      extraNestedSpacing: Number(e.target.value) || 0,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-zinc-200">
+                                <Checkbox
+                                  checked={extraNestedDirs(src).cx}
+                                  onCheckedChange={(value) => {
+                                    const on = value === true;
+                                    const cy = extraNestedDirs(src).cy;
+                                    if (!on && !cy) return;
+                                    patchStirrup({ extraNested: true, extraNestedCx: on, extraNestedCy: cy });
+                                  }}
+                                />
+                                Bố trí theo phương Cx
+                              </label>
+                              <label className="flex items-center gap-2 text-sm text-zinc-200">
+                                <Checkbox
+                                  checked={extraNestedDirs(src).cy}
+                                  onCheckedChange={(value) => {
+                                    const on = value === true;
+                                    const cx = extraNestedDirs(src).cx;
+                                    if (!on && !cx) return;
+                                    patchStirrup({ extraNested: true, extraNestedCx: cx, extraNestedCy: on });
+                                  }}
+                                />
+                                Bố trí theo phương Cy
+                              </label>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="min-w-[220px]">
+                          {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
+                          {extraDouble ? (
+                            <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
+                                <Input
+                                  className="h-8 w-[88px]"
+                                  type="number"
+                                  min={50}
+                                  value={extraDoubleSpacingOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({
+                                      extraDouble: true,
+                                      extraDoubleSpacing: Number(e.target.value) || 0,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Đai kép bổ sung thay đai lồng — cùng khoảng đai chính, 2 thanh/vị trí (shop thép cột).
+                          Đai kép bổ sung thay đai lồng — 2 thanh/vị trí, khoảng cách nhập bên dưới.
                         </p>
                       ) : null}
                       {disableNote ? (
@@ -1247,6 +1326,8 @@ export function BeamApp() {
                 extraCCx={extraCDirs(project.stirrups[selectedSpan]).cx}
                 extraCCy={extraCDirs(project.stirrups[selectedSpan]).cy}
                 extraNested={Boolean(project.stirrups[selectedSpan]?.extraNested)}
+                extraNestedCx={extraNestedDirs(project.stirrups[selectedSpan]).cx}
+                extraNestedCy={extraNestedDirs(project.stirrups[selectedSpan]).cy}
                 extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
                 antiBuckling={Boolean(project.stirrups[selectedSpan]?.antiBuckling)}
                 B={span?.B ?? 200}

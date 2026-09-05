@@ -16,7 +16,7 @@ export const EXTRA_TIE_SPACING_MM = 200;
 /** Dầm rộng: đai lồng/kép cấu tạo khi B ≥ 350 (GiaHuy). */
 export const WIDE_BEAM_MM = 350;
 
-export type ExtraTieKind = "c" | "c-cx" | "c-cy" | "nested" | "double";
+export type ExtraTieKind = "c" | "c-cx" | "c-cy" | "nested" | "nested-cx" | "nested-cy" | "double";
 
 export function extraCSpacingOf(raw?: SpanStirrups) {
   const n = Number(raw?.extraCSpacing);
@@ -29,6 +29,23 @@ export function extraCDirs(raw?: SpanStirrups) {
   const cy = raw?.extraCCy !== false;
   if (!cx && !cy) return { cx: true, cy: true };
   return { cx, cy };
+}
+
+export function extraNestedSpacingOf(raw?: SpanStirrups) {
+  const n = Number(raw?.extraNestedSpacing);
+  return n >= 50 ? n : EXTRA_TIE_SPACING_MM;
+}
+
+export function extraNestedDirs(raw?: SpanStirrups) {
+  const cx = raw?.extraNestedCx !== false;
+  const cy = raw?.extraNestedCy !== false;
+  if (!cx && !cy) return { cx: true, cy: true };
+  return { cx, cy };
+}
+
+export function extraDoubleSpacingOf(raw?: SpanStirrups) {
+  const n = Number(raw?.extraDoubleSpacing);
+  return n >= 50 ? n : EXTRA_TIE_SPACING_MM;
 }
 
 export interface ExtraTieResolved {
@@ -162,16 +179,21 @@ function countCAlongSpans(project: BeamProject, axis: "cx" | "cy") {
   }, 0);
 }
 
-function countMainStations(project: BeamProject) {
+function countNestedAlongSpans(project: BeamProject, axis: "cx" | "cy") {
+  return project.spans.reduce((n, span, i) => {
+    if (!spanHas(project, i, "extraNested")) return n;
+    const raw = project.stirrups[i] ?? project.stirrups[0];
+    const dirs = extraNestedDirs(raw);
+    if (axis === "cx" && !dirs.cx) return n;
+    if (axis === "cy" && !dirs.cy) return n;
+    return n + zoneCount(span.L, extraNestedSpacingOf(raw));
+  }, 0);
+}
+
+function countDoubleAlongSpans(project: BeamProject) {
   return project.spans.reduce((n, span, i) => {
     if (!spanHas(project, i, "extraDouble")) return n;
-    const raw = project.stirrups[i] ?? project.stirrups[0];
-    const a1 = raw?.a1 ?? 150;
-    const a2 = raw?.a2 ?? 200;
-    if (raw?.layout === "dieu") return n + zoneCount(span.L, a1);
-    const side = Math.round(span.L / 4);
-    const mid = Math.max(span.L - 2 * side, 0);
-    return n + zoneCount(side, a1) + zoneCount(mid, a2) + zoneCount(side, a1);
+    return n + zoneCount(span.L, extraDoubleSpacingOf(project.stirrups[i]));
   }, 0);
 }
 
@@ -241,10 +263,18 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
   const allowInner = extraTieAllowNested(project);
 
   const nestedW = wrapWidthMm(innerB, bars, dia, wrapNested(bars));
+  const nestedH = wrapWidthMm(innerH, bars, dia, wrapNested(bars));
   const doubleW = wrapWidthMm(innerB, bars, dia, wrapDouble(bars));
   const dirs = extraCDirs(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
+  const nestedDirs = extraNestedDirs(project.stirrups.find((s) => s.extraNested) ?? project.stirrups[0]);
   const cOn = used.extraC && allowC;
   const typicalCSpacing = extraCSpacingOf(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
+  const typicalNestedSpacing = extraNestedSpacingOf(
+    project.stirrups.find((s) => s.extraNested) ?? project.stirrups[0],
+  );
+  const typicalDoubleSpacing = extraDoubleSpacingOf(
+    project.stirrups.find((s) => s.extraDouble) ?? project.stirrups[0],
+  );
 
   const items: ExtraTieResolved[] = [
     {
@@ -278,13 +308,13 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       shape: "u-bottom",
     },
     {
-      key: "nested",
-      label: "Đai lồng phương B",
+      key: "nested-cx",
+      label: "Đai lồng phương Cx",
       allowed: allowInner && !doubleOn,
-      enabled: nestedOn && allowInner,
+      enabled: nestedOn && allowInner && nestedDirs.cx,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
-      spacing: EXTRA_TIE_SPACING_MM,
+      spacing: typicalNestedSpacing,
       widthMm: nestedW,
       heightMm: innerH,
       lengthMm: extraClosedLengthMm(nestedW, innerH),
@@ -294,13 +324,29 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       shape: "stirrup",
     },
     {
+      key: "nested-cy",
+      label: "Đai lồng phương Cy",
+      allowed: allowInner && !doubleOn,
+      enabled: nestedOn && allowInner && nestedDirs.cy,
+      disableHint: extraTieStatus(project).innerHint,
+      blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
+      spacing: typicalNestedSpacing,
+      widthMm: innerB,
+      heightMm: nestedH,
+      lengthMm: extraClosedLengthMm(innerB, nestedH),
+      copies: 1,
+      countEach: 0,
+      segs: [innerB, nestedH, EXTRA_TIE_HOOK_MM],
+      shape: "stirrup",
+    },
+    {
       key: "double",
       label: "Đai kép phương B",
       allowed: allowInner && !nestedOn,
       enabled: doubleOn && allowInner,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: nestedOn ? "Đã chọn đai lồng — không dùng đai kép." : undefined,
-      spacing: EXTRA_TIE_SPACING_MM,
+      spacing: typicalDoubleSpacing,
       widthMm: doubleW,
       heightMm: innerH,
       lengthMm: extraClosedLengthMm(doubleW, innerH),
@@ -315,16 +361,16 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
     if (!item.enabled) return item;
     const stations =
       item.key === "double"
-        ? countMainStations(project)
+        ? countDoubleAlongSpans(project)
         : item.key === "c-cx"
           ? countCAlongSpans(project, "cx")
           : item.key === "c-cy"
             ? countCAlongSpans(project, "cy")
-            : countAlongSpans(
-                project,
-                item.spacing,
-                item.key === "nested" ? "extraNested" : "extraDouble",
-              );
+            : item.key === "nested-cx"
+              ? countNestedAlongSpans(project, "cx")
+              : item.key === "nested-cy"
+                ? countNestedAlongSpans(project, "cy")
+                : countAlongSpans(project, item.spacing, "extraDouble");
     return { ...item, countEach: stations * item.copies };
   });
 }

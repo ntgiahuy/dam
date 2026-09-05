@@ -15,6 +15,8 @@ export function StirrupSketch({
   extraCCx = true,
   extraCCy = true,
   extraNested = false,
+  extraNestedCx = true,
+  extraNestedCy = true,
   extraDouble = false,
   antiBuckling = false,
   B = 200,
@@ -30,6 +32,8 @@ export function StirrupSketch({
   extraCCx?: boolean;
   extraCCy?: boolean;
   extraNested?: boolean;
+  extraNestedCx?: boolean;
+  extraNestedCy?: boolean;
   extraDouble?: boolean;
   antiBuckling?: boolean;
   B?: number;
@@ -96,11 +100,21 @@ export function StirrupSketch({
           strokeLinejoin="round"
         />
       ) : null}
-      {extraNested && !extraDouble ? (
+      {extraNested && !extraDouble && extraNestedCx ? (
         <path
           d={hookedRect(sx + sw * 0.28, sy + 4, sw * 0.44, sh - 8)}
           fill="none"
           stroke="#4dabf7"
+          strokeWidth={4.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      {extraNested && !extraDouble && extraNestedCy ? (
+        <path
+          d={hookedRect(sx + 4, sy + sh * 0.28, sw - 8, sh * 0.44)}
+          fill="none"
+          stroke="#74c0fc"
           strokeWidth={4.2}
           strokeLinecap="round"
           strokeLinejoin="round"

@@ -104,13 +104,21 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   const extraCSpacing = Number(r.extraCSpacing) >= 50 ? Number(r.extraCSpacing) : 200;
   const extraCCx = r.extraCCx !== false;
   const extraCCy = r.extraCCy !== false;
+  const extraNestedSpacing = Number(r.extraNestedSpacing) >= 50 ? Number(r.extraNestedSpacing) : 200;
+  const extraNestedCx = r.extraNestedCx !== false;
+  const extraNestedCy = r.extraNestedCy !== false;
+  const extraDoubleSpacing = Number(r.extraDoubleSpacing) >= 50 ? Number(r.extraDoubleSpacing) : 200;
   const extras = {
     extraC,
     extraCSpacing,
     extraCCx: extraCCx || extraCCy ? extraCCx : true,
     extraCCy: extraCCx || extraCCy ? extraCCy : true,
     extraNested,
+    extraNestedSpacing,
+    extraNestedCx: extraNestedCx || extraNestedCy ? extraNestedCx : true,
+    extraNestedCy: extraNestedCx || extraNestedCy ? extraNestedCy : true,
     extraDouble,
+    extraDoubleSpacing,
     antiBuckling,
     antiBucklingDia: [10, 12, 14, 16].includes(Number(r.antiBucklingDia))
       ? Number(r.antiBucklingDia)
