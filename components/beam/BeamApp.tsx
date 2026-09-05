@@ -39,11 +39,16 @@ import {
 } from "@/lib/calc";
 import {
   ANTI_BUCKLING_DIAS,
+  EXTRA_TIE_DIAS,
+  extraCDiaOf,
   extraCDirs,
   extraCSpacingOf,
+  extraDoubleDiaOf,
   extraDoubleSpacingOf,
+  extraNestedDiaOf,
   extraNestedDirs,
   extraNestedSpacingOf,
+  extraTieAllowNested,
   extraTieStatus,
   extraTiesHint,
   normalizeAntiBucklingDia,
@@ -1117,6 +1122,7 @@ export function BeamApp() {
                             patchStirrup({
                               extraNested: on,
                               extraDouble: on ? false : src.extraDouble,
+                              extraNestedDia: extraNestedDiaOf(src),
                               extraNestedSpacing: extraNestedSpacingOf(src),
                               extraNestedCx: extraNestedDirs(src).cx,
                               extraNestedCy: extraNestedDirs(src).cy,
@@ -1127,6 +1133,7 @@ export function BeamApp() {
                             patchStirrup({
                               extraDouble: on,
                               extraNested: on ? false : src.extraNested,
+                              extraDoubleDia: extraDoubleDiaOf(src),
                               extraDoubleSpacing: extraDoubleSpacingOf(src),
                             });
                             return;
@@ -1134,6 +1141,7 @@ export function BeamApp() {
                           if (antiOn && !on) return;
                           patchStirrup({
                             extraC: on,
+                            extraCDia: extraCDiaOf(src),
                             extraCSpacing: extraCSpacingOf(src),
                             extraCCx: extraCDirs(src).cx,
                             extraCCy: extraCDirs(src).cy,
@@ -1149,9 +1157,7 @@ export function BeamApp() {
                       ? "Đã chọn đai kép — không dùng đai lồng."
                       : extraNested
                         ? "Đã chọn đai lồng — không dùng đai kép."
-                        : !st.allowInner
-                          ? st.innerHint
-                          : null;
+                        : null;
                   return (
                     <Panel title="Thép bổ sung">
                       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
@@ -1163,6 +1169,7 @@ export function BeamApp() {
                               patchStirrup({
                                 antiBuckling: on,
                                 extraC: on ? true : src.extraC,
+                                extraCDia: extraCDiaOf(src),
                                 extraCCx: on ? true : extraCDirs(src).cx,
                                 extraCSpacing: extraCSpacingOf(src),
                                 extraCCy: extraCDirs(src).cy,
@@ -1192,6 +1199,22 @@ export function BeamApp() {
                           {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
                           {extraC ? (
                             <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Chọn đường kính thép đai:</span>
+                                <Select
+                                  className="h-8 w-[72px]"
+                                  value={extraCDiaOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({ extraC: true, extraCDia: Number(e.target.value) })
+                                  }
+                                >
+                                  {EXTRA_TIE_DIAS.map((d) => (
+                                    <option key={d} value={d}>
+                                      {d}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
                                 <Input
@@ -1231,10 +1254,28 @@ export function BeamApp() {
                             </div>
                           ) : null}
                         </div>
+                        {st.allowInner ? (
+                        <>
                         <div className="min-w-[220px]">
-                          {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
+                          {box("extraNested", "Đai lồng", !extraDouble, extraNested)}
                           {extraNested ? (
                             <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Chọn đường kính thép đai:</span>
+                                <Select
+                                  className="h-8 w-[72px]"
+                                  value={extraNestedDiaOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({ extraNested: true, extraNestedDia: Number(e.target.value) })
+                                  }
+                                >
+                                  {EXTRA_TIE_DIAS.map((d) => (
+                                    <option key={d} value={d}>
+                                      {d}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
                                 <Input
@@ -1278,9 +1319,25 @@ export function BeamApp() {
                           ) : null}
                         </div>
                         <div className="min-w-[220px]">
-                          {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
+                          {box("extraDouble", "Đai kép", !extraNested, extraDouble)}
                           {extraDouble ? (
                             <div className="mt-1.5 space-y-1.5 pl-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-zinc-200">Chọn đường kính thép đai:</span>
+                                <Select
+                                  className="h-8 w-[72px]"
+                                  value={extraDoubleDiaOf(src)}
+                                  onChange={(e) =>
+                                    patchStirrup({ extraDouble: true, extraDoubleDia: Number(e.target.value) })
+                                  }
+                                >
+                                  {EXTRA_TIE_DIAS.map((d) => (
+                                    <option key={d} value={d}>
+                                      {d}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-zinc-200">Khoảng cách (mm):</span>
                                 <Input
@@ -1299,6 +1356,8 @@ export function BeamApp() {
                             </div>
                           ) : null}
                         </div>
+                        </>
+                        ) : null}
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
@@ -1325,10 +1384,14 @@ export function BeamApp() {
                 extraC={Boolean(project.stirrups[selectedSpan]?.extraC)}
                 extraCCx={extraCDirs(project.stirrups[selectedSpan]).cx}
                 extraCCy={extraCDirs(project.stirrups[selectedSpan]).cy}
-                extraNested={Boolean(project.stirrups[selectedSpan]?.extraNested)}
+                extraNested={
+                  extraTieAllowNested(project) && Boolean(project.stirrups[selectedSpan]?.extraNested)
+                }
                 extraNestedCx={extraNestedDirs(project.stirrups[selectedSpan]).cx}
                 extraNestedCy={extraNestedDirs(project.stirrups[selectedSpan]).cy}
-                extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
+                extraDouble={
+                  extraTieAllowNested(project) && Boolean(project.stirrups[selectedSpan]?.extraDouble)
+                }
                 antiBuckling={Boolean(project.stirrups[selectedSpan]?.antiBuckling)}
                 B={span?.B ?? 200}
                 H={span?.H ?? 500}

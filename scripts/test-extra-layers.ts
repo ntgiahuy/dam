@@ -1,11 +1,22 @@
 import {
+  computeModel,
   extraBarXsInSection,
   extraLayerOffsetMm,
   extrasBetweenMains,
   extrasForSpanSection,
   mainsQtyForSpan,
 } from "../lib/calc";
-import { antiBucklingSchedule, extraCDirs, extraCSpacingOf, extraTieAllowC } from "../lib/extra-ties";
+import {
+  antiBucklingSchedule,
+  extraCDiaOf,
+  extraCDirs,
+  extraCSpacingOf,
+  extraDoubleDiaOf,
+  extraNestedDiaOf,
+  extraTieAllowC,
+  extraTieAllowNested,
+  normalizeExtraTieDia,
+} from "../lib/extra-ties";
 import { createEmptyProject } from "../lib/sample";
 import type { ExtraBar } from "../lib/types";
 
@@ -58,5 +69,56 @@ assert(skin.length === 1 && skin[0].qtyEach === 2 && skin[0].dia === 12, "2Ø12 
 assert(extraCSpacingOf(undefined) === 200, "C spacing default");
 assert(extraCDirs({ extraCCx: false, extraCCy: false } as never).cx && extraCDirs({ extraCCx: false, extraCCy: false } as never).cy, "keep one dir");
 assert(extraCDirs({ extraCCx: true, extraCCy: false } as never).cy === false, "Cy can be off");
+
+assert(!extraTieAllowNested(empty), "lồng/kép ẩn khi chưa có thép chủ");
+empty.spans[0] = { ...empty.spans[0], B: 400 };
+assert(!extraTieAllowNested(empty), "B rộng không đủ — cần ≥ 4 thanh chủ");
+const with3 = {
+  ...empty,
+  mainBottom: [{ id: "m", qty: 3, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+};
+assert(!extraTieAllowNested(with3), "3 thanh chủ — chưa hiện lồng/kép");
+const with4 = {
+  ...empty,
+  mainBottom: [{ id: "m", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+};
+assert(extraTieAllowNested(with4), "4 thanh chủ — hiện đai lồng/kép");
+
+assert(normalizeExtraTieDia(10) === 10, "Ø10 ok");
+assert(normalizeExtraTieDia(16, 8) === 8, "Ø16 invalid → fallback");
+assert(normalizeExtraTieDia(undefined, 12) === 12, "empty → fallback");
+assert(extraCDiaOf({ dia: 8 } as never) === 8, "C dia inherits stirrup");
+assert(extraCDiaOf({ dia: 8, extraCDia: 14 } as never) === 14, "C dia override");
+assert(extraNestedDiaOf({ extraNestedDia: 10 } as never) === 10, "nested dia");
+assert(extraDoubleDiaOf({ extraDoubleDia: 6 } as never) === 6, "double dia");
+
+const shop = {
+  ...with4,
+  stirrups: with4.stirrups.map((s) => ({
+    ...s,
+    extraC: true,
+    extraCCx: true,
+    extraCCy: true,
+    extraCDia: 8,
+    extraCSpacing: 200,
+    extraNested: true,
+    extraNestedCx: true,
+    extraNestedCy: true,
+    extraNestedDia: 10,
+    extraNestedSpacing: 200,
+    antiBuckling: true,
+    antiBucklingDia: 12,
+  })),
+};
+const model = computeModel(shop);
+const kinds = model.schedule.map((r) => r.extraKind).filter(Boolean);
+assert(kinds.includes("c-cx"), "schedule C-Cx");
+assert(kinds.includes("c-cy"), "schedule C-Cy");
+assert(kinds.includes("nested-cx"), "schedule lồng Cx");
+assert(kinds.includes("nested-cy"), "schedule lồng Cy");
+assert(kinds.includes("anti"), "schedule chống phình");
+assert(model.schedule.some((r) => r.extraKind === "c-cx" && r.dia === 8), "C Ø8");
+assert(model.schedule.some((r) => r.extraKind === "nested-cx" && r.dia === 10), "lồng Ø10");
+assert(model.schedule.some((r) => r.extraKind === "anti" && r.dia === 12), "CP Ø12");
 
 console.log("extra-layer tests ok");

@@ -9,8 +9,8 @@ function demoProject(): BeamProject {
   const last = p.spans.length;
   p.info.name = "D1";
   p.info.quantity = 1;
-  p.mainTop = [{ id: uid("mt"), dia: 16, qty: 3, startAxis: 0, endAxis: last }];
-  p.mainBottom = [{ id: uid("mb"), dia: 16, qty: 3, startAxis: 0, endAxis: last }];
+  p.mainTop = [{ id: uid("mt"), dia: 16, qty: 4, startAxis: 0, endAxis: last }];
+  p.mainBottom = [{ id: uid("mb"), dia: 16, qty: 4, startAxis: 0, endAxis: last }];
   p.extraTop = p.supports.map((_, i) => ({
     id: uid("et"),
     layer: 1,
@@ -31,7 +31,25 @@ function demoProject(): BeamProject {
     startType: 1 as const,
     endType: 1 as const,
   }));
-  p.stirrups = p.stirrups.map((s) => ({ ...s, dia: 8, a1: 150, a2: 200, layout: "1/4" as const }));
+  p.stirrups = p.stirrups.map((s) => ({
+    ...s,
+    dia: 8,
+    a1: 150,
+    a2: 200,
+    layout: "1/4" as const,
+    extraC: true,
+    extraCCx: true,
+    extraCCy: true,
+    extraCDia: 8,
+    extraCSpacing: 200,
+    extraNested: true,
+    extraNestedCx: true,
+    extraNestedCy: true,
+    extraNestedDia: 10,
+    extraNestedSpacing: 200,
+    antiBuckling: true,
+    antiBucklingDia: 12,
+  }));
   p.supports = p.supports.map((s, i) => ({ ...s, axisName: String.fromCharCode(65 + i), B: 220, B1: 110 }));
   return p;
 }

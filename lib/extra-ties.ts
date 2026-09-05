@@ -13,8 +13,6 @@ function typicalB(spans: { B: number }[]) {
 export const EXTRA_TIE_HOOK_MM = 50;
 /** Khoảng đai bổ sung mặc định (shop thép cột). */
 export const EXTRA_TIE_SPACING_MM = 200;
-/** Dầm rộng: đai lồng/kép cấu tạo khi B ≥ 350 (GiaHuy). */
-export const WIDE_BEAM_MM = 350;
 
 export type ExtraTieKind = "c" | "c-cx" | "c-cy" | "nested" | "nested-cx" | "nested-cy" | "double";
 
@@ -63,6 +61,7 @@ export interface ExtraTieResolved {
   countEach: number;
   segs: number[];
   shape: BarShape;
+  dia: number;
 }
 
 export function barsAcrossLayer(project: BeamProject): number {
@@ -77,10 +76,31 @@ export function hasOddMainLayer(project: BeamProject): boolean {
 
 export const ANTI_BUCKLING_DIAS = [10, 12, 14, 16] as const;
 export const ANTI_BUCKLING_QTY = 2;
+/** Ø đai C / lồng / kép — shop thép cột cho phép đai nhỏ hơn đai chính. */
+export const EXTRA_TIE_DIAS = [6, 8, 10, 12, 14] as const;
 
 export function normalizeAntiBucklingDia(dia?: number) {
   const n = Math.round(Number(dia) || 0);
   return (ANTI_BUCKLING_DIAS as readonly number[]).includes(n) ? n : 12;
+}
+
+export function normalizeExtraTieDia(dia?: number, fallback = 6) {
+  const n = Math.round(Number(dia) || 0);
+  if ((EXTRA_TIE_DIAS as readonly number[]).includes(n)) return n;
+  const fb = Math.round(Number(fallback) || 0);
+  return (EXTRA_TIE_DIAS as readonly number[]).includes(fb) ? fb : 6;
+}
+
+export function extraCDiaOf(raw?: SpanStirrups, fallback?: number) {
+  return normalizeExtraTieDia(raw?.extraCDia, fallback ?? raw?.dia ?? 6);
+}
+
+export function extraNestedDiaOf(raw?: SpanStirrups, fallback?: number) {
+  return normalizeExtraTieDia(raw?.extraNestedDia, fallback ?? raw?.dia ?? 6);
+}
+
+export function extraDoubleDiaOf(raw?: SpanStirrups, fallback?: number) {
+  return normalizeExtraTieDia(raw?.extraDoubleDia, fallback ?? raw?.dia ?? 6);
 }
 
 export function spanHasAntiBuckling(project: BeamProject, index: number) {
@@ -93,8 +113,50 @@ export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolea
   return project.stirrups.some((s) => s.antiBuckling);
 }
 
+/** Shop thép cột `Ye`: đai lồng / đai kép chỉ khi một cạnh ≥ 4 thanh chủ. */
 export function extraTieAllowNested(project: BeamProject): boolean {
-  return barsAcrossLayer(project) >= 4 || typicalB(project.spans) >= WIDE_BEAM_MM;
+  return barsAcrossLayer(project) >= 4;
+}
+
+/** Cờ đai bổ sung đã được phép trên một nhịp — dùng khi vẽ PDF/mặt cắt. */
+export function extraTieFlagsForSpan(project: BeamProject, spanIndex: number) {
+  const raw = project.stirrups[spanIndex] ?? project.stirrups[0];
+  const allowC = extraTieAllowC(project, spanIndex);
+  const allowInner = extraTieAllowNested(project);
+  const extraC = (Boolean(raw?.extraC) || Boolean(raw?.antiBuckling)) && allowC;
+  const extraNested = Boolean(raw?.extraNested) && !Boolean(raw?.extraDouble) && allowInner;
+  const extraDouble = Boolean(raw?.extraDouble) && !Boolean(raw?.extraNested) && allowInner;
+  const c = extraCDirs(raw);
+  const n = extraNestedDirs(raw);
+  return {
+    extraC,
+    extraCCx: extraC && c.cx,
+    extraCCy: extraC && c.cy,
+    extraNested,
+    extraNestedCx: extraNested && n.cx,
+    extraNestedCy: extraNested && n.cy,
+    extraDouble,
+    antiBuckling: Boolean(raw?.antiBuckling),
+    extraCDia: extraCDiaOf(raw),
+    extraCSpacing: extraCSpacingOf(raw),
+    extraNestedDia: extraNestedDiaOf(raw),
+    extraNestedSpacing: extraNestedSpacingOf(raw),
+    extraDoubleDia: extraDoubleDiaOf(raw),
+    extraDoubleSpacing: extraDoubleSpacingOf(raw),
+    antiBucklingDia: normalizeAntiBucklingDia(raw?.antiBucklingDia),
+  };
+}
+
+export function extraTieElevationNote(project: BeamProject, spanIndex: number) {
+  const f = extraTieFlagsForSpan(project, spanIndex);
+  const parts: string[] = [];
+  if (f.extraCCx) parts.push(`C-Cx Ø${f.extraCDia}a${f.extraCSpacing}`);
+  if (f.extraCCy) parts.push(`C-Cy Ø${f.extraCDia}a${f.extraCSpacing}`);
+  if (f.extraNestedCx) parts.push(`Lồng-Cx Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
+  if (f.extraNestedCy) parts.push(`Lồng-Cy Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
+  if (f.extraDouble) parts.push(`Kép Ø${f.extraDoubleDia}a${f.extraDoubleSpacing}`);
+  if (f.antiBuckling) parts.push(`CP Ø${f.antiBucklingDia}`);
+  return parts.join(" · ");
 }
 
 function wrapNested(bars: number) {
@@ -215,10 +277,8 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
         ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
         : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
     innerHint: allowInner
-      ? bars >= 4
-        ? "≥ 4 thanh trên một lớp — đủ đai lồng / đai kép (shop thép cột)."
-        : `B ≥ ${WIDE_BEAM_MM} mm — dầm rộng, được đai lồng / đai kép cấu tạo.`
-      : "Cần ≥ 4 thanh trên một lớp (shop thép cột) hoặc B ≥ 350 mm.",
+      ? "≥ 4 thanh thép chủ trên một lớp — được chọn đai lồng / đai kép (shop thép cột)."
+      : "Cần ≥ 4 thanh thép chủ trên một lớp mới hiện đai lồng / đai kép (shop thép cột).",
   };
 }
 
@@ -275,6 +335,13 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
   const typicalDoubleSpacing = extraDoubleSpacingOf(
     project.stirrups.find((s) => s.extraDouble) ?? project.stirrups[0],
   );
+  const typicalCDia = extraCDiaOf(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
+  const typicalNestedDia = extraNestedDiaOf(
+    project.stirrups.find((s) => s.extraNested) ?? project.stirrups[0],
+  );
+  const typicalDoubleDia = extraDoubleDiaOf(
+    project.stirrups.find((s) => s.extraDouble) ?? project.stirrups[0],
+  );
 
   const items: ExtraTieResolved[] = [
     {
@@ -283,6 +350,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       allowed: allowC,
       enabled: cOn && dirs.cx,
       disableHint: extraTieStatus(project).cHint,
+      dia: typicalCDia,
       spacing: typicalCSpacing,
       widthMm: innerB,
       heightMm: 0,
@@ -298,6 +366,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       allowed: allowC,
       enabled: cOn && dirs.cy,
       disableHint: extraTieStatus(project).cHint,
+      dia: typicalCDia,
       spacing: typicalCSpacing,
       widthMm: 0,
       heightMm: innerH,
@@ -314,6 +383,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       enabled: nestedOn && allowInner && nestedDirs.cx,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
+      dia: typicalNestedDia,
       spacing: typicalNestedSpacing,
       widthMm: nestedW,
       heightMm: innerH,
@@ -330,6 +400,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       enabled: nestedOn && allowInner && nestedDirs.cy,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: doubleOn ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
+      dia: typicalNestedDia,
       spacing: typicalNestedSpacing,
       widthMm: innerB,
       heightMm: nestedH,
@@ -346,6 +417,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
       enabled: doubleOn && allowInner,
       disableHint: extraTieStatus(project).innerHint,
       blockedHint: nestedOn ? "Đã chọn đai lồng — không dùng đai kép." : undefined,
+      dia: typicalDoubleDia,
       spacing: typicalDoubleSpacing,
       widthMm: doubleW,
       heightMm: innerH,
@@ -378,7 +450,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 export function extraTiesHint(project: BeamProject): string {
   const rows = resolveExtraTies(project).filter((r) => r.enabled && r.countEach > 0);
   const ties = rows
-    .map((r) => `${r.label}: ${r.countEach}Ø${project.stirrups[0]?.dia ?? 6} L=${r.lengthMm} a${r.spacing}`)
+    .map((r) => `${r.label}: ${r.countEach}Ø${r.dia} L=${r.lengthMm} a${r.spacing}`)
     .join(" · ");
   const skin = antiBucklingSchedule(project)
     .map((r) => `Thép chống phình Ø: ${r.qtyEach}Ø${r.dia} L=${r.lengthMm} (giữa H, đai C ngang)`)

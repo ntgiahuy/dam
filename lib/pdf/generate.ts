@@ -14,7 +14,7 @@ import {
   type ResolvedBar,
   type ScheduleRow,
 } from "../calc";
-import { extraCDirs } from "../extra-ties";
+import { extraTieElevationNote, extraTieFlagsForSpan } from "../extra-ties";
 
 const PAGE_W = 1684;
 const PAGE_H = 1191;
@@ -609,6 +609,9 @@ type CutLoc = {
   antiBuckling: boolean;
   extraCCx: boolean;
   extraCCy: boolean;
+  extraNestedCx: boolean;
+  extraNestedCy: boolean;
+  extraDouble: boolean;
 };
 
 function buildCuts(ctx: Ctx): CutLoc[] {
@@ -617,20 +620,21 @@ function buildCuts(ctx: Ctx): CutLoc[] {
   project.supports.forEach((_, i) => {
     const f = supportFaces(project, i);
     const spanI = i === 0 ? 0 : Math.min(i, project.spans.length) - (i === project.spans.length ? 1 : 0);
-    const zones = stirrupZonesForSpan(project, Math.max(0, Math.min(spanI, project.spans.length - 1)), model.extraTop);
+    const si = Math.max(0, Math.min(spanI, project.spans.length - 1));
+    const zones = stirrupZonesForSpan(project, si, model.extraTop);
+    const flags = extraTieFlagsForSpan(project, si);
     raw.push({
       x: f.axis,
       kind: "support",
       extraTop: model.extraTop.filter((b) => covers(b, f.axis, 80)),
       extraBot: model.extraBottom.filter((b) => covers(b, f.axis, 40)),
       spacing: zones.left.spacing || project.stirrups[spanI]?.a1 || 150,
-      antiBuckling: Boolean(
-        project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.antiBuckling,
-      ),
-      extraCCx: extraCDirs(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]).cx
-        && Boolean(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.extraC),
-      extraCCy: extraCDirs(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]).cy
-        && Boolean(project.stirrups[Math.max(0, Math.min(spanI, project.spans.length - 1))]?.extraC),
+      antiBuckling: flags.antiBuckling,
+      extraCCx: flags.extraCCx,
+      extraCCy: flags.extraCCy,
+      extraNestedCx: flags.extraNestedCx,
+      extraNestedCy: flags.extraNestedCy,
+      extraDouble: flags.extraDouble,
     });
   });
   project.spans.forEach((_, i) => {
@@ -638,15 +642,19 @@ function buildCuts(ctx: Ctx): CutLoc[] {
     const right = supportFaces(project, i + 1).left;
     const x = (left + right) / 2;
     const zones = stirrupZonesForSpan(project, i, model.extraTop);
+    const flags = extraTieFlagsForSpan(project, i);
     raw.push({
       x,
       kind: "span",
       extraTop: model.extraTop.filter((b) => covers(b, x, 40)),
       extraBot: model.extraBottom.filter((b) => covers(b, x, 80)),
       spacing: zones.mid.spacing,
-      antiBuckling: Boolean(project.stirrups[i]?.antiBuckling),
-      extraCCx: extraCDirs(project.stirrups[i]).cx && Boolean(project.stirrups[i]?.extraC),
-      extraCCy: extraCDirs(project.stirrups[i]).cy && Boolean(project.stirrups[i]?.extraC),
+      antiBuckling: flags.antiBuckling,
+      extraCCx: flags.extraCCx,
+      extraCCy: flags.extraCCy,
+      extraNestedCx: flags.extraNestedCx,
+      extraNestedCy: flags.extraNestedCy,
+      extraDouble: flags.extraDouble,
     });
   });
   raw.sort((a, b) => a.x - b.x);
@@ -659,7 +667,7 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       .map((b) => markForBar(model.schedule, b)?.mark ?? `${b.dia}-${Math.round(b.cutLength)}`)
       .sort()
       .join(",");
-    return `${c.kind}|${et}|${eb}|${c.spacing}|${c.antiBuckling ? "cp" : ""}|${c.extraCCx ? "cx" : ""}|${c.extraCCy ? "cy" : ""}`;
+    return `${c.kind}|${et}|${eb}|${c.spacing}|${c.antiBuckling ? "cp" : ""}|${c.extraCCx ? "cx" : ""}|${c.extraCCy ? "cy" : ""}|${c.extraNestedCx ? "nx" : ""}|${c.extraNestedCy ? "ny" : ""}|${c.extraDouble ? "db" : ""}`;
   };
   const ids = new Map<string, number>();
   let next = 1;
@@ -862,6 +870,10 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     const a = xAt(ctx, model.xs[i]);
     const b = xAt(ctx, model.xs[i + 1]);
     dimH(ctx, a, b, y1 + 48, String(sp.L), 7.5);
+    const extraNote = extraTieElevationNote(project, i);
+    if (extraNote) {
+      textSimple(ctx, extraNote, (a + b) / 2, y0 - 48, 5.6, false, "center");
+    }
   });
 
   const beamHmm = Math.max(model.H, 1);
@@ -906,7 +918,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     line(ctx, x, y0 + 2.5, x, y1 - 2.5, t.dense ? 0.5 : 0.32);
   }
 
-  const stMark = model.schedule.find((r) => r.family === "D")?.mark ?? "9";
+  const stMark = model.schedule.find((r) => r.family === "D" && !r.extraKind)?.mark ?? "9";
   if (!hogging.length) {
     for (const lb of model.stirrups.labels) {
       const x = xAt(ctx, lb.x);
@@ -1109,7 +1121,21 @@ function drawCrossSection(
   const innerR = cx + W - inset - barR - 0.6;
 
   rect(ctx, cx, boxY, W, H, 1.15);
-  drawStirrupFrame(ctx, cx + inset, boxY + inset, Math.max(W - inset * 2, 6), Math.max(H - inset * 2, 6));
+  const sx = cx + inset;
+  const sy = boxY + inset;
+  const sw = Math.max(W - inset * 2, 6);
+  const sh = Math.max(H - inset * 2, 6);
+  drawStirrupFrame(ctx, sx, sy, sw, sh);
+  if (cut.extraNestedCx && !cut.extraDouble) {
+    drawStirrupFrame(ctx, sx + sw * 0.28, sy + 1.2, sw * 0.44, sh - 2.4, 0.55);
+  }
+  if (cut.extraNestedCy && !cut.extraDouble) {
+    drawStirrupFrame(ctx, sx + 1.2, sy + sh * 0.28, sw - 2.4, sh * 0.44, 0.55);
+  }
+  if (cut.extraDouble) {
+    drawStirrupFrame(ctx, sx + 0.8, sy + 1.2, sw * 0.42, sh - 2.4, 0.5);
+    drawStirrupFrame(ctx, sx + sw * 0.56, sy + 1.2, sw * 0.42, sh - 2.4, 0.5);
+  }
   dashV(ctx, cx + W / 2, boxY - 3, boxY + H + 8, 2.6, 1.9, 0.28);
 
   const topN = Math.min(Math.max(model.mainTop[0]?.qty || 0, 0), 6);
@@ -1135,6 +1161,20 @@ function drawCrossSection(
       line(ctx, innerR, midY, innerR, midY - hook, 0.7);
     }
     if (cut.antiBuckling) placeDots(ctx, [innerL, innerR], midY, barR);
+    const markAt = (kind: NonNullable<ScheduleRow["extraKind"]>, x: number, y: number) => {
+      const row = model.schedule.find((r) => r.extraKind === kind);
+      if (!row) return;
+      markCircle(ctx, x, y, row.mark, 4.8);
+    };
+    if (cut.extraCCy) markAt("c-cy", midX + 10, (topY + botY) / 2);
+    if (cut.extraCCx) markAt("c-cx", (innerL + innerR) / 2, midY - 8);
+    if (cut.extraNestedCx && !cut.extraDouble) markAt("nested-cx", midX, topY + (botY - topY) * 0.22);
+    if (cut.extraNestedCy && !cut.extraDouble) markAt("nested-cy", innerL + 10, midY);
+    if (cut.extraDouble) {
+      markAt("double", innerL + (innerR - innerL) * 0.22, midY);
+      markAt("double", innerL + (innerR - innerL) * 0.78, midY);
+    }
+    if (cut.antiBuckling) markAt("anti", innerR + 10, midY);
   }
 
   const extraTop = cut.kind === "support" ? cut.extraTop : cut.extraTop.filter((b) => covers(b, cut.x, 20));
@@ -1176,7 +1216,9 @@ function drawCrossSection(
 
   const mt = model.schedule.find((r) => r.family === "T1");
   const mb = model.schedule.find((r) => r.family === "B1");
-  const st = model.schedule.find((r) => r.family === "D");
+  const st = model.schedule.find((r) => r.family === "D" && !r.extraKind);
+  const extraRow = (kind: NonNullable<ScheduleRow["extraKind"]>) =>
+    model.schedule.find((r) => r.extraKind === kind);
   const leftX = ox + 10;
   const dimX = cx - 16;
   const stirrupY = boxY + H / 2;
@@ -1228,27 +1270,71 @@ function drawCrossSection(
   const underlineY = titleY + titleSize * 0.92;
   line(ctx, cx + W / 2 - titleW / 2 - 1, underlineY, cx + W / 2 + titleW / 2 + 1, underlineY, 0.9);
   textSimple(ctx, "TL: 1/25", cx + W / 2, underlineY + 4, 7, false, "center");
+
+  const extraNotes: string[] = [];
+  const pushNote = (kind: NonNullable<ScheduleRow["extraKind"]>, shown: boolean) => {
+    if (!shown) return;
+    const row = extraRow(kind);
+    if (!row) return;
+    const a = row.spacing ? ` a${row.spacing}` : "";
+    extraNotes.push(`${row.mark} ${row.label ?? ""} Ø${row.dia}${a}`.replace(/\s+/g, " ").trim());
+  };
+  pushNote("c-cx", cut.extraCCx);
+  pushNote("c-cy", cut.extraCCy);
+  pushNote("nested-cx", cut.extraNestedCx && !cut.extraDouble);
+  pushNote("nested-cy", cut.extraNestedCy && !cut.extraDouble);
+  pushNote("double", cut.extraDouble);
+  pushNote("anti", cut.antiBuckling);
+  extraNotes.forEach((note, i) => {
+    textSimple(ctx, note, cx + W / 2, underlineY + 14 + i * 7.2, 5.5, false, "center");
+  });
 }
 
 function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | undefined) {
   if (!row) return;
   const { model } = ctx;
   const s = 0.22;
-  const w = Math.max(model.stirrups.innerB * s, 22);
-  const h = Math.max(model.stirrups.innerH * s, 36);
+  const w = Math.max((row.segs[0] || model.stirrups.innerB) * s, 22);
+  const h = Math.max((row.segs[1] || model.stirrups.innerH) * s, 36);
   const x = ox + 24;
   const y = oy + 8;
-  drawStirrupFrame(ctx, x, y, w, h, 0.9);
-  dimH(ctx, x, x + w, y + h + 12, String(Math.round(model.stirrups.innerB)), 6.2);
-  dimV(ctx, x + w + 10, y, y + h, String(Math.round(model.stirrups.innerH)), 6.2);
-  dimV(ctx, x - 14, y, y + 10, String(Math.round(model.stirrups.hook)), 5.8);
+  if (row.shape === "stirrup") {
+    drawStirrupFrame(ctx, x, y, w, h, 0.9);
+    dimH(ctx, x, x + w, y + h + 12, String(Math.round(row.segs[0] ?? model.stirrups.innerB)), 6.2);
+    dimV(ctx, x + w + 10, y, y + h, String(Math.round(row.segs[1] ?? model.stirrups.innerH)), 6.2);
+    dimV(ctx, x - 14, y, y + 10, String(Math.round(row.segs[2] ?? model.stirrups.hook)), 5.8);
+  } else if (row.shape === "u-bottom") {
+    const len = Math.max(w, 28);
+    const hook = 8;
+    line(ctx, x, y + 4, x, y + hook + 4, 0.85);
+    line(ctx, x, y + hook + 4, x + len, y + hook + 4, 0.85);
+    line(ctx, x + len, y + hook + 4, x + len, y + 4, 0.85);
+    dimH(ctx, x, x + len, y + hook + 16, String(Math.round(row.segs[1] ?? 0)), 6);
+  } else {
+    line(ctx, x, y + 18, x + 40, y + 18, 0.85);
+    textAboveLine(ctx, String(Math.round(row.barLength)), x + 20, y + 18, 6, "center", false, 2.8);
+  }
   const spec = `${row.qtyEach}Ø${row.dia} L=${row.barLength}`;
   markCircle(ctx, x + w / 2 - 36, y + h + 28, row.mark, 6.5);
   textSimple(ctx, spec, x + w / 2 - 28, y + h + 31, 7);
+  if (row.label) textSimple(ctx, row.label, x + w / 2 - 28, y + h + 40, 5.6);
+}
+
+function drawExtraTieShopStrip(ctx: Ctx, x: number, y: number, rows: ScheduleRow[]) {
+  if (!rows.length) return 0;
+  textSimple(ctx, "CHI TIẾT ĐAI BỔ SUNG", x + 4, y, 7.2, true);
+  const pitch = Math.min(168, (PAGE_W - 48) / Math.max(rows.length, 1));
+  rows.forEach((row, i) => {
+    drawStirrupDetail(ctx, x + i * pitch - 16, y + 6, row);
+  });
+  return 78;
 }
 
 function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, h: number) {
-  const cy = y + h / 2 + 1;
+  if (row.label) {
+    textSimple(ctx, row.label, x + w / 2, y + 5.2, 4.7, false, "center");
+  }
+  const cy = y + h / 2 + (row.label ? 3 : 1);
   if (row.shape === "stirrup") {
     const bw = Math.min(40, w * 0.28);
     const bh = Math.min(h - 8, 22);
@@ -1467,7 +1553,8 @@ export async function generateBeamPdf(
   }
   uniqueCuts.sort((a, b) => a.n - b.n);
 
-  const stirrupRow = model.schedule.find((r) => r.family === "D");
+  const stirrupRow = model.schedule.find((r) => r.family === "D" && !r.extraKind);
+  const extraRows = model.schedule.filter((r) => r.extraKind);
   const sectTop = y + 8;
   const n = Math.max(uniqueCuts.length, 1);
   const boxW = Math.max(model.B * SECTION_SCALE, 28);
@@ -1482,8 +1569,17 @@ export async function generateBeamPdf(
   if (stirrupRow) {
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
+  const extraNoteLines = Math.max(
+    ...uniqueCuts.map((c) =>
+      [c.extraCCx, c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean)
+        .length,
+    ),
+    0,
+  );
+  const stripY = sectTop + boxH + 42 + extraNoteLines * 7.2;
+  const stripH = drawExtraTieShopStrip(ctx, 24, stripY, extraRows);
 
-  const tableY = Math.min(sectTop + boxH + 96, PAGE_H - 220);
+  const tableY = Math.min(stripY + stripH + 18, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 

@@ -1,4 +1,4 @@
-import { antiBucklingSchedule, resolveExtraTies } from "./extra-ties";
+import { antiBucklingSchedule, resolveExtraTies, type ExtraTieKind } from "./extra-ties";
 import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
@@ -901,6 +901,10 @@ export interface ScheduleRow {
   totalM: number;
   weight: number;
   bars: ResolvedBar[];
+  /** Nhãn đai bổ sung / chống phình trên bảng thống kê và bản vẽ. */
+  label?: string;
+  extraKind?: ExtraTieKind | "anti";
+  spacing?: number;
 }
 
 export interface StirrupResolved {
@@ -1230,6 +1234,7 @@ export function computeModel(project: BeamProject): ComputedModel {
       totalM: (stirrups.cutLength * stirrups.countEach * sl) / 1000,
       weight: ((stirrups.cutLength * stirrups.countEach * sl) / 1000) * unitWeight(stirrups.dia),
       bars: [],
+      label: "Đai chính",
     };
     tableRows.push(stirrupRow);
     mark += 1;
@@ -1244,14 +1249,17 @@ export function computeModel(project: BeamProject): ComputedModel {
       family: "D",
       shape: extra.shape,
       segs: extra.segs,
-      dia: stirrups.dia,
+      dia: extra.dia,
       barLength,
       qtyMembers: sl,
       qtyEach: extra.countEach,
       qtyTotal: extra.countEach * sl,
       totalM: (barLength * extra.countEach * sl) / 1000,
-      weight: ((barLength * extra.countEach * sl) / 1000) * unitWeight(stirrups.dia),
+      weight: ((barLength * extra.countEach * sl) / 1000) * unitWeight(extra.dia),
       bars: [],
+      label: extra.label,
+      extraKind: extra.key,
+      spacing: extra.spacing,
     };
     tableRows.push(row);
     mark += 1;
@@ -1274,6 +1282,8 @@ export function computeModel(project: BeamProject): ComputedModel {
       totalM: (barLength * skin.qtyEach * sl) / 1000,
       weight: ((barLength * skin.qtyEach * sl) / 1000) * unitWeight(skin.dia),
       bars: [],
+      label: "Thép chống phình",
+      extraKind: "anti",
     });
     mark += 1;
   }

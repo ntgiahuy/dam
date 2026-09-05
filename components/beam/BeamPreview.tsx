@@ -11,6 +11,7 @@ import {
   extraLayerOffsetMm,
   type ResolvedBar,
 } from "@/lib/calc";
+import { extraTieElevationNote } from "@/lib/extra-ties";
 
 export function BeamPreview({
   project,
@@ -305,19 +306,33 @@ export function BeamPreview({
           </g>
         ))}
 
-        {project.spans.map((sp, i) => (
-          <text
-            key={`L-${sp.id}`}
-            x={(x(model.xs[i]) + x(model.xs[i + 1])) / 2}
-            y={axisCy + 4}
-            textAnchor="middle"
-            fill="#d4d4d8"
-            fontSize={10}
-            pointerEvents="none"
-          >
-            L={sp.L}
-          </text>
-        ))}
+        {project.spans.map((sp, i) => {
+          const extraNote = extraTieElevationNote(project, i);
+          return (
+          <g key={`L-${sp.id}`} pointerEvents="none">
+            <text
+              x={(x(model.xs[i]) + x(model.xs[i + 1])) / 2}
+              y={axisCy + 4}
+              textAnchor="middle"
+              fill="#d4d4d8"
+              fontSize={10}
+            >
+              L={sp.L}
+            </text>
+            {extraNote ? (
+              <text
+                x={(x(model.xs[i]) + x(model.xs[i + 1])) / 2}
+                y={y0 - 10}
+                textAnchor="middle"
+                fill="#fbbf24"
+                fontSize={8}
+              >
+                {extraNote}
+              </text>
+            ) : null}
+          </g>
+          );
+        })}
 
         {samples.map((sample, i) =>
           extraFace === "bottom" ? (

@@ -102,19 +102,23 @@ export interface SpanStirrups {
   kind: StirrupKind;
   /** Đai C — móc thép giữa khi số thanh một lớp lẻ, hoặc móc thép chống phình. */
   extraC?: boolean;
+  /** Ø đai C: 6 / 8 / 10 / 12 / 14. */
+  extraCDia?: number;
   /** Khoảng đai C (mm), mặc định 200. */
   extraCSpacing?: number;
   /** Đai C theo phương Cx (ngang / bề rộng B). */
   extraCCx?: boolean;
   /** Đai C theo phương Cy (đứng / chiều cao H). */
   extraCCy?: boolean;
-  /** Đai lồng — đai cấu tạo trong, không dùng cùng đai kép. */
+  /** Đai lồng — chỉ khi ≥ 4 thép chủ một lớp; không dùng cùng đai kép. */
   extraNested?: boolean;
+  extraNestedDia?: number;
   extraNestedSpacing?: number;
   extraNestedCx?: boolean;
   extraNestedCy?: boolean;
-  /** Đai kép bổ sung — cùng khoảng đai chính; không dùng cùng đai lồng. */
+  /** Đai kép — chỉ khi ≥ 4 thép chủ một lớp; không dùng cùng đai lồng. */
   extraDouble?: boolean;
+  extraDoubleDia?: number;
   extraDoubleSpacing?: number;
   /** Thép chống phình: 2 cây tại giữa H, mỗi bên đai 1 cây — bật kèm đai C. */
   antiBuckling?: boolean;
