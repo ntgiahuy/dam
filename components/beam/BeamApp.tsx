@@ -1166,6 +1166,12 @@ export function BeamApp() {
                 extraC={Boolean(project.stirrups[selectedSpan]?.extraC)}
                 extraNested={Boolean(project.stirrups[selectedSpan]?.extraNested)}
                 extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
+                B={span?.B ?? 200}
+                H={span?.H ?? 500}
+                bars={Math.max(
+                  ...[...project.mainBottom, ...project.mainTop].map((b) => b.qty),
+                  2,
+                )}
               />
             </div>
           )}
@@ -1898,7 +1904,7 @@ function SecondaryPanel({
               onChange={(e) => setForm({ ...form, position: Number(e.target.value) || 0 })}
             />
           </Field>
-          <Field label="Chiều rộng, Cx (mm)">
+          <Field label="Chiều rộng, B (mm)">
             <Input
               type="number"
               value={form.Cx}
