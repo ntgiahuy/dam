@@ -44,6 +44,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
    - Thép bổ sung **lớp trên**: dạng **1** — M- tại gối, đoạn thẳng **l₀/4** làm tròn 50 mm (l₀=9825 → **2450**). **Gối biên** bẻ móc 2/3H (H=500 → 350); đoạn thẳng **không cộng** bề rộng cột. Dạng **2** — tới tim cột.
    - Thép bổ sung **lớp dưới**, dạng 1 (**M+ giữa nhịp**): chiều dài `l₀/2 + 2·max(h₀, 15d, l₀/16)`, dư 50 mm mỗi đầu rồi làm tròn 50 mm. Dạng 2–4 (mép gối / tim cột / móc 90°) giữ nguyên.
 3. Khai báo **thép đai**: Ø, cách bố trí (**1/4** hoặc **Đai điều**), khoảng A1/A2 (1/4) hoặc một khoảng (đai điều), kiểu đai đơn/kép. Với 1/4, chiều dài vùng gối **tự bằng thép tăng cường M-** (không có thì l₀/4).
+   - **Đai bổ sung** (shop thép cột): **Đai C** khi một lớp thép chủ có số thanh lẻ — L = h₀ + 100, a200. **Đai lồng** / **Đai kép** khi ≥ 4 thanh một lớp hoặc B ≥ 350 — L = 2·(b+h) + 100; lồng và kép loại trừ nhau. Đai kép: 2 thanh/vị trí, cùng khoảng đai chính.
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
 6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm.

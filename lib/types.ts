@@ -100,6 +100,12 @@ export interface SpanStirrups {
   a1: number;
   a2: number;
   kind: StirrupKind;
+  /** Đai C — móc thép giữa khi số thanh một lớp lẻ (shop thép cột). */
+  extraC?: boolean;
+  /** Đai lồng — đai cấu tạo trong, không dùng cùng đai kép. */
+  extraNested?: boolean;
+  /** Đai kép bổ sung — cùng khoảng đai chính; không dùng cùng đai lồng. */
+  extraDouble?: boolean;
 }
 
 export interface SecondaryMember {

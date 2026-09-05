@@ -1,3 +1,4 @@
+import { resolveExtraTies } from "./extra-ties";
 import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
@@ -1139,6 +1140,29 @@ export function computeModel(project: BeamProject): ComputedModel {
       bars: [],
     };
     tableRows.push(stirrupRow);
+    mark += 1;
+  }
+
+  for (const extra of resolveExtraTies(project)) {
+    if (!extra.enabled || extra.countEach <= 0) continue;
+    const barLength = extra.lengthMm;
+    const row: ScheduleRow = {
+      mark: String(mark),
+      markNum: mark,
+      family: "D",
+      shape: extra.shape,
+      segs: extra.segs,
+      dia: stirrups.dia,
+      barLength,
+      qtyMembers: sl,
+      qtyEach: extra.countEach,
+      qtyTotal: extra.countEach * sl,
+      totalM: (barLength * extra.countEach * sl) / 1000,
+      weight: ((barLength * extra.countEach * sl) / 1000) * unitWeight(stirrups.dia),
+      bars: [],
+    };
+    tableRows.push(row);
+    mark += 1;
   }
 
   const byDiaMap = new Map<number, { lengthM: number; weight: number }>();
