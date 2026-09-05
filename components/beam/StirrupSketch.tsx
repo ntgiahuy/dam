@@ -1,8 +1,13 @@
 "use client";
 
-import type { StirrupKind } from "@/lib/types";
+import {
+  barPositions,
+  extraBarXsInSection,
+  extraLayerOffsetMm,
+} from "@/lib/calc";
+import type { ExtraBar, StirrupKind } from "@/lib/types";
 
-/** Minh họa mặt cắt đai — cùng phong cách shop thép cột (đổi Cy→H, Cx→B). */
+/** Minh họa mặt cắt đai + thép tăng cường (lớp 1 giữa chủ, 2/3 cách 25 mm). */
 export function StirrupSketch({
   kind = "don",
   extraC = false,
@@ -10,7 +15,11 @@ export function StirrupSketch({
   extraDouble = false,
   B = 200,
   H = 500,
-  bars = 2,
+  cover = 25,
+  mainTopQty = 2,
+  mainBottomQty = 2,
+  extraTop = [],
+  extraBottom = [],
 }: {
   kind?: StirrupKind;
   extraC?: boolean;
@@ -18,29 +27,45 @@ export function StirrupSketch({
   extraDouble?: boolean;
   B?: number;
   H?: number;
-  bars?: number;
+  cover?: number;
+  mainTopQty?: number;
+  mainBottomQty?: number;
+  extraTop?: ExtraBar[];
+  extraBottom?: ExtraBar[];
 }) {
   const twin = kind === "kep";
-  const n = Math.max(2, Math.min(6, Math.round(bars) || 2));
+  const topN = Math.max(0, Math.min(8, Math.round(mainTopQty) || 0));
+  const botN = Math.max(0, Math.min(8, Math.round(mainBottomQty) || 0));
   const box = { x: 52, y: 16, w: 148, h: 196 };
   const inset = 16;
   const sx = box.x + inset;
   const sy = box.y + inset;
   const sw = box.w - inset * 2;
   const sh = box.h - inset * 2;
-  const barR = 6.2;
-  const xs = Array.from({ length: n }, (_, i) =>
-    n === 1 ? sx + sw / 2 : sx + (sw * i) / (n - 1),
-  );
+  const barR = 5.4;
+  const innerHmm = Math.max(H - 2 * cover, 1);
+  const mmToPx = sh / innerHmm;
   const topY = sy;
   const botY = sy + sh;
+  const topXs = topN ? barPositions(sx, sx + sw, topN) : [];
+  const botXs = botN ? barPositions(sx, sx + sw, botN) : [];
+
+  const byLayer = (bars: ExtraBar[]) => {
+    const map = new Map<number, ExtraBar>();
+    for (const b of bars) {
+      const layer = Math.max(1, Math.round(b.layer || 1));
+      const prev = map.get(layer);
+      if (!prev || b.qty > prev.qty) map.set(layer, { ...b, layer });
+    }
+    return [...map.entries()].sort((a, c) => a[0] - c[0]);
+  };
 
   return (
     <svg
-      viewBox="0 0 230 270"
-      className="h-[220px] w-[188px] shrink-0 rounded border border-zinc-700 bg-[#111]"
+      viewBox="0 0 230 286"
+      className="h-[236px] w-[188px] shrink-0 rounded border border-zinc-700 bg-[#111]"
       role="img"
-      aria-label="Mặt cắt đai dầm"
+      aria-label="Mặt cắt đai và thép tăng cường"
     >
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="none" stroke="#f5f5f5" strokeWidth={2.4} />
       <path
@@ -92,18 +117,72 @@ export function StirrupSketch({
         </>
       ) : null}
       {extraC ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
-      {xs.map((x) => (
-        <g key={x}>
-          <circle cx={x} cy={topY} r={barR} fill="#ff2f2f" />
-          <circle cx={x} cy={botY} r={barR} fill="#ff2f2f" />
-        </g>
+
+      {byLayer(extraTop).map(([layer, bar]) => {
+        const y = topY + extraLayerOffsetMm(layer) * mmToPx;
+        const xs = extraBarXsInSection(sx, sx + sw, bar.qty, layer, topXs.length ? topXs : [sx, sx + sw]);
+        return (
+          <g key={`t-${layer}`}>
+            {xs.length > 1 ? (
+              <line
+                x1={xs[0]}
+                y1={y}
+                x2={xs[xs.length - 1]}
+                y2={y}
+                stroke="#38bdf8"
+                strokeWidth={0.8}
+                opacity={0.7}
+              />
+            ) : null}
+            {xs.map((x) => (
+              <circle key={x} cx={x} cy={y} r={barR - 0.6} fill="#38bdf8" />
+            ))}
+            <text x={sx + sw + 6} y={y + 3} fill="#7dd3fc" fontSize={8}>
+              {`T L${layer}`}
+            </text>
+          </g>
+        );
+      })}
+      {byLayer(extraBottom).map(([layer, bar]) => {
+        const y = botY - extraLayerOffsetMm(layer) * mmToPx;
+        const xs = extraBarXsInSection(sx, sx + sw, bar.qty, layer, botXs.length ? botXs : [sx, sx + sw]);
+        return (
+          <g key={`b-${layer}`}>
+            {xs.length > 1 ? (
+              <line
+                x1={xs[0]}
+                y1={y}
+                x2={xs[xs.length - 1]}
+                y2={y}
+                stroke="#fb923c"
+                strokeWidth={0.8}
+                opacity={0.7}
+              />
+            ) : null}
+            {xs.map((x) => (
+              <circle key={x} cx={x} cy={y} r={barR - 0.6} fill="#fb923c" />
+            ))}
+            <text x={sx + sw + 6} y={y + 3} fill="#fdba74" fontSize={8}>
+              {`B L${layer}`}
+            </text>
+          </g>
+        );
+      })}
+
+      {topXs.map((x) => (
+        <circle key={`mt-${x}`} cx={x} cy={topY} r={barR} fill="#ff2f2f" />
+      ))}
+      {botXs.map((x) => (
+        <circle key={`mb-${x}`} cx={x} cy={botY} r={barR} fill="#ff2f2f" />
       ))}
       <DimLabels x={box.x} y={box.y} w={box.w} h={box.h} B={B} H={H} />
+      <text x={115} y={276} textAnchor="middle" fill="#a1a1aa" fontSize={8}>
+        L1 giữa chủ · L2 +25 · L3 +50 · đỏ: chủ
+      </text>
     </svg>
   );
 }
 
-/** Đường đai móc 135° — cùng shop thép cột. */
 function hookedRect(x: number, y: number, w: number, h: number) {
   const i = Math.max(8, Math.min(w, h) * 0.12);
   const a = Math.max(16, Math.min(w, h) * 0.14);
@@ -165,14 +244,7 @@ function DimLabels({
       <line x1={x} y1={bot} x2={x + w} y2={bot} />
       <line x1={x} y1={bot - 5} x2={x} y2={bot + 5} />
       <line x1={x + w} y1={bot - 5} x2={x + w} y2={bot + 5} />
-      <text
-        x={x + w / 2}
-        y={bot + 16}
-        textAnchor="middle"
-        stroke="none"
-        fontSize={12}
-        fontWeight={700}
-      >
+      <text x={x + w / 2} y={bot + 16} textAnchor="middle" stroke="none" fontSize={12} fontWeight={700}>
         {`B (mm) ${Math.round(B)}`}
       </text>
       <line x1={x} y1={y} x2={left} y2={y} />

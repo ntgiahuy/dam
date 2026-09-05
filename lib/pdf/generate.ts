@@ -5,6 +5,7 @@ import {
   barFamilyOf,
   barNotation,
   computeModel,
+  extraBarXsInSection,
   extraLayerOffsetMm,
   stirrupZonesForSpan,
   supportFaces,
@@ -1007,11 +1008,8 @@ function barXs(left: number, right: number, n: number) {
   return Array.from({ length: count }, (_, i) => left + ((right - left) * i) / (count - 1));
 }
 
-function extraLayerXs(left: number, right: number, qty: number) {
-  const n = Math.max(1, Math.min(qty || 1, 4));
-  if (n === 1) return [left];
-  if (n === 2) return [left, right];
-  return barXs(left, right, n);
+function extraLayerXs(left: number, right: number, qty: number, layer: number, mainXs: number[]) {
+  return extraBarXsInSection(left, right, qty, layer, mainXs);
 }
 
 /** Circular arc in page-top coordinates (0° = +x, 90° = +y / down). */
@@ -1129,14 +1127,14 @@ function drawCrossSection(
   const drawnBotExtras: { y: number; bar: ResolvedBar; xs: number[] }[] = [];
   for (const [layer, b] of extrasByLayer(extraTop)) {
     const y = extraY(true, layer);
-    const xs = extraLayerXs(innerL, innerR, b.qty);
+    const xs = extraLayerXs(innerL, innerR, b.qty, layer, topXs);
     placeDots(ctx, xs, y, barR);
     if (xs.length > 1) line(ctx, xs[0] + barR + 0.6, y, xs[xs.length - 1] - barR - 0.6, y, 0.35);
     drawnTopExtras.push({ y, bar: b, xs });
   }
   for (const [layer, b] of extrasByLayer(extraBot)) {
     const y = extraY(false, layer);
-    const xs = extraLayerXs(innerL, innerR, b.qty);
+    const xs = extraLayerXs(innerL, innerR, b.qty, layer, botXs);
     placeDots(ctx, xs, y, barR);
     if (xs.length > 1) line(ctx, xs[0] + barR + 0.6, y, xs[xs.length - 1] - barR - 0.6, y, 0.35);
     drawnBotExtras.push({ y, bar: b, xs });

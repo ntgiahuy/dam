@@ -12,12 +12,52 @@ export function unitWeight(dia: number) {
 export const EXTRA_LAYER_SPACING_MM = 25;
 
 /**
- * Offset from the main-bar plane toward mid-depth.
- * Layer 1 is 25 mm inward; layer 2 is 50 mm; layer 3 is 75 mm.
+ * Offset từ mặt thép chủ vào giữa tiết diện.
+ * Lớp 1 — giữa 2 thép chủ (0 mm); lớp 2 — cách lớp chủ 25 mm; lớp 3 — cách lớp 2 thêm 25 mm.
  */
 export function extraLayerOffsetMm(layer: number) {
   const n = Math.max(1, Math.round(Number.isFinite(layer) ? layer : 1));
-  return n * EXTRA_LAYER_SPACING_MM;
+  return Math.max(0, n - 1) * EXTRA_LAYER_SPACING_MM;
+}
+
+export function barPositions(left: number, right: number, n: number) {
+  const count = Math.max(1, n);
+  if (count === 1) return [(left + right) / 2];
+  return Array.from({ length: count }, (_, i) => left + ((right - left) * i) / (count - 1));
+}
+
+/** Lớp 1 nằm giữa các thép chủ; lớp 2–3 trải trên bề rộng trong đai. */
+export function extraBarXsInSection(
+  left: number,
+  right: number,
+  qty: number,
+  layer: number,
+  mainXs: number[],
+): number[] {
+  const n = Math.max(1, Math.min(qty || 1, 8));
+  const mains = mainXs.length >= 2 ? mainXs : [left, right];
+  const a = mains[0];
+  const b = mains[mains.length - 1];
+  if (layer <= 1 && b > a) {
+    const pad = (b - a) / (2 * Math.max(mains.length, 2));
+    return barPositions(a + pad, b - pad, n);
+  }
+  return barPositions(left, right, n);
+}
+
+/** Thép tăng cường có mặt trên tiết diện nhịp đang chọn. */
+export function extrasForSpanSection(
+  extras: ExtraBar[],
+  spanIndex: number,
+  face: "top" | "bottom",
+): ExtraBar[] {
+  return extras.filter((b) => {
+    const a = Math.min(b.startAxis, b.endAxis);
+    const e = Math.max(b.startAxis, b.endAxis);
+    if (face === "bottom") return a <= spanIndex && e >= spanIndex + 1;
+    if (a === e) return a === spanIndex || a === spanIndex + 1;
+    return a <= spanIndex && e >= spanIndex;
+  });
 }
 
 export function hookLength(dia: number, type: number, override?: number) {

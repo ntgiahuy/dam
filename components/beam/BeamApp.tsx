@@ -29,6 +29,7 @@ import {
   computeModel,
   defaultBottomMainHookMm,
   describeMainAutoCut,
+  extrasForSpanSection,
   normalizeLapMultiple,
   placeAxisRange,
   shiftAxisRange,
@@ -1168,10 +1169,11 @@ export function BeamApp() {
                 extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
                 B={span?.B ?? 200}
                 H={span?.H ?? 500}
-                bars={Math.max(
-                  ...[...project.mainBottom, ...project.mainTop].map((b) => b.qty),
-                  2,
-                )}
+                cover={project.info.cover || 25}
+                mainTopQty={project.mainTop.reduce((m, b) => Math.max(m, b.qty), 0) || 2}
+                mainBottomQty={project.mainBottom.reduce((m, b) => Math.max(m, b.qty), 0) || 2}
+                extraTop={extrasForSpanSection(project.extraTop, selectedSpan, "top")}
+                extraBottom={extrasForSpanSection(project.extraBottom, selectedSpan, "bottom")}
               />
             </div>
           )}
