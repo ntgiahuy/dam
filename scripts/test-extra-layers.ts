@@ -1,4 +1,12 @@
 import {
+  barClearGapMm,
+  mainBarClearance,
+  mainBarClearanceFor,
+  mainLayerClearanceOk,
+  MIN_MAIN_CLEAR_BOTTOM_MM,
+  MIN_MAIN_CLEAR_TOP_MM,
+} from "../lib/bar-clearance";
+import {
   computeModel,
   extraBarXsInSection,
   extraLayerOffsetMm,
@@ -104,6 +112,24 @@ const with4 = {
   mainBottom: [{ id: "m", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
 };
 assert(extraTieAllowNested(with4), "trên = dưới = 4 — hiện đai lồng/kép");
+
+assert(MIN_MAIN_CLEAR_BOTTOM_MM === 25 && MIN_MAIN_CLEAR_TOP_MM === 50, "min clear 25/50");
+assert(Math.abs(barClearGapMm(150, 4, 16) - 28.666) < 0.01, "4Ø16 trong 150: hở ~28.7");
+assert(mainBarClearance(200, 25, 4, 16, "bottom").ok, "lớp dưới 4Ø16 B200 ≥ 25");
+assert(!mainBarClearance(200, 25, 4, 16, "top").ok, "lớp trên 4Ø16 B200 < 50");
+assert(mainBarClearance(200, 25, 3, 16, "top").ok, "lớp trên 3Ø16 B200 ≥ 50");
+assert(!mainBarClearance(200, 25, 6, 16, "bottom").ok, "lớp dưới 6Ø16 B200 < 25");
+assert(mainBarClearance(300, 25, 4, 16, "top").ok, "lớp trên 4Ø16 B300 ≥ 50");
+const tightTop = {
+  ...empty,
+  spans: empty.spans.map((s) => ({ ...s, B: 200 })),
+  mainTop: [{ id: "t16", qty: 4, dia: 16, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+  mainBottom: [{ id: "b16", qty: 4, dia: 16, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
+};
+assert(mainLayerClearanceOk(tightTop, "bottom"), "B200 4Ø16 dưới đạt");
+assert(!mainLayerClearanceOk(tightTop, "top"), "B200 4Ø16 trên không đạt");
+assert(!extraTieAllowNested(tightTop), "lồng/kép tắt khi lớp trên hẹp hơn 50 mm");
+assert(!mainBarClearanceFor(tightTop, tightTop.mainTop[0], "top").ok, "clearanceFor top");
 const wrap4 = nestedWrapRange(4);
 assert(wrap4.start === 1 && wrap4.end === 2 && wrap4.wrap === 2, "lồng 4 thanh ôm 2 thanh giữa");
 const hoop4 = nestedHoopFromBarXs([0, 50, 100, 150], 5);
@@ -205,7 +231,7 @@ assert(doubleWrapCount(6) === 4, "kép ôm 2/3 của 6 thanh = 4");
 assert(doubleShortSideMm(150, 4, 18) === 106, "cạnh ngắn ôm ngoài 3Ø18 trên B0=150");
 const kep = {
   ...with4,
-  spans: with4.spans.map((s) => ({ ...s, B: 200 })),
+  spans: with4.spans.map((s) => ({ ...s, B: 300 })),
   stirrups: with4.stirrups.map((s) => ({
     ...s,
     extraDouble: true,
@@ -216,7 +242,7 @@ const kep = {
 const kepModel = computeModel(kep);
 assert(!kepModel.schedule.some((r) => r.family === "D" && !r.extraKind), "kép bỏ đai đơn khỏi thống kê");
 const kepRow = kepModel.schedule.find((r) => r.extraKind === "double");
-assert(kepRow && kepRow.segs[0] === 106, "kép cạnh ngắn ôm ngoài");
+assert(kepRow && kepRow.segs[0] === doubleShortSideMm(250, 4, 18), "kép cạnh ngắn ôm ngoài");
 assert(kepRow && kepRow.qtyEach === kepModel.stirrups.replacedDoubleStations * 2, "kép 2 đai / vị trí");
 assert(kepModel.stirrups.replacedDoubleStations > 0, "vị trí đai đơn chuyển sang kép");
 assert(kepModel.stirrups.countEach === 0, "không thống kê đai đơn");

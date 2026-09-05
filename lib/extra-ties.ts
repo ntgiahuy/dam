@@ -1,3 +1,4 @@
+import { mainLayerClearanceOk } from "./bar-clearance";
 import type { BarShape, ResolvedBar } from "./calc";
 import type { BeamProject, SpanStirrups } from "./types";
 
@@ -163,11 +164,12 @@ export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolea
   return project.stirrups.some((s) => s.antiBuckling);
 }
 
-/** Đai lồng / kép: lớp trên = lớp dưới, ≥ 4 thanh/lớp, đủ thép chủ ở 4 góc đai. */
+/** Đai lồng / kép: lớp trên = lớp dưới, ≥ 4 thanh/lớp, đủ thép chủ ở 4 góc đai, khoảng hở đạt. */
 export function extraTieAllowNested(project: BeamProject): boolean {
   const top = mainLayerQty(project.mainTop);
   const bot = mainLayerQty(project.mainBottom);
-  return top >= 4 && top === bot && nestedWrapCount(top) >= 2;
+  if (!(top >= 4 && top === bot && nestedWrapCount(top) >= 2)) return false;
+  return mainLayerClearanceOk(project, "top") && mainLayerClearanceOk(project, "bottom");
 }
 
 /** Cờ đai bổ sung đã được phép trên một nhịp — dùng khi vẽ PDF/mặt cắt. */
@@ -378,7 +380,9 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
         : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
     innerHint: allowInner
       ? "Lớp trên = lớp dưới, ≥ 4 thanh/lớp, thép chủ ở 4 góc đai."
-      : "Cần lớp trên = lớp dưới, mỗi lớp ≥ 4 thanh, thép chủ nằm ở 4 góc đai.",
+      : !mainLayerClearanceOk(project, "top") || !mainLayerClearanceOk(project, "bottom")
+        ? "Khoảng hở 2 thanh chủ kề nhau: lớp dưới ≥ 25 mm, lớp trên ≥ 50 mm (như shop cột)."
+        : "Cần lớp trên = lớp dưới, mỗi lớp ≥ 4 thanh, thép chủ nằm ở 4 góc đai.",
   };
 }
 

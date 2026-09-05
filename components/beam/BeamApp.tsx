@@ -23,6 +23,11 @@ import { SectionSketch } from "@/components/beam/SectionSketch";
 import { SupportSketch } from "@/components/beam/SupportSketch";
 import { StirrupSketch } from "@/components/beam/StirrupSketch";
 import {
+  describeMainBarClearance,
+  mainBarClearanceFor,
+  type MainBarClearance,
+} from "@/lib/bar-clearance";
+import {
   applySpanParams,
   applySupportToAll,
   canShiftAxisRange,
@@ -456,12 +461,19 @@ export function BeamApp() {
   }
 
   function addMain(key: "mainBottom" | "mainTop") {
+    const face = key === "mainBottom" ? "bottom" : "top";
+    const space = mainBarClearanceFor(project, mainForm, face);
+    if (!space.ok) {
+      setError(describeMainBarClearance(space));
+      setStatus(null);
+      return;
+    }
     if (mainBarDuplicate(project[key], mainForm)) {
       setError(`Không thêm được: đã có ${barListLabel(mainForm)} trong danh sách.`);
       setStatus(null);
       return;
     }
-    const bar = persistMainBar({ ...mainForm, id: uid("bar") }, key === "mainBottom" ? "bottom" : "top");
+    const bar = persistMainBar({ ...mainForm, id: uid("bar") }, face);
     persist({ ...project, [key]: [...project[key], bar] });
     setSelectedBar(bar.id);
     setError(null);
@@ -469,6 +481,13 @@ export function BeamApp() {
   }
   function editMain(key: "mainBottom" | "mainTop") {
     if (!selectedBar) return;
+    const face = key === "mainBottom" ? "bottom" : "top";
+    const space = mainBarClearanceFor(project, mainForm, face);
+    if (!space.ok) {
+      setError(describeMainBarClearance(space));
+      setStatus(null);
+      return;
+    }
     if (mainBarDuplicate(project[key], mainForm, selectedBar)) {
       setError(`Không lưu được: đã có ${barListLabel(mainForm)} trong danh sách.`);
       setStatus(null);
@@ -913,6 +932,12 @@ export function BeamApp() {
               form={mainForm}
               setForm={setMainForm}
               selected={selectedBar}
+              project={project}
+              clearance={mainBarClearanceFor(
+                project,
+                mainForm,
+                tab === "mainTop" ? "top" : "bottom",
+              )}
               onSelect={(b) => {
                 const face = tab === "mainTop" ? "top" : "bottom";
                 setSelectedBar(b.id);
@@ -1444,7 +1469,7 @@ export function BeamApp() {
                     }
                   />
                   <p className="text-[10px] leading-tight text-zinc-500">
-                    Cho đai và khoảng cách thép dọc tới mặt trên/dưới. Đầu biên dầm: thép dọc lùi 50 mm mỗi mép ngoài.
+                    Cho đai và khoảng cách thép dọc tới mặt trên/dưới. Hai thanh chủ kề nhau: lớp dưới ≥ 25 mm, lớp trên ≥ 50 mm (như shop cột). Đầu biên dầm: thép dọc lùi 50 mm mỗi mép ngoài.
                   </p>
                 </Field>
                 <Field label="Cấp bê tông (TCVN 5574:2018)">
@@ -1614,6 +1639,8 @@ function MainBarPanel({
   spliceFace = "bottom",
   autoCutHint = "",
   onAutoCutChange,
+  clearance,
+  project,
 }: {
   title: string;
   bars: MainBar[];
@@ -1631,12 +1658,16 @@ function MainBarPanel({
   spliceFace?: "top" | "bottom";
   autoCutHint?: string;
   onAutoCutChange?: (autoCut: boolean, lapMultiple: LapMultiple) => void;
+  clearance: MainBarClearance;
+  project: BeamProject;
 }) {
-  const addBlocked = mainBarDuplicate(bars, form);
-  const editBlocked = mainBarDuplicate(bars, form, selected);
-  const hint = addBlocked
-    ? `Đã có ${barListLabel(form)} — đổi Ø, số lượng hoặc đoạn trục rồi thêm.`
-    : "Không thêm hai dòng giống hệt. Cùng Ø/số lượng nhưng đoạn khác (0→1, 0→3, …) thì được.";
+  const addBlocked = mainBarDuplicate(bars, form) || !clearance.ok;
+  const editBlocked = mainBarDuplicate(bars, form, selected) || !clearance.ok;
+  const hint = !clearance.ok
+    ? describeMainBarClearance(clearance)
+    : addBlocked
+      ? `Đã có ${barListLabel(form)} — đổi Ø, số lượng hoặc đoạn trục rồi thêm.`
+      : `${describeMainBarClearance(clearance)} Không thêm hai dòng giống hệt.`;
   return (
     <div className="flex flex-wrap gap-3">
       <Panel title={title} className="flex-1 min-w-[260px]">
@@ -1784,12 +1815,18 @@ function MainBarPanel({
             addDisabled={addBlocked}
             editDisabled={editBlocked}
             addTitle={
-              addBlocked ? `Đã có ${barListLabel(form)} trong danh sách` : "Thêm thanh thép chủ"
+              !clearance.ok
+                ? describeMainBarClearance(clearance)
+                : addBlocked
+                  ? `Đã có ${barListLabel(form)} trong danh sách`
+                  : "Thêm thanh thép chủ"
             }
             editTitle={
-              editBlocked
-                ? `Đã có ${barListLabel(form)} — không lưu trùng`
-                : "Lưu thay đổi thanh đang chọn"
+              !clearance.ok
+                ? describeMainBarClearance(clearance)
+                : editBlocked
+                  ? `Đã có ${barListLabel(form)} — không lưu trùng`
+                  : "Lưu thay đổi thanh đang chọn"
             }
             onShiftLeft={() => {
               const next = shiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis);
@@ -1806,25 +1843,29 @@ function MainBarPanel({
             rangeLabel={`${form.startAxis} → ${form.endAxis}`}
           />
         </div>
-        <p className={`mt-2 text-[11px] leading-snug ${addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
+        <p className={`mt-2 text-[11px] leading-snug ${!clearance.ok || addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
           {hint}
         </p>
       </Panel>
       <Panel title="Danh sách thép" className="w-56">
         <ul className="max-h-36 overflow-auto text-sm">
           {bars.length === 0 && <li className="text-zinc-500">Chưa có thanh thép</li>}
-          {bars.map((b) => (
+          {bars.map((b) => {
+            const tight = !mainBarClearanceFor(project, b, spliceFace).ok;
+            return (
             <li key={b.id}>
               <button
                 className={`w-full rounded px-2 py-1 text-left ${
-                  selected === b.id ? "bg-sky-900 text-sky-100" : "hover:bg-zinc-800"
+                  selected === b.id ? "bg-sky-900 text-sky-100" : tight ? "text-amber-300 hover:bg-zinc-800" : "hover:bg-zinc-800"
                 }`}
                 onClick={() => onSelect(b)}
               >
                 {barListLabel(b)}
+                {tight ? " · hẹp" : ""}
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </Panel>
     </div>

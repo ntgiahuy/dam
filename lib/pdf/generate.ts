@@ -1439,14 +1439,43 @@ function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | 
 function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, h: number) {
   const cy = y + h / 2 + 1;
   if (row.shape === "stirrup") {
-    const bw = Math.min(40, w * 0.28);
-    const bh = Math.min(h - 8, 22);
-    const sx = x + w / 2 - bw / 2;
+    const size = 5.4;
+    const widthLabel = String(Math.round(row.segs[0] ?? 0));
+    const heightLabel = String(Math.round(row.segs[1] ?? 0));
+    const hookLabel = String(Math.round(row.segs[2] ?? 0));
+    const leftW = ctx.font.widthOfTextAtSize(widthLabel, size);
+    const rightW = ctx.font.widthOfTextAtSize(hookLabel, size);
+    const bw = Math.min(38, w * 0.28);
+    const bh = Math.min(h - 4.2, 13.5);
+    const leftPad = leftW + 5;
+    const rightPad = rightW + 5.2;
+    const sx = x + leftPad + Math.max(0, (w - leftPad - rightPad - bw) / 2);
     const sy = cy - bh / 2;
     drawStirrupFrame(ctx, sx, sy, bw, bh, 0.65);
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), sx + bw / 2, sy + 6.2, 5.6, false, "center");
-    textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), sx + bw + 3, cy + 2, 5.6);
-    textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), sx - 12, sy + 2, 5.6);
+    // Width: left of hoop, mid of the left leg.
+    ctx.page.drawText(widthLabel, {
+      x: sx - 2.8 - leftW,
+      y: ty(sy + bh / 2) - size * (CAP_RATIO / 2),
+      size,
+      font: ctx.font,
+      color: BLACK,
+    });
+    // Height: inside, same slot as the old width number, a little lower.
+    ctx.page.drawText(heightLabel, {
+      x: sx + bw / 2 - ctx.font.widthOfTextAtSize(heightLabel, size) / 2,
+      y: ty(sy + Math.min(5.4, bh * 0.42)) - size * (CAP_RATIO / 2),
+      size,
+      font: ctx.font,
+      color: BLACK,
+    });
+    // Hook: right of hoop, same column as the old height number, near the hook.
+    ctx.page.drawText(hookLabel, {
+      x: sx + bw + 4.6,
+      y: ty(sy + Math.min(4.6, bh * 0.34)) - size * (CAP_RATIO / 2),
+      size,
+      font: ctx.font,
+      color: BLACK,
+    });
     return;
   }
   const hookSize = 5.4;
@@ -1466,22 +1495,23 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     : 0;
   const x1 = x + 8;
   const x2 = x + w - (rightLabelW ? hookGap + rightLabelW + 3.2 : 12);
-  const dimAbove = 7.2;
-  const edge = 1.4;
+  const dimAbove = 9.2;
+  const edge = 1.3;
   const barY = hooked
     ? down
       ? y + dimAbove
       : y + h - dimAbove
     : cy;
-  const hook = hooked
-    ? Math.max(9, down ? y + h - edge - barY : barY - (y + edge))
+  const hookRoom = hooked
+    ? Math.max(6, down ? y + h - edge - barY : barY - (y + edge))
     : 0;
+  const hook = hookRoom * (2 / 3);
   line(ctx, x1, barY, x2, barY, 0.85);
   const hookLenLabel = (value: number, hookX: number) => {
     const label = String(Math.round(value));
     // Center on the exposed stem: clear the bend so digits sit at mid-hook, right of the stroke.
-    const fromBend = Math.max(4.2, hookSize * 0.72);
-    const fromTip = Math.max(2.2, hookSize * 0.28);
+    const fromBend = Math.min(hook * 0.32, Math.max(2.1, hookSize * 0.38));
+    const fromTip = Math.min(hook * 0.22, Math.max(1.3, hookSize * 0.2));
     const usable = Math.max(hookSize, hook - fromBend - fromTip);
     const midY = barY + dir * (fromBend + usable * 0.5);
     ctx.page.drawText(label, {
@@ -1496,15 +1526,15 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     line(ctx, x1, barY, x1, barY + dir * hook, 0.85);
     line(ctx, x2, barY, x2, barY + dir * hook, 0.85);
     hookLenLabel(row.segs[0] ?? 0, x1);
-    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 5.5, "center", false, 0.55);
     hookLenLabel(row.segs[2] ?? 0, x2);
   } else if (row.shape === "l-left") {
     line(ctx, x1, barY, x1, barY + dir * hook, 0.85);
     hookLenLabel(row.segs[0] ?? 0, x1);
-    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 5.5, "center", false, 0.55);
   } else if (row.shape === "l-right") {
     line(ctx, x2, barY, x2, barY + dir * hook, 0.85);
-    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
+    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, barY, 5.5, "center", false, 0.55);
     hookLenLabel(row.segs[1] ?? 0, x2);
   } else {
     textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
@@ -1535,7 +1565,7 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
   const w = cols.reduce((s, c) => s + c.w, 0);
   const headerH = 52;
   const avail = Math.max(PAGE_H - y - 36, 120);
-  const rowH = Math.min(34, Math.max(18, (avail - headerH - 8) / Math.max(rows.length, 1)));
+  const rowH = Math.min(21, Math.max(15.5, (avail - headerH - 8) / Math.max(rows.length, 1)));
   const h = headerH + rows.length * rowH;
   textSimple(ctx, "BẢNG THỐNG KÊ CỐT THÉP", x + w / 2, y + 2, 10.5, true, "center");
   const schedTitleW = ctx.fontBold.widthOfTextAtSize("BẢNG THỐNG KÊ CỐT THÉP", 10.5);
@@ -1579,15 +1609,15 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
   rows.forEach((row, i) => {
     const ry = ty0 + headerH + i * rowH;
     line(ctx, colX[1], ry + rowH, x + w, ry + rowH, 0.3);
-    textSimple(ctx, row.mark, mid(1), ry + rowH / 2 + 3, 7.5, false, "center");
-    drawShape(ctx, row, colX[2], ry, cols[2].w, rowH);
-    textSimple(ctx, String(row.dia), mid(3), ry + rowH / 2 + 3, 7.5, false, "center");
-    textSimple(ctx, String(row.barLength), mid(4), ry + rowH / 2 + 3, 7.5, false, "center");
-    textSimple(ctx, String(row.qtyMembers), mid(5), ry + rowH / 2 + 3, 7.5, false, "center");
-    textSimple(ctx, String(row.qtyEach), mid(6), ry + rowH / 2 + 3, 7.5, false, "center");
-    textSimple(ctx, String(row.qtyTotal), mid(7), ry + rowH / 2 + 3, 7.5, false, "center");
-    textSimple(ctx, fmtNum(row.totalM), mid(8), ry + rowH / 2 + 3, 7.2, false, "center");
-    textSimple(ctx, fmtNum(row.weight), mid(9), ry + rowH / 2 + 3, 7.2, false, "center");
+    textSimple(ctx, row.mark, mid(1), ry + rowH / 2 + 2.2, 7, false, "center");
+    drawShape(ctx, row, colX[2], ry + 1.5, cols[2].w, rowH - 2.2);
+    textSimple(ctx, String(row.dia), mid(3), ry + rowH / 2 + 2.2, 7, false, "center");
+    textSimple(ctx, String(row.barLength), mid(4), ry + rowH / 2 + 2.2, 7, false, "center");
+    textSimple(ctx, String(row.qtyMembers), mid(5), ry + rowH / 2 + 2.2, 7, false, "center");
+    textSimple(ctx, String(row.qtyEach), mid(6), ry + rowH / 2 + 2.2, 7, false, "center");
+    textSimple(ctx, String(row.qtyTotal), mid(7), ry + rowH / 2 + 2.2, 7, false, "center");
+    textSimple(ctx, fmtNum(row.totalM), mid(8), ry + rowH / 2 + 2.2, 6.8, false, "center");
+    textSimple(ctx, fmtNum(row.weight), mid(9), ry + rowH / 2 + 2.2, 6.8, false, "center");
   });
 
   textVertical(ctx, project.info.name || "DẦM", mid(0), ty0 + headerH + (rows.length * rowH) / 2, 10, true);
