@@ -1,4 +1,9 @@
-import { antiBucklingSchedule, resolveExtraTies, type ExtraTieKind } from "./extra-ties";
+import {
+  antiBucklingSchedule,
+  extraTieFlagsForSpan,
+  resolveExtraTies,
+  type ExtraTieKind,
+} from "./extra-ties";
 import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
@@ -916,6 +921,8 @@ export interface StirrupResolved {
   countEach: number;
   labels: { x: number; text: string; mark: string }[];
   ticks: { x: number; dense: boolean }[];
+  /** Số vị trí đai đơn bị đai kép thay — thống kê kép = stations × 2. */
+  replacedDoubleStations: number;
 }
 
 export function resolveStirrups(project: BeamProject): StirrupResolved {
@@ -932,6 +939,7 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
   const labels: StirrupResolved["labels"] = [];
   const ticks: StirrupResolved["ticks"] = [];
   let countEach = 0;
+  let replacedDoubleStations = 0;
 
   project.spans.forEach((span, i) => {
     const zones = stirrupZonesForSpan(project, i, extrasTop);
@@ -943,14 +951,18 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
     ];
     let cursor = x0;
     const factor = zones.kind === "kep" ? 2 : 1;
+    const replaced = extraTieFlagsForSpan(project, i).extraDouble;
     for (const { z, dense } of rows) {
-      countEach += z.count * factor;
+      if (replaced) replacedDoubleStations += z.count;
+      else countEach += z.count * factor;
       if (z.count > 0) {
-        labels.push({
-          x: cursor + z.length / 2,
-          text: `${z.count}Ø${zones.dia}a${z.spacing}`,
-          mark: "9",
-        });
+        if (!replaced) {
+          labels.push({
+            x: cursor + z.length / 2,
+            text: `${z.count}Ø${zones.dia}a${z.spacing}`,
+            mark: "9",
+          });
+        }
         const gap = z.length / Math.max(z.count, 1);
         for (let k = 0; k < z.count; k++) {
           ticks.push({ x: cursor + gap * (k + 0.5), dense });
@@ -965,7 +977,7 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
     if (s.shear) countEach += s.stirrupsEachSide * 2;
   }
 
-  return { dia, innerB, innerH, hook, cutLength, countEach, labels, ticks };
+  return { dia, innerB, innerH, hook, cutLength, countEach, labels, ticks, replacedDoubleStations };
 }
 
 export function stirrupLayoutFraction(layout: StirrupLayout | undefined) {
@@ -1241,50 +1253,63 @@ export function computeModel(project: BeamProject): ComputedModel {
   }
 
   for (const extra of resolveExtraTies(project)) {
-    if (!extra.enabled || extra.countEach <= 0) continue;
-    const barLength = extra.lengthMm;
+    const counted =
+      extra.key === "double" && extra.enabled && stirrups.replacedDoubleStations > 0
+        ? { ...extra, countEach: stirrups.replacedDoubleStations * extra.copies }
+        : extra;
+    if (!counted.enabled || counted.countEach <= 0) continue;
+    const barLength = counted.lengthMm;
     const row: ScheduleRow = {
       mark: String(mark),
       markNum: mark,
       family: "D",
-      shape: extra.shape,
-      segs: extra.segs,
-      dia: extra.dia,
+      shape: counted.shape,
+      segs: counted.segs,
+      dia: counted.dia,
       barLength,
       qtyMembers: sl,
-      qtyEach: extra.countEach,
-      qtyTotal: extra.countEach * sl,
-      totalM: (barLength * extra.countEach * sl) / 1000,
-      weight: ((barLength * extra.countEach * sl) / 1000) * unitWeight(extra.dia),
+      qtyEach: counted.countEach,
+      qtyTotal: counted.countEach * sl,
+      totalM: (barLength * counted.countEach * sl) / 1000,
+      weight: ((barLength * counted.countEach * sl) / 1000) * unitWeight(counted.dia),
       bars: [],
-      label: extra.label,
-      extraKind: extra.key,
-      spacing: extra.spacing,
+      label: counted.label,
+      extraKind: counted.key,
+      spacing: counted.spacing,
     };
     tableRows.push(row);
     mark += 1;
   }
 
-  for (const skin of antiBucklingSchedule(project)) {
-    if (skin.qtyEach <= 0 || skin.lengthMm <= 0) continue;
-    const barLength = skin.lengthMm;
-    tableRows.push({
-      mark: String(mark),
-      markNum: mark,
-      family: "B2",
-      shape: "straight",
-      segs: [barLength],
-      dia: skin.dia,
-      barLength,
-      qtyMembers: sl,
-      qtyEach: skin.qtyEach,
-      qtyTotal: skin.qtyEach * sl,
-      totalM: (barLength * skin.qtyEach * sl) / 1000,
-      weight: ((barLength * skin.qtyEach * sl) / 1000) * unitWeight(skin.dia),
-      bars: [],
-      label: "Thép chống phình",
-      extraKind: "anti",
-    });
+  const skinList = antiBucklingSchedule(project).filter((s) => s.qtyEach > 0 && s.lengthMm > 0);
+  const antiByDia = new Map<number, typeof skinList>();
+  for (const skin of skinList) {
+    const arr = antiByDia.get(skin.dia) ?? [];
+    arr.push(skin);
+    antiByDia.set(skin.dia, arr);
+  }
+  for (const skins of antiByDia.values()) {
+    const markNum = mark;
+    for (const skin of skins) {
+      const barLength = skin.lengthMm;
+      tableRows.push({
+        mark: String(markNum),
+        markNum,
+        family: "B2",
+        shape: "straight",
+        segs: [barLength],
+        dia: skin.dia,
+        barLength,
+        qtyMembers: sl,
+        qtyEach: skin.qtyEach,
+        qtyTotal: skin.qtyEach * sl,
+        totalM: (barLength * skin.qtyEach * sl) / 1000,
+        weight: ((barLength * skin.qtyEach * sl) / 1000) * unitWeight(skin.dia),
+        bars: [],
+        label: "Thép chống phình",
+        extraKind: "anti",
+      });
+    }
     mark += 1;
   }
 

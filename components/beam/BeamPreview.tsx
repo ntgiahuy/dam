@@ -11,7 +11,7 @@ import {
   extraLayerOffsetMm,
   type ResolvedBar,
 } from "@/lib/calc";
-import { extraTieElevationNote } from "@/lib/extra-ties";
+import { ANTI_BUCKLING_QTY, antiBucklingResolvedBars, extraTieElevationNote } from "@/lib/extra-ties";
 
 export function BeamPreview({
   project,
@@ -258,20 +258,22 @@ export function BeamPreview({
               opacity={tab === "extraTop" ? 0.35 : 1}
             />
         ))}
-        {project.spans.map((_, i) => {
-          if (!project.stirrups[i]?.antiBuckling) return null;
+        {antiBucklingResolvedBars(project).map((b) => {
           const midY = (planes.topMain + planes.botMain) / 2;
           return (
-            <line
-              key={`cp-${i}`}
-              x1={x(model.xs[i])}
-              x2={x(model.xs[i + 1] ?? model.xs[i])}
-              y1={midY}
-              y2={midY}
-              stroke="#e879f9"
-              strokeWidth={1.6}
-              pointerEvents="none"
-            />
+            <g key={b.sourceId} pointerEvents="none">
+              {Array.from({ length: ANTI_BUCKLING_QTY }, (_, k) => (
+                <line
+                  key={k}
+                  x1={x(b.x1)}
+                  x2={x(b.x2)}
+                  y1={midY + (k === 0 ? -1.4 : 1.4)}
+                  y2={midY + (k === 0 ? -1.4 : 1.4)}
+                  stroke="#e879f9"
+                  strokeWidth={1.5}
+                />
+              ))}
+            </g>
           );
         })}
 

@@ -6,6 +6,7 @@ import {
   extraBarXsInSection,
   extraLayerOffsetMm,
 } from "@/lib/calc";
+import { doubleHoopOffsetsMm } from "@/lib/extra-ties";
 import type { ExtraBar, StirrupKind } from "@/lib/types";
 
 /** Minh họa mặt cắt đai + thép tăng cường (lớp 1 giữa chủ, 2/3 cách 25 mm). */
@@ -26,6 +27,7 @@ export function StirrupSketch({
   mainBottomQty = 2,
   extraTop = [],
   extraBottom = [],
+  mainDia = 18,
 }: {
   kind?: StirrupKind;
   extraC?: boolean;
@@ -43,10 +45,14 @@ export function StirrupSketch({
   mainBottomQty?: number;
   extraTop?: ExtraBar[];
   extraBottom?: ExtraBar[];
+  mainDia?: number;
 }) {
-  const twin = kind === "kep";
+  const twin = kind === "kep" && !extraDouble;
   const topN = Math.max(0, Math.min(8, Math.round(mainTopQty) || 0));
   const botN = Math.max(0, Math.min(8, Math.round(mainBottomQty) || 0));
+  const barsAcross = Math.max(topN, botN, 2);
+  const innerBmm = Math.max(B - 2 * cover, 40);
+  const doubleHoops = extraDouble ? doubleHoopOffsetsMm(innerBmm, barsAcross, mainDia) : null;
   const box = { x: 52, y: 16, w: 148, h: 196 };
   const inset = 16;
   const sx = box.x + inset;
@@ -82,14 +88,16 @@ export function StirrupSketch({
       aria-label="Mặt cắt đai và thép tăng cường"
     >
       <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="none" stroke="#f5f5f5" strokeWidth={2.4} />
-      <path
-        d={hookedRect(sx, sy, sw, sh)}
-        fill="none"
-        stroke="#b0db34"
-        strokeWidth={twin ? 5 : 5.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {!extraDouble ? (
+        <path
+          d={hookedRect(sx, sy, sw, sh)}
+          fill="none"
+          stroke="#b0db34"
+          strokeWidth={twin ? 5 : 5.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
       {twin ? (
         <path
           d={hookedRect(sx + 7, sy + 7, sw - 14, sh - 14)}
@@ -120,10 +128,15 @@ export function StirrupSketch({
           strokeLinejoin="round"
         />
       ) : null}
-      {extraDouble ? (
+      {extraDouble && doubleHoops ? (
         <>
           <path
-            d={hookedRect(sx + 2, sy + 4, sw * 0.42, sh - 8)}
+            d={hookedRect(
+              sx + (doubleHoops.leftX / innerBmm) * sw,
+              sy,
+              (doubleHoops.widthMm / innerBmm) * sw,
+              sh,
+            )}
             fill="none"
             stroke="#ff6b6b"
             strokeWidth={3.6}
@@ -131,7 +144,12 @@ export function StirrupSketch({
             strokeLinejoin="round"
           />
           <path
-            d={hookedRect(sx + sw * 0.56, sy + 4, sw * 0.42, sh - 8)}
+            d={hookedRect(
+              sx + (doubleHoops.rightX / innerBmm) * sw,
+              sy,
+              (doubleHoops.widthMm / innerBmm) * sw,
+              sh,
+            )}
             fill="none"
             stroke="#4dabf7"
             strokeWidth={3.6}

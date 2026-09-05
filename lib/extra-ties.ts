@@ -1,4 +1,4 @@
-import type { BarShape } from "./calc";
+import type { BarShape, ResolvedBar, ScheduleRow } from "./calc";
 import type { BeamProject, SpanStirrups } from "./types";
 
 function typicalH(spans: { H: number }[]) {
@@ -75,6 +75,7 @@ export function hasOddMainLayer(project: BeamProject): boolean {
 }
 
 export const ANTI_BUCKLING_DIAS = [10, 12, 14, 16] as const;
+export const ANTI_BUCKLING_SEGMENTS = [1, 2, 3] as const;
 export const ANTI_BUCKLING_QTY = 2;
 /** Ø đai C / lồng / kép — shop thép cột cho phép đai nhỏ hơn đai chính. */
 export const EXTRA_TIE_DIAS = [6, 8, 10, 12, 14] as const;
@@ -82,6 +83,12 @@ export const EXTRA_TIE_DIAS = [6, 8, 10, 12, 14] as const;
 export function normalizeAntiBucklingDia(dia?: number) {
   const n = Math.round(Number(dia) || 0);
   return (ANTI_BUCKLING_DIAS as readonly number[]).includes(n) ? n : 12;
+}
+
+export function normalizeAntiBucklingSegments(n?: number): 1 | 2 | 3 {
+  const v = Math.round(Number(n) || 0);
+  if (v === 2 || v === 3) return v;
+  return 1;
 }
 
 export function normalizeExtraTieDia(dia?: number, fallback = 6) {
@@ -105,6 +112,45 @@ export function extraDoubleDiaOf(raw?: SpanStirrups, fallback?: number) {
 
 export function spanHasAntiBuckling(project: BeamProject, index: number) {
   return Boolean(project.stirrups[index]?.antiBuckling);
+}
+
+export function antiBucklingAxisPositions(project: BeamProject) {
+  const xs = [0];
+  let x = 0;
+  for (const span of project.spans) {
+    x += span.L;
+    xs.push(x);
+  }
+  return xs;
+}
+
+export interface AntiBucklingRun {
+  start: number;
+  end: number;
+  dia: number;
+  lengthMm: number;
+}
+
+/** Gói các nhịp đã tick thành thanh CP: 1 / 2 / 3 đoạn, L = tim gối → tim gối. */
+export function antiBucklingRuns(project: BeamProject): AntiBucklingRun[] {
+  const xs = antiBucklingAxisPositions(project);
+  const n = project.spans.length;
+  const taken = Array.from({ length: n }, () => false);
+  const runs: AntiBucklingRun[] = [];
+  for (let i = 0; i < n; i++) {
+    if (taken[i] || !spanHasAntiBuckling(project, i)) continue;
+    const segs = normalizeAntiBucklingSegments(project.stirrups[i]?.antiBucklingSegments);
+    const end = Math.min(i + segs, n);
+    const dia = normalizeAntiBucklingDia(project.stirrups[i]?.antiBucklingDia);
+    const lengthMm = Math.max(0, Math.round((xs[end] ?? 0) - (xs[i] ?? 0)));
+    runs.push({ start: i, end, dia, lengthMm });
+    for (let k = i; k < end; k++) taken[k] = true;
+  }
+  return runs;
+}
+
+export function spanCoveredByAntiBuckling(project: BeamProject, index: number) {
+  return antiBucklingRuns(project).some((r) => index >= r.start && index < r.end);
 }
 
 export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolean {
@@ -136,7 +182,7 @@ export function extraTieFlagsForSpan(project: BeamProject, spanIndex: number) {
     extraNestedCx: extraNested && n.cx,
     extraNestedCy: extraNested && n.cy,
     extraDouble,
-    antiBuckling: Boolean(raw?.antiBuckling),
+    antiBuckling: spanCoveredByAntiBuckling(project, spanIndex),
     extraCDia: extraCDiaOf(raw),
     extraCSpacing: extraCSpacingOf(raw),
     extraNestedDia: extraNestedDiaOf(raw),
@@ -150,8 +196,7 @@ export function extraTieFlagsForSpan(project: BeamProject, spanIndex: number) {
 export function extraTieElevationNote(project: BeamProject, spanIndex: number) {
   const f = extraTieFlagsForSpan(project, spanIndex);
   const parts: string[] = [];
-  if (f.extraCCx) parts.push(`C-Cx Ø${f.extraCDia}a${f.extraCSpacing}`);
-  if (f.extraCCy) parts.push(`C-Cy Ø${f.extraCDia}a${f.extraCSpacing}`);
+  if (f.extraCCy) parts.push(`C Ø${f.extraCDia}a${f.extraCSpacing}`);
   if (f.extraNestedCx) parts.push(`Lồng-Cx Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
   if (f.extraNestedCy) parts.push(`Lồng-Cy Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
   if (f.extraDouble) parts.push(`Kép Ø${f.extraDoubleDia}a${f.extraDoubleSpacing}`);
@@ -163,8 +208,10 @@ function wrapNested(bars: number) {
   return Math.max(2, Math.ceil(bars / 3));
 }
 
-function wrapDouble(bars: number) {
-  return Math.min(bars, Math.max(2, Math.ceil((2 * bars) / 3)));
+/** Số thanh chủ mỗi đai kép ôm — 2/3 số thanh trên cạnh (shop cột `tt`). */
+export function doubleWrapCount(bars: number) {
+  const n = Math.max(2, bars);
+  return Math.min(n, Math.max(2, Math.ceil((2 * n) / 3)));
 }
 
 function barGapMm(innerB: number, bars: number, dia: number) {
@@ -172,10 +219,32 @@ function barGapMm(innerB: number, bars: number, dia: number) {
   return (innerB - dia) / (bars - 1);
 }
 
-function wrapWidthMm(innerB: number, bars: number, dia: number, wrap: number) {
+/** Cạnh ôm ngoài `wrap` thanh: mép ngoài thanh đầu → mép ngoài thanh cuối. */
+export function wrapOutsideMm(innerB: number, bars: number, dia: number, wrap: number) {
   if (wrap <= 1) return Math.max(40, Math.round(dia));
   const gap = barGapMm(innerB, bars, dia);
   return Math.max(40, Math.round((wrap - 1) * gap + dia));
+}
+
+function wrapWidthMm(innerB: number, bars: number, dia: number, wrap: number) {
+  return wrapOutsideMm(innerB, bars, dia, wrap);
+}
+
+/** Cạnh ngắn đai kép theo B — 2/3 đai đơn, ôm ngoài thép chủ được ôm. */
+export function doubleShortSideMm(innerB: number, bars: number, dia: number) {
+  const n = Math.max(2, bars);
+  return wrapOutsideMm(innerB, n, dia, doubleWrapCount(n));
+}
+
+/** Hai đai kép chồng 2/3: trái ôm từ góc trái, phải ôm từ góc phải. */
+export function doubleHoopOffsetsMm(innerB: number, bars: number, dia: number) {
+  const widthMm = doubleShortSideMm(innerB, bars, dia);
+  return {
+    wrap: doubleWrapCount(Math.max(2, bars)),
+    widthMm,
+    leftX: 0,
+    rightX: Math.max(0, innerB - widthMm),
+  };
 }
 
 /** Đai C: chiều dài = nhịp móc + 100 (shop cột `gt`). */
@@ -282,18 +351,42 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
   };
 }
 
-/** Thống kê thép chống phình: 2 cây / nhịp bật, L = chiều dài nhịp. */
+/** Hàng shop đai bổ sung: bỏ hình Đai C (U) — C đã thể hiện trên mặt cắt. */
+export function extraTieShopStripRows<T extends Pick<ScheduleRow, "extraKind">>(rows: T[]) {
+  return rows.filter((r) => r.extraKind !== "c-cx" && r.extraKind !== "c-cy");
+}
+
+/** Thanh chống phình trên mặt dầm / nổ dầm: 2Ø, L = tim gối đầu → tim gối cuối. */
+export function antiBucklingResolvedBars(project: BeamProject): ResolvedBar[] {
+  const xs = antiBucklingAxisPositions(project);
+  return antiBucklingRuns(project).map((run, i) => ({
+    sourceId: `anti-${i}`,
+    face: "bottom" as const,
+    kind: "extra" as const,
+    layer: 1,
+    dia: run.dia,
+    qty: ANTI_BUCKLING_QTY,
+    x1: xs[run.start] ?? 0,
+    x2: xs[run.end] ?? run.lengthMm,
+    startType: 0,
+    endType: 0,
+    hookStart: 0,
+    hookEnd: 0,
+    straight: run.lengthMm,
+    cutLength: run.lengthMm,
+  }));
+}
+
+/** Thống kê thép chống phình: 2 cây / đoạn, L = tim → tim khoảng đã chọn. */
 export function antiBucklingSchedule(project: BeamProject) {
   const groups = new Map<string, { dia: number; lengthMm: number; qtyEach: number }>();
-  project.spans.forEach((span, i) => {
-    if (!spanHasAntiBuckling(project, i)) return;
-    const dia = normalizeAntiBucklingDia(project.stirrups[i]?.antiBucklingDia);
-    const lengthMm = Math.max(0, Math.round(span.L));
-    const key = `${dia}|${lengthMm}`;
-    const cur = groups.get(key) ?? { dia, lengthMm, qtyEach: 0 };
+  for (const run of antiBucklingRuns(project)) {
+    if (run.lengthMm <= 0) continue;
+    const key = `${run.dia}|${run.lengthMm}`;
+    const cur = groups.get(key) ?? { dia: run.dia, lengthMm: run.lengthMm, qtyEach: 0 };
     cur.qtyEach += ANTI_BUCKLING_QTY;
     groups.set(key, cur);
-  });
+  }
   return [...groups.values()];
 }
 
@@ -324,7 +417,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 
   const nestedW = wrapWidthMm(innerB, bars, dia, wrapNested(bars));
   const nestedH = wrapWidthMm(innerH, bars, dia, wrapNested(bars));
-  const doubleW = wrapWidthMm(innerB, bars, dia, wrapDouble(bars));
+  const doubleW = doubleShortSideMm(innerB, bars, dia);
   const dirs = extraCDirs(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
   const nestedDirs = extraNestedDirs(project.stirrups.find((s) => s.extraNested) ?? project.stirrups[0]);
   const cOn = used.extraC && allowC;
@@ -412,7 +505,7 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
     },
     {
       key: "double",
-      label: "Đai kép phương B",
+      label: "Đai kép (2/3 B, thay đai đơn)",
       allowed: allowInner && !nestedOn,
       enabled: doubleOn && allowInner,
       disableHint: extraTieStatus(project).innerHint,

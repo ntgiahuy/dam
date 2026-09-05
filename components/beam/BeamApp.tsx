@@ -39,6 +39,7 @@ import {
 } from "@/lib/calc";
 import {
   ANTI_BUCKLING_DIAS,
+  ANTI_BUCKLING_SEGMENTS,
   EXTRA_TIE_DIAS,
   extraCDiaOf,
   extraCDirs,
@@ -52,6 +53,7 @@ import {
   extraTieStatus,
   extraTiesHint,
   normalizeAntiBucklingDia,
+  normalizeAntiBucklingSegments,
 } from "@/lib/extra-ties";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
@@ -1174,6 +1176,7 @@ export function BeamApp() {
                                 extraCSpacing: extraCSpacingOf(src),
                                 extraCCy: extraCDirs(src).cy,
                                 antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
+                                antiBucklingSegments: normalizeAntiBucklingSegments(src.antiBucklingSegments),
                               });
                             }}
                           />
@@ -1195,6 +1198,28 @@ export function BeamApp() {
                             </option>
                           ))}
                         </Select>
+                        {antiOn ? (
+                          <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
+                            Số đoạn
+                            <Select
+                              className="h-8 w-[72px]"
+                              value={normalizeAntiBucklingSegments(src.antiBucklingSegments)}
+                              onChange={(e) =>
+                                patchStirrup({
+                                  antiBuckling: true,
+                                  extraC: true,
+                                  antiBucklingSegments: normalizeAntiBucklingSegments(Number(e.target.value)),
+                                })
+                              }
+                            >
+                              {ANTI_BUCKLING_SEGMENTS.map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </Select>
+                          </label>
+                        ) : null}
                         <div className="min-w-[220px]">
                           {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
                           {extraC ? (
@@ -1361,7 +1386,8 @@ export function BeamApp() {
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Đai kép bổ sung thay đai lồng — 2 thanh/vị trí, khoảng cách nhập bên dưới.
+                          Đai kép thay đai đơn — không vẽ và không thống kê đai đơn. Cạnh ngắn theo B =
+                          2/3 đai đơn, ôm ngoài thép chủ được ôm (kể cả 2 thanh góc).
                         </p>
                       ) : null}
                       {disableNote ? (
@@ -1371,8 +1397,9 @@ export function BeamApp() {
                         <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
                       ) : (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Thép chống phình Ø: 2 cây tại giữa H. Tick sẽ bật đai C — Cx ngang móc 2 cây này,
-                          Cy đứng móc giữa. Khoảng đai C nhập bên dưới (mặc định 200).
+                          Thép chống phình Ø: 2 cây tại giữa H. Chọn 1 / 2 / 3 đoạn — L từ tim gối đầu
+                          đến tim gối cuối khoảng đó. Tick sẽ bật đai C — Cx ngang móc 2 cây này, Cy đứng
+                          móc giữa. Khoảng đai C nhập bên dưới (mặc định 200).
                         </p>
                       )}
                     </Panel>
@@ -1396,6 +1423,7 @@ export function BeamApp() {
                 B={span?.B ?? 200}
                 H={span?.H ?? 500}
                 cover={project.info.cover || 25}
+                mainDia={project.mainBottom[0]?.dia ?? project.mainTop[0]?.dia ?? 18}
                 mainTopQty={mainsQtyForSpan(project.mainTop, selectedSpan, "top") || 2}
                 mainBottomQty={mainsQtyForSpan(project.mainBottom, selectedSpan, "bottom") || 2}
                 extraTop={extrasForSpanSection(project.extraTop, selectedSpan, "top")}

@@ -7,7 +7,11 @@ import {
   mainsQtyForSpan,
 } from "../lib/calc";
 import {
+  antiBucklingResolvedBars,
   antiBucklingSchedule,
+  extraTieShopStripRows,
+  doubleShortSideMm,
+  doubleWrapCount,
   extraCDiaOf,
   extraCDirs,
   extraCSpacingOf,
@@ -15,6 +19,8 @@ import {
   extraNestedDiaOf,
   extraTieAllowC,
   extraTieAllowNested,
+  extraTieFlagsForSpan,
+  normalizeAntiBucklingSegments,
   normalizeExtraTieDia,
 } from "../lib/extra-ties";
 import { createEmptyProject } from "../lib/sample";
@@ -120,5 +126,81 @@ assert(kinds.includes("anti"), "schedule chống phình");
 assert(model.schedule.some((r) => r.extraKind === "c-cx" && r.dia === 8), "C Ø8");
 assert(model.schedule.some((r) => r.extraKind === "nested-cx" && r.dia === 10), "lồng Ø10");
 assert(model.schedule.some((r) => r.extraKind === "anti" && r.dia === 12), "CP Ø12");
+const cpBars = antiBucklingResolvedBars(shop);
+assert(cpBars.length === shop.spans.length, "CP trên từng nhịp");
+assert(cpBars.every((b) => b.qty === 2 && b.dia === 12 && b.cutLength === shop.spans[0].L), "CP 2Ø12 L=nhịp");
+const strip = extraTieShopStripRows(model.schedule.filter((r) => r.extraKind));
+assert(!strip.some((r) => r.extraKind === "c-cx" || r.extraKind === "c-cy"), "shop đai C không vẽ hình U");
+assert(strip.some((r) => r.extraKind === "anti"), "shop còn thép chống phình");
+
+const twoLen = createEmptyProject();
+twoLen.spans = [
+  { ...twoLen.spans[0], L: 4250 },
+  { ...twoLen.spans[0], id: "span-b", L: 5000 },
+];
+twoLen.supports = [
+  twoLen.supports[0],
+  twoLen.supports[1],
+  { ...twoLen.supports[1], id: "sup-c", axisName: "2" },
+];
+twoLen.stirrups = [
+  { ...twoLen.stirrups[0], antiBuckling: true, antiBucklingDia: 12 },
+  { ...twoLen.stirrups[0], antiBuckling: true, antiBucklingDia: 12 },
+];
+const twoModel = computeModel(twoLen);
+const antis = twoModel.schedule.filter((r) => r.extraKind === "anti");
+assert(antis.length === 2, "CP hai chiều dài nhịp");
+assert(antis[0].mark === antis[1].mark, "cùng Ø cùng số hiệu");
+assert(new Set(antis.map((r) => r.barLength)).size === 2, "vẫn tách L trên thống kê");
+assert(normalizeAntiBucklingSegments(2) === 2 && normalizeAntiBucklingSegments(9) === 1, "số đoạn 1/2/3");
+
+const pack2 = {
+  ...twoLen,
+  stirrups: twoLen.stirrups.map((s) => ({ ...s, antiBuckling: true, antiBucklingSegments: 2 as const })),
+};
+const bars2 = antiBucklingResolvedBars(pack2);
+assert(bars2.length === 1 && bars2[0].cutLength === 9250, "2 đoạn L=tim→tim 4250+5000");
+
+const pack3 = createEmptyProject();
+pack3.spans = [
+  { ...pack3.spans[0], L: 4250 },
+  { ...pack3.spans[0], id: "span-b", L: 4250 },
+  { ...pack3.spans[0], id: "span-c", L: 5000 },
+];
+pack3.supports = [
+  pack3.supports[0],
+  pack3.supports[1],
+  { ...pack3.supports[1], id: "sup-c", axisName: "2" },
+  { ...pack3.supports[1], id: "sup-d", axisName: "3" },
+];
+pack3.stirrups = [
+  { ...pack3.stirrups[0], antiBuckling: true, antiBucklingDia: 12, antiBucklingSegments: 3 },
+  { ...pack3.stirrups[0], antiBuckling: false },
+  { ...pack3.stirrups[0], antiBuckling: false },
+];
+const bars3 = antiBucklingResolvedBars(pack3);
+assert(bars3.length === 1 && bars3[0].cutLength === 13500, "3 đoạn L=4250+4250+5000");
+assert(extraTieFlagsForSpan(pack3, 2).antiBuckling, "nhịp trong khoảng 3 đoạn vẫn có CP");
+
+assert(doubleWrapCount(4) === 3, "kép ôm 2/3 của 4 thanh = 3");
+assert(doubleWrapCount(6) === 4, "kép ôm 2/3 của 6 thanh = 4");
+assert(doubleShortSideMm(150, 4, 18) === 106, "cạnh ngắn ôm ngoài 3Ø18 trên B0=150");
+const kep = {
+  ...with4,
+  spans: with4.spans.map((s) => ({ ...s, B: 200 })),
+  stirrups: with4.stirrups.map((s) => ({
+    ...s,
+    extraDouble: true,
+    extraDoubleDia: 8,
+    extraDoubleSpacing: 200,
+  })),
+};
+const kepModel = computeModel(kep);
+assert(!kepModel.schedule.some((r) => r.family === "D" && !r.extraKind), "kép bỏ đai đơn khỏi thống kê");
+const kepRow = kepModel.schedule.find((r) => r.extraKind === "double");
+assert(kepRow && kepRow.segs[0] === 106, "kép cạnh ngắn ôm ngoài");
+assert(kepRow && kepRow.qtyEach === kepModel.stirrups.replacedDoubleStations * 2, "kép 2 đai / vị trí");
+assert(kepModel.stirrups.replacedDoubleStations > 0, "vị trí đai đơn chuyển sang kép");
+assert(kepModel.stirrups.countEach === 0, "không thống kê đai đơn");
 
 console.log("extra-layer tests ok");

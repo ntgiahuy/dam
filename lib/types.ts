@@ -124,6 +124,8 @@ export interface SpanStirrups {
   antiBuckling?: boolean;
   /** Ø thép chống phình: 10 / 12 / 14 / 16. */
   antiBucklingDia?: number;
+  /** Số nhịp một thanh CP ôm: 1 / 2 / 3. L = tim gối đầu → tim gối cuối khoảng đó. */
+  antiBucklingSegments?: 1 | 2 | 3;
 }
 
 export interface SecondaryMember {

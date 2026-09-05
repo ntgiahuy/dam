@@ -136,6 +136,12 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
     antiBucklingDia: [10, 12, 14, 16].includes(Number(r.antiBucklingDia))
       ? Number(r.antiBucklingDia)
       : 12,
+    antiBucklingSegments: (() => {
+      const n = Number(r.antiBucklingSegments);
+      if (n === 2) return 2 as const;
+      if (n === 3) return 3 as const;
+      return 1 as const;
+    })(),
   };
   if (typeof r.a1 === "number" || typeof r.a2 === "number") {
     return {

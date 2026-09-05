@@ -14,7 +14,13 @@ import {
   type ResolvedBar,
   type ScheduleRow,
 } from "../calc";
-import { extraTieElevationNote, extraTieFlagsForSpan } from "../extra-ties";
+import {
+  antiBucklingResolvedBars,
+  doubleHoopOffsetsMm,
+  extraTieElevationNote,
+  extraTieFlagsForSpan,
+  extraTieShopStripRows,
+} from "../extra-ties";
 
 const PAGE_W = 1684;
 const PAGE_H = 1191;
@@ -347,6 +353,14 @@ function covers(bar: ResolvedBar, x: number, pad = 30) {
 }
 
 function markForBar(schedule: ScheduleRow[], bar: ResolvedBar) {
+  if (bar.sourceId.startsWith("anti-")) {
+    return schedule.find(
+      (r) =>
+        r.extraKind === "anti" &&
+        r.dia === bar.dia &&
+        Math.round(r.barLength) === Math.round(bar.cutLength),
+    );
+  }
   const piece = bar.pieceIndex ?? 0;
   const exact = schedule.find(
     (r) =>
@@ -379,6 +393,11 @@ function splitQty(qty: number, face: "top" | "bottom") {
   if (n <= 2) return [n];
   if (face === "top") return [2, n - 2];
   return [n - 2, 2];
+}
+
+function shopFamilyTag(bar: ResolvedBar, row?: ScheduleRow) {
+  if (bar.sourceId.startsWith("anti-") || row?.extraKind === "anti") return "CP";
+  return row?.family ?? barFamilyOf(bar);
 }
 
 function shopSpec(qty: number, bar: ResolvedBar, family: string) {
@@ -528,7 +547,7 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const x1 = pageBars[i].x1;
     const x2 = pageBars[i].x2;
     const row = markForBar(schedule, b);
-    const family = row?.family ?? barFamilyOf(b);
+    const family = shopFamilyTag(b, row);
     const mark = row?.mark ?? "";
     const markX = markXs[i] ?? (x1 + x2) / 2;
     drawHookedBar(ctx, x1, x2, y, b.hookStart, b.hookEnd, dir, 1.05);
@@ -556,15 +575,22 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   const mb = model.mainBottom;
   const topLayers = extraLayers(model.extraTop);
   const botLayers = extraLayers(model.extraBottom);
+  const antiBars = antiBucklingResolvedBars(ctx.project);
+  const hasAnti = antiBars.length > 0;
   const hasExtras = topLayers.length > 0 || botLayers.length > 0;
-  const gap = topLayers.length && botLayers.length ? MOMENT_GAP : 0;
-  const padTop = mt.length && hasExtras ? EXTRA_BAND_PAD : 0;
-  const padBot = mb.length && hasExtras ? EXTRA_BAND_PAD : 0;
+  const hasMidBand = hasExtras || hasAnti;
+  const padTop = mt.length && hasMidBand ? EXTRA_BAND_PAD : 0;
+  const padBot = mb.length && hasMidBand ? EXTRA_BAND_PAD : 0;
+  const gapAroundCp = hasAnti ? 6 : 0;
+  const gapMoments = !hasAnti && topLayers.length && botLayers.length ? MOMENT_GAP : 0;
   const total =
     mainShopBlockH(mt) +
     padTop +
     topLayers.length * EXTRA_SHOP_H +
-    gap +
+    (hasAnti && topLayers.length ? gapAroundCp : 0) +
+    (hasAnti ? EXTRA_SHOP_H : 0) +
+    (hasAnti && botLayers.length ? gapAroundCp : 0) +
+    gapMoments +
     botLayers.length * EXTRA_SHOP_H +
     padBot +
     mainShopBlockH(mb);
@@ -573,8 +599,15 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   let y = yStart;
   if (mt.length) y = drawMainShopRows(ctx, mt, y, 1);
 
+  let bandOpen = false;
+  const openBand = () => {
+    if (bandOpen) return;
+    y += padTop || (mt.length || topLayers.length ? 2 : 0);
+    bandOpen = true;
+  };
+
   if (topLayers.length) {
-    y += padTop || 2;
+    openBand();
     for (const [, bars] of topLayers) {
       textSimple(ctx, "M-", 108, y + 1, 7, true, "right");
       drawExtraShopRow(ctx, bars, model.schedule, y, 1);
@@ -582,9 +615,18 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
     }
   }
 
-  if (gap) y += gap;
+  if (hasAnti) {
+    openBand();
+    if (topLayers.length) y += gapAroundCp;
+    textSimple(ctx, "CP", 108, y + 1, 7, true, "right");
+    drawExtraShopRow(ctx, antiBars, model.schedule, y, -1);
+    y += EXTRA_SHOP_H;
+  }
 
   if (botLayers.length) {
+    openBand();
+    if (hasAnti) y += gapAroundCp;
+    else if (topLayers.length) y += gapMoments;
     for (const [, bars] of botLayers) {
       textSimple(ctx, "M+", 108, y + 1, 7, true, "right");
       drawExtraShopRow(ctx, bars, model.schedule, y, -1);
@@ -593,7 +635,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   }
 
   if (mb.length) {
-    if (hasExtras) y += padBot;
+    if (bandOpen) y += padBot;
     y = drawMainShopRows(ctx, mb, y, -1);
   }
   return y + 2;
@@ -913,12 +955,22 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
     );
   }
 
+  const antiBars = antiBucklingResolvedBars(project);
+  const midY = (topY + botY) / 2;
+  for (const b of antiBars) {
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), midY - 0.7, 0, 0, -1, 0.85);
+    drawHookedBar(ctx, xAt(ctx, b.x1), xAt(ctx, b.x2), midY + 0.7, 0, 0, -1, 0.85);
+  }
+
   for (const t of model.stirrups.ticks) {
     const x = xAt(ctx, t.x);
     line(ctx, x, y0 + 2.5, x, y1 - 2.5, t.dense ? 0.5 : 0.32);
   }
 
-  const stMark = model.schedule.find((r) => r.family === "D" && !r.extraKind)?.mark ?? "9";
+  const stMark =
+    model.schedule.find((r) => r.family === "D" && !r.extraKind)?.mark ??
+    model.schedule.find((r) => r.extraKind === "double")?.mark ??
+    "9";
   if (!hogging.length) {
     for (const lb of model.stirrups.labels) {
       const x = xAt(ctx, lb.x);
@@ -969,6 +1021,11 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
       y: botY - extraLayerOffsetMm(bar.layer) * mmToPt,
       fullMark: false,
     })),
+    ...antiBars.map((bar) => ({
+      bar,
+      y: midY,
+      fullMark: true,
+    })),
   ]);
   void extraMarks;
 
@@ -991,6 +1048,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   };
   drawElevFamilyMarks(model.mainTop, topY);
   drawElevFamilyMarks(model.mainBottom, botY);
+  if (antiBars.length) drawElevFamilyMarks(antiBars, midY);
 
   const elev = ctx.project.info.elevation;
   const elevStr = elev === 0 ? "±0.000" : elev > 0 ? `+${elev.toFixed(3)}` : elev.toFixed(3);
@@ -1125,7 +1183,9 @@ function drawCrossSection(
   const sy = boxY + inset;
   const sw = Math.max(W - inset * 2, 6);
   const sh = Math.max(H - inset * 2, 6);
-  drawStirrupFrame(ctx, sx, sy, sw, sh);
+  if (!cut.extraDouble) {
+    drawStirrupFrame(ctx, sx, sy, sw, sh);
+  }
   if (cut.extraNestedCx && !cut.extraDouble) {
     drawStirrupFrame(ctx, sx + sw * 0.28, sy + 1.2, sw * 0.44, sh - 2.4, 0.55);
   }
@@ -1133,8 +1193,13 @@ function drawCrossSection(
     drawStirrupFrame(ctx, sx + 1.2, sy + sh * 0.28, sw - 2.4, sh * 0.44, 0.55);
   }
   if (cut.extraDouble) {
-    drawStirrupFrame(ctx, sx + 0.8, sy + 1.2, sw * 0.42, sh - 2.4, 0.5);
-    drawStirrupFrame(ctx, sx + sw * 0.56, sy + 1.2, sw * 0.42, sh - 2.4, 0.5);
+    const bars = Math.max(model.mainTop[0]?.qty || 0, model.mainBottom[0]?.qty || 0, 2);
+    const mainDia = model.mainTop[0]?.dia ?? model.mainBottom[0]?.dia ?? 18;
+    const innerBmm = Math.max(model.B - 2 * (project.info.cover || 25), 40);
+    const hoops = doubleHoopOffsetsMm(innerBmm, bars, mainDia);
+    const scaleX = sw / innerBmm;
+    drawStirrupFrame(ctx, sx + hoops.leftX * scaleX, sy, hoops.widthMm * scaleX, sh, 0.7);
+    drawStirrupFrame(ctx, sx + hoops.rightX * scaleX, sy, hoops.widthMm * scaleX, sh, 0.7);
   }
   dashV(ctx, cx + W / 2, boxY - 3, boxY + H + 8, 2.6, 1.9, 0.28);
 
@@ -1166,15 +1231,12 @@ function drawCrossSection(
       if (!row) return;
       markCircle(ctx, x, y, row.mark, 4.8);
     };
-    if (cut.extraCCy) markAt("c-cy", midX + 10, (topY + botY) / 2);
-    if (cut.extraCCx) markAt("c-cx", (innerL + innerR) / 2, midY - 8);
     if (cut.extraNestedCx && !cut.extraDouble) markAt("nested-cx", midX, topY + (botY - topY) * 0.22);
     if (cut.extraNestedCy && !cut.extraDouble) markAt("nested-cy", innerL + 10, midY);
     if (cut.extraDouble) {
       markAt("double", innerL + (innerR - innerL) * 0.22, midY);
       markAt("double", innerL + (innerR - innerL) * 0.78, midY);
     }
-    if (cut.antiBuckling) markAt("anti", innerR + 10, midY);
   }
 
   const extraTop = cut.kind === "support" ? cut.extraTop : cut.extraTop.filter((b) => covers(b, cut.x, 20));
@@ -1221,7 +1283,9 @@ function drawCrossSection(
     model.schedule.find((r) => r.extraKind === kind);
   const leftX = ox + 10;
   const dimX = cx - 16;
-  const stirrupY = boxY + H / 2;
+  const stirrupY = boxY + H / 3;
+  const antiY = boxY + H / 2;
+  const cY = boxY + (3 * H) / 4;
   dimV(ctx, dimX, boxY, boxY + H, String(model.H), 6.2, "left");
   if (mt && model.mainTop[0] && topN) {
     drawLayerCallout(
@@ -1234,8 +1298,33 @@ function drawCrossSection(
       "left",
     );
   }
-  if (st) {
+  if (st && !cut.extraDouble) {
     drawLayerCallout(ctx, leftX, stirrupY, st.mark, `Ø${model.stirrups.dia} a${cut.spacing}`, cx + inset, "left");
+  }
+  if (cut.extraDouble) {
+    const dbl = extraRow("double");
+    if (dbl) {
+      drawLayerCallout(
+        ctx,
+        leftX,
+        stirrupY,
+        dbl.mark,
+        `2Ø${dbl.dia} a${dbl.spacing ?? cut.spacing}`,
+        cx + inset,
+        "left",
+      );
+    }
+  }
+  if (cut.antiBuckling) {
+    const anti = extraRow("anti");
+    if (anti) {
+      drawLayerCallout(ctx, leftX, antiY, anti.mark, `2Ø${anti.dia}`, innerL, "left");
+    }
+  }
+  if (cut.extraCCx || cut.extraCCy) {
+    const cRow = extraRow("c-cy") ?? extraRow("c-cx");
+    const cSpec = cRow ? `Ø${cRow.dia} a${cRow.spacing ?? cut.spacing}` : "";
+    drawLayerCallout(ctx, leftX, cY, "C", cSpec, (innerL + innerR) / 2, "left");
   }
   if (mb && model.mainBottom[0] && botN) {
     drawLayerCallout(
@@ -1279,7 +1368,6 @@ function drawCrossSection(
     const a = row.spacing ? ` a${row.spacing}` : "";
     extraNotes.push(`${row.mark} ${row.label ?? ""} Ø${row.dia}${a}`.replace(/\s+/g, " ").trim());
   };
-  pushNote("c-cx", cut.extraCCx);
   pushNote("c-cy", cut.extraCCy);
   pushNote("nested-cx", cut.extraNestedCx && !cut.extraDouble);
   pushNote("nested-cy", cut.extraNestedCy && !cut.extraDouble);
@@ -1553,7 +1641,9 @@ export async function generateBeamPdf(
   }
   uniqueCuts.sort((a, b) => a.n - b.n);
 
-  const stirrupRow = model.schedule.find((r) => r.family === "D" && !r.extraKind);
+  const stirrupRow =
+    model.schedule.find((r) => r.family === "D" && !r.extraKind) ??
+    model.schedule.find((r) => r.extraKind === "double");
   const extraRows = model.schedule.filter((r) => r.extraKind);
   const sectTop = y + 8;
   const n = Math.max(uniqueCuts.length, 1);
@@ -1571,13 +1661,12 @@ export async function generateBeamPdf(
   }
   const extraNoteLines = Math.max(
     ...uniqueCuts.map((c) =>
-      [c.extraCCx, c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean)
-        .length,
+      [c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean).length,
     ),
     0,
   );
   const stripY = sectTop + boxH + 42 + extraNoteLines * 7.2;
-  const stripH = drawExtraTieShopStrip(ctx, 24, stripY, extraRows);
+  const stripH = drawExtraTieShopStrip(ctx, 24, stripY, extraTieShopStripRows(extraRows));
 
   const tableY = Math.min(stripY + stripH + 18, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
