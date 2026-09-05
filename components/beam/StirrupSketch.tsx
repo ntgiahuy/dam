@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  EXTRA_LAYER_SPACING_MM,
   barPositions,
   extraBarXsInSection,
   extraLayerOffsetMm,
@@ -47,6 +48,9 @@ export function StirrupSketch({
   const mmToPx = sh / innerHmm;
   const topY = sy;
   const botY = sy + sh;
+  /** Phóng nhẹ khoảng lớp 2/3 trên minh họa — thông số thật vẫn 25 mm. */
+  const layerY = (from: number, layer: number, dir: 1 | -1) =>
+    from + dir * sketchLayerOffsetPx(layer, mmToPx, barR);
   const topXs = topN ? barPositions(sx, sx + sw, topN) : [];
   const botXs = botN ? barPositions(sx, sx + sw, botN) : [];
 
@@ -119,8 +123,8 @@ export function StirrupSketch({
       {extraC ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
 
       {[1, 2, 3].map((layer) => {
-        const yT = topY + extraLayerOffsetMm(layer) * mmToPx;
-        const yB = botY - extraLayerOffsetMm(layer) * mmToPx;
+        const yT = layerY(topY, layer, 1);
+        const yB = layerY(botY, layer, -1);
         return (
           <g key={`guide-${layer}`} opacity={0.35}>
             <line x1={sx} y1={yT} x2={sx + sw} y2={yT} stroke="#38bdf8" strokeDasharray="3 3" strokeWidth={0.7} />
@@ -130,7 +134,7 @@ export function StirrupSketch({
       })}
 
       {byLayer(extraTop).map(([layer, bar]) => {
-        const y = topY + extraLayerOffsetMm(layer) * mmToPx;
+        const y = layerY(topY, layer, 1);
         const xs = extraBarXsInSection(sx, sx + sw, bar.qty, layer, topXs.length ? topXs : [sx, sx + sw]);
         return (
           <g key={`t-${layer}`}>
@@ -155,7 +159,7 @@ export function StirrupSketch({
         );
       })}
       {byLayer(extraBottom).map(([layer, bar]) => {
-        const y = botY - extraLayerOffsetMm(layer) * mmToPx;
+        const y = layerY(botY, layer, -1);
         const xs = extraBarXsInSection(sx, sx + sw, bar.qty, layer, botXs.length ? botXs : [sx, sx + sw]);
         return (
           <g key={`b-${layer}`}>
@@ -194,6 +198,16 @@ export function StirrupSketch({
       </text>
     </svg>
   );
+}
+
+/** Lớp 2/3 cách chủ đủ để không đè chấm đỏ; lớp 1 vẫn cùng mặt phẳng chủ. */
+function sketchLayerOffsetPx(layer: number, mmToPx: number, barR: number) {
+  const mm = extraLayerOffsetMm(layer);
+  if (mm <= 0) return 0;
+  const steps = mm / EXTRA_LAYER_SPACING_MM;
+  const drawn = mm * mmToPx;
+  const clear = steps * (barR * 2 + 8);
+  return Math.max(drawn, clear);
 }
 
 function hookedRect(x: number, y: number, w: number, h: number) {
