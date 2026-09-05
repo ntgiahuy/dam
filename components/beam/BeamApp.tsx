@@ -37,7 +37,7 @@ import {
   stirrupZonesForSpan,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
-import { extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
+import { ANTI_BUCKLING_DIAS, extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
   migrateLoadedProject,
@@ -1144,6 +1144,22 @@ export function BeamApp() {
                           />
                           Thép chống phình Ø
                         </label>
+                        <Select
+                          className="h-8 w-[72px]"
+                          value={normalizeAntiBucklingDia(src.antiBucklingDia)}
+                          onChange={(e) =>
+                            patchStirrup({
+                              antiBucklingDia: Number(e.target.value),
+                              extraC: antiOn ? true : src.extraC,
+                            })
+                          }
+                        >
+                          {ANTI_BUCKLING_DIAS.map((d) => (
+                            <option key={d} value={d}>
+                              {d}
+                            </option>
+                          ))}
+                        </Select>
                         {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
                         {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
                         {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
