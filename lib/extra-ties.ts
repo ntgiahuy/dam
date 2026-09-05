@@ -163,11 +163,11 @@ export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolea
   return project.stirrups.some((s) => s.antiBuckling);
 }
 
-/** Đai lồng / kép: lớp trên = lớp dưới và mỗi lớp ≥ 4 thanh chủ. */
+/** Đai lồng / kép: lớp trên = lớp dưới, ≥ 4 thanh/lớp, đủ thép chủ ở 4 góc đai. */
 export function extraTieAllowNested(project: BeamProject): boolean {
   const top = mainLayerQty(project.mainTop);
   const bot = mainLayerQty(project.mainBottom);
-  return top >= 4 && top === bot;
+  return top >= 4 && top === bot && nestedWrapCount(top) >= 2;
 }
 
 /** Cờ đai bổ sung đã được phép trên một nhịp — dùng khi vẽ PDF/mặt cắt. */
@@ -211,8 +211,32 @@ export function extraTieElevationNote(project: BeamProject, spanIndex: number) {
   return parts.join(" · ");
 }
 
-function wrapNested(bars: number) {
-  return Math.max(2, Math.ceil(bars / 3));
+/** Số thanh chủ một cạnh mà đai lồng ôm (nhóm giữa). */
+export function nestedWrapCount(bars: number) {
+  return Math.max(2, Math.ceil(Math.max(0, bars) / 3));
+}
+
+/** Chỉ số thanh đầu/cuối của nhóm giữa — 4 góc đai trùng thép chủ trên + dưới. */
+export function nestedWrapRange(bars: number) {
+  const n = Math.max(0, Math.round(bars));
+  const wrap = nestedWrapCount(n);
+  const start = n <= 0 ? 0 : Math.max(0, Math.floor((n - wrap) / 2));
+  const end = n <= 0 ? 0 : Math.min(n - 1, start + wrap - 1);
+  return { wrap, start, end };
+}
+
+/** Khung đai lồng ôm ngoài nhóm thanh giữa (trái/phải = mép ngoài thanh góc). */
+export function nestedHoopFromBarXs(xs: number[], barR: number) {
+  const { start, end } = nestedWrapRange(xs.length);
+  const left = xs[start] ?? 0;
+  const right = xs[end] ?? left;
+  const r = Math.max(barR, 0);
+  return {
+    x: left - r,
+    width: Math.max(r * 2, right - left + r * 2),
+    start,
+    end,
+  };
 }
 
 /** Số thanh chủ mỗi đai kép ôm — 2/3 số thanh trên cạnh (shop cột `tt`). */
@@ -353,8 +377,8 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
         ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
         : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
     innerHint: allowInner
-      ? "Lớp trên = lớp dưới và ≥ 4 thanh/lớp — được chọn đai lồng / đai kép."
-      : "Cần thép chủ lớp trên bằng lớp dưới, mỗi lớp ≥ 4 thanh.",
+      ? "Lớp trên = lớp dưới, ≥ 4 thanh/lớp, thép chủ ở 4 góc đai."
+      : "Cần lớp trên = lớp dưới, mỗi lớp ≥ 4 thanh, thép chủ nằm ở 4 góc đai.",
   };
 }
 
@@ -417,8 +441,8 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
   const allowC = extraTieAllowC(project);
   const allowInner = extraTieAllowNested(project);
 
-  const nestedW = wrapWidthMm(innerB, bars, dia, wrapNested(bars));
-  const nestedH = wrapWidthMm(innerH, bars, dia, wrapNested(bars));
+  const nestedW = wrapWidthMm(innerB, bars, dia, nestedWrapCount(bars));
+  const nestedH = wrapWidthMm(innerH, bars, dia, nestedWrapCount(bars));
   const doubleW = doubleShortSideMm(innerB, bars, dia);
   const dirs = extraCDirs(project.stirrups.find((s) => s.extraC) ?? project.stirrups[0]);
   const cOn = used.extraC && allowC;

@@ -6,7 +6,7 @@ import {
   extraBarXsInSection,
   extraLayerOffsetMm,
 } from "@/lib/calc";
-import { doubleHoopOffsetsMm } from "@/lib/extra-ties";
+import { doubleHoopOffsetsMm, nestedHoopFromBarXs } from "@/lib/extra-ties";
 import type { ExtraBar, StirrupKind } from "@/lib/types";
 
 /** Minh họa mặt cắt đai + thép tăng cường (lớp 1 giữa chủ, 2/3 cách 25 mm). */
@@ -69,6 +69,10 @@ export function StirrupSketch({
     from + dir * sketchLayerOffsetPx(layer, mmToPx, barR);
   const topXs = topN ? barPositions(sx, sx + sw, topN) : [];
   const botXs = botN ? barPositions(sx, sx + sw, botN) : [];
+  const nestedHoop =
+    extraNested && !extraDouble && extraNestedCx && topN >= 4 && topN === botN
+      ? nestedHoopFromBarXs(topXs, barR)
+      : null;
 
   const byLayer = (bars: ExtraBar[]) => {
     const map = new Map<number, ExtraBar>();
@@ -108,21 +112,11 @@ export function StirrupSketch({
           strokeLinejoin="round"
         />
       ) : null}
-      {extraNested && !extraDouble && extraNestedCx ? (
+      {nestedHoop ? (
         <path
-          d={hookedRect(sx + sw * 0.28, sy + 4, sw * 0.44, sh - 8)}
+          d={hookedRect(nestedHoop.x, sy, nestedHoop.width, sh)}
           fill="none"
           stroke="#4dabf7"
-          strokeWidth={4.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ) : null}
-      {extraNested && !extraDouble && extraNestedCy ? (
-        <path
-          d={hookedRect(sx + 4, sy + sh * 0.28, sw - 8, sh * 0.44)}
-          fill="none"
-          stroke="#74c0fc"
           strokeWidth={4.2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -259,7 +253,7 @@ function sketchLayerOffsetPx(layer: number, mmToPx: number, barR: number) {
 }
 
 function hookedRect(x: number, y: number, w: number, h: number) {
-  const i = Math.max(8, Math.min(w, h) * 0.12);
+  const i = Math.max(2.2, Math.min(w, h) * 0.035);
   const a = Math.max(16, Math.min(w, h) * 0.14);
   const o = a * 0.7071;
   const s = Math.max(5, a * 0.28);

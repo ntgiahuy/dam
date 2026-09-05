@@ -19,6 +19,7 @@ import {
   doubleHoopOffsetsMm,
   extraTieElevationNote,
   extraTieFlagsForSpan,
+  nestedHoopFromBarXs,
 } from "../extra-ties";
 
 const PAGE_W = 1684;
@@ -653,6 +654,8 @@ type CutLoc = {
   extraNestedCx: boolean;
   extraNestedCy: boolean;
   extraDouble: boolean;
+  extraNestedDia: number;
+  extraNestedSpacing: number;
 };
 
 function buildCuts(ctx: Ctx): CutLoc[] {
@@ -676,6 +679,8 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       extraNestedCx: flags.extraNestedCx,
       extraNestedCy: flags.extraNestedCy,
       extraDouble: flags.extraDouble,
+      extraNestedDia: flags.extraNestedDia,
+      extraNestedSpacing: flags.extraNestedSpacing,
     });
   });
   project.spans.forEach((_, i) => {
@@ -696,6 +701,8 @@ function buildCuts(ctx: Ctx): CutLoc[] {
       extraNestedCx: flags.extraNestedCx,
       extraNestedCy: flags.extraNestedCy,
       extraDouble: flags.extraDouble,
+      extraNestedDia: flags.extraNestedDia,
+      extraNestedSpacing: flags.extraNestedSpacing,
     });
   });
   raw.sort((a, b) => a.x - b.x);
@@ -1113,7 +1120,7 @@ function arcDeg(ctx: Ctx, cx: number, cy: number, r: number, startDeg: number, e
 }
 
 function drawStirrupFrame(ctx: Ctx, x: number, y: number, w: number, h: number, t = 0.7) {
-  const r = Math.min(7.4, w * 0.22, h * 0.18);
+  const r = Math.min(1.85, w * 0.04, h * 0.03);
   const hook = Math.min(6.8, w * 0.26, h * 0.12);
   const L = x;
   const R = x + w;
@@ -1182,14 +1189,22 @@ function drawCrossSection(
   const sy = boxY + inset;
   const sw = Math.max(W - inset * 2, 6);
   const sh = Math.max(H - inset * 2, 6);
+  const topN = Math.min(Math.max(model.mainTop[0]?.qty || 0, 0), 6);
+  const botN = Math.min(Math.max(model.mainBottom[0]?.qty || 0, 0), 6);
+  const topY = boxY + inset + barR + 0.8;
+  const botY = boxY + H - inset - barR - 0.8;
+  const topXs = topN ? barXs(innerL, innerR, topN) : [];
+  const botXs = botN ? barXs(innerL, innerR, botN) : [];
+  const nestedHoop =
+    cut.extraNestedCx && !cut.extraDouble && topXs.length >= 4 && topXs.length === botXs.length
+      ? nestedHoopFromBarXs(topXs, barR)
+      : null;
+
   if (!cut.extraDouble) {
     drawStirrupFrame(ctx, sx, sy, sw, sh);
   }
-  if (cut.extraNestedCx && !cut.extraDouble) {
-    drawStirrupFrame(ctx, sx + sw * 0.28, sy + 1.2, sw * 0.44, sh - 2.4, 0.55);
-  }
-  if (cut.extraNestedCy && !cut.extraDouble) {
-    drawStirrupFrame(ctx, sx + 1.2, sy + sh * 0.28, sw - 2.4, sh * 0.44, 0.55);
+  if (nestedHoop) {
+    drawStirrupFrame(ctx, nestedHoop.x, sy, nestedHoop.width, sh, 0.55);
   }
   if (cut.extraDouble) {
     const bars = Math.max(model.mainTop[0]?.qty || 0, model.mainBottom[0]?.qty || 0, 2);
@@ -1202,12 +1217,6 @@ function drawCrossSection(
   }
   dashV(ctx, cx + W / 2, boxY - 3, boxY + H + 8, 2.6, 1.9, 0.28);
 
-  const topN = Math.min(Math.max(model.mainTop[0]?.qty || 0, 0), 6);
-  const botN = Math.min(Math.max(model.mainBottom[0]?.qty || 0, 0), 6);
-  const topY = boxY + inset + barR + 0.8;
-  const botY = boxY + H - inset - barR - 0.8;
-  const topXs = topN ? barXs(innerL, innerR, topN) : [];
-  const botXs = botN ? barXs(innerL, innerR, botN) : [];
   if (topN) placeDots(ctx, topXs, topY, barR);
   if (botN) placeDots(ctx, botXs, botY, barR);
   {
@@ -1360,10 +1369,18 @@ function drawCrossSection(
   if (cut.extraCCx) drawRightTieCallout("c-cx", belowTopExtra, innerR);
   if (cut.extraCCy) drawRightTieCallout("c-cy", belowTopExtra, midX);
   if (cut.extraNestedCx && !cut.extraDouble) {
-    drawRightTieCallout("nested-cx", topY + (botY - topY) * 0.22, midX);
-  }
-  if (cut.extraNestedCy && !cut.extraDouble) {
-    drawRightTieCallout("nested-cy", antiY, innerL);
+    const row =
+      extraRow("nested-cx") ??
+      extraRow("nested") ??
+      model.schedule.find((r) => String(r.extraKind || "").startsWith("nested"));
+    const hoop = nestedHoop ?? (topXs.length >= 2 ? nestedHoopFromBarXs(topXs, barR) : null);
+    const tickX = hoop ? hoop.x + hoop.width : innerR;
+    const twoThirdsY = boxY + H / 3;
+    const spec = `Ø${row?.dia ?? cut.extraNestedDia} a${row?.spacing ?? cut.extraNestedSpacing ?? cut.spacing}`;
+    const mark = row ? String(row.markNum) : "";
+    if (mark) {
+      drawLayerCallout(ctx, rightX, twoThirdsY, mark, spec, tickX, "right");
+    }
   }
   for (const e of drawnBotExtras) {
     const row = markForBar(model.schedule, e.bar);
@@ -1432,26 +1449,63 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), sx - 12, sy + 2, 5.6);
     return;
   }
-  const x1 = x + 10;
-  const x2 = x + w - 12;
-  const hook = Math.min(11, h * 0.38);
-  line(ctx, x1, cy, x2, cy, 0.85);
+  const hookSize = 5.4;
+  const hookGap = 2.8;
+  const hooked =
+    row.shape === "u-top" || row.shape === "u-bottom" || row.shape === "l-left" || row.shape === "l-right";
   const down = row.shape === "u-top" || row.family === "T1" || row.family === "T2";
   const dir = down ? 1 : -1;
+  const rightHookVal =
+    row.shape === "l-right"
+      ? (row.segs[1] ?? 0)
+      : row.shape === "u-top" || row.shape === "u-bottom"
+        ? (row.segs[2] ?? 0)
+        : 0;
+  const rightLabelW = hooked && rightHookVal
+    ? ctx.font.widthOfTextAtSize(String(Math.round(rightHookVal)), hookSize)
+    : 0;
+  const x1 = x + 8;
+  const x2 = x + w - (rightLabelW ? hookGap + rightLabelW + 3.2 : 12);
+  const dimAbove = 7.2;
+  const edge = 1.4;
+  const barY = hooked
+    ? down
+      ? y + dimAbove
+      : y + h - dimAbove
+    : cy;
+  const hook = hooked
+    ? Math.max(9, down ? y + h - edge - barY : barY - (y + edge))
+    : 0;
+  line(ctx, x1, barY, x2, barY, 0.85);
+  const hookLenLabel = (value: number, hookX: number) => {
+    const label = String(Math.round(value));
+    // Center on the exposed stem: clear the bend so digits sit at mid-hook, right of the stroke.
+    const fromBend = Math.max(4.2, hookSize * 0.72);
+    const fromTip = Math.max(2.2, hookSize * 0.28);
+    const usable = Math.max(hookSize, hook - fromBend - fromTip);
+    const midY = barY + dir * (fromBend + usable * 0.5);
+    ctx.page.drawText(label, {
+      x: hookX + hookGap,
+      y: ty(midY) - hookSize * (CAP_RATIO / 2),
+      size: hookSize,
+      font: ctx.font,
+      color: BLACK,
+    });
+  };
   if (row.shape === "u-top" || row.shape === "u-bottom") {
-    line(ctx, x1, cy, x1, cy + dir * hook, 0.85);
-    line(ctx, x2, cy, x2, cy + dir * hook, 0.85);
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), x1 - 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
-    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
-    textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), x2 + 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
+    line(ctx, x1, barY, x1, barY + dir * hook, 0.85);
+    line(ctx, x2, barY, x2, barY + dir * hook, 0.85);
+    hookLenLabel(row.segs[0] ?? 0, x1);
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
+    hookLenLabel(row.segs[2] ?? 0, x2);
   } else if (row.shape === "l-left") {
-    line(ctx, x1, cy, x1, cy + dir * hook, 0.85);
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), x1 - 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
-    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
+    line(ctx, x1, barY, x1, barY + dir * hook, 0.85);
+    hookLenLabel(row.segs[0] ?? 0, x1);
+    textAboveLine(ctx, String(Math.round(row.segs[1] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
   } else if (row.shape === "l-right") {
-    line(ctx, x2, cy, x2, cy + dir * hook, 0.85);
-    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
-    textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), x2 + 1, cy + (dir > 0 ? hook + 7 : 8), 5.5, false, "center");
+    line(ctx, x2, barY, x2, barY + dir * hook, 0.85);
+    textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, barY, 6, "center", false, 2.8);
+    hookLenLabel(row.segs[1] ?? 0, x2);
   } else {
     textAboveLine(ctx, String(Math.round(row.segs[0] ?? 0)), (x1 + x2) / 2, cy, 6, "center", false, 2.8);
   }
@@ -1481,7 +1535,7 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
   const w = cols.reduce((s, c) => s + c.w, 0);
   const headerH = 52;
   const avail = Math.max(PAGE_H - y - 36, 120);
-  const rowH = Math.min(29, Math.max(16, (avail - headerH - 8) / Math.max(rows.length, 1)));
+  const rowH = Math.min(34, Math.max(18, (avail - headerH - 8) / Math.max(rows.length, 1)));
   const h = headerH + rows.length * rowH;
   textSimple(ctx, "BẢNG THỐNG KÊ CỐT THÉP", x + w / 2, y + 2, 10.5, true, "center");
   const schedTitleW = ctx.fontBold.widthOfTextAtSize("BẢNG THỐNG KÊ CỐT THÉP", 10.5);

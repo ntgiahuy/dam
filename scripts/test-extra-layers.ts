@@ -20,6 +20,8 @@ import {
   extraTieAllowC,
   extraTieAllowNested,
   extraTieFlagsForSpan,
+  nestedHoopFromBarXs,
+  nestedWrapRange,
   normalizeAntiBucklingSegments,
   normalizeExtraTieDia,
 } from "../lib/extra-ties";
@@ -102,6 +104,10 @@ const with4 = {
   mainBottom: [{ id: "m", qty: 4, dia: 18, startAxis: 0, endAxis: 1, autoCut: false, lapMultiple: 40 as const }],
 };
 assert(extraTieAllowNested(with4), "trên = dưới = 4 — hiện đai lồng/kép");
+const wrap4 = nestedWrapRange(4);
+assert(wrap4.start === 1 && wrap4.end === 2 && wrap4.wrap === 2, "lồng 4 thanh ôm 2 thanh giữa");
+const hoop4 = nestedHoopFromBarXs([0, 50, 100, 150], 5);
+assert(Math.abs(hoop4.x - 45) < 1e-6 && Math.abs(hoop4.width - 60) < 1e-6, "khung lồng ôm mép ngoài 2 thanh giữa");
 
 assert(normalizeExtraTieDia(10) === 10, "Ø10 ok");
 assert(normalizeExtraTieDia(16, 8) === 8, "Ø16 invalid → fallback");
