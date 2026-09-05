@@ -1,4 +1,4 @@
-import type { BarShape, ResolvedBar, ScheduleRow } from "./calc";
+import type { BarShape, ResolvedBar } from "./calc";
 import type { BeamProject, SpanStirrups } from "./types";
 
 function typicalH(spans: { H: number }[]) {
@@ -196,7 +196,8 @@ export function extraTieFlagsForSpan(project: BeamProject, spanIndex: number) {
 export function extraTieElevationNote(project: BeamProject, spanIndex: number) {
   const f = extraTieFlagsForSpan(project, spanIndex);
   const parts: string[] = [];
-  if (f.extraCCy) parts.push(`C Ø${f.extraCDia}a${f.extraCSpacing}`);
+  if (f.extraCCx) parts.push(`Cx Ø${f.extraCDia}a${f.extraCSpacing}`);
+  if (f.extraCCy) parts.push(`Cy Ø${f.extraCDia}a${f.extraCSpacing}`);
   if (f.extraNestedCx) parts.push(`Lồng-Cx Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
   if (f.extraNestedCy) parts.push(`Lồng-Cy Ø${f.extraNestedDia}a${f.extraNestedSpacing}`);
   if (f.extraDouble) parts.push(`Kép Ø${f.extraDoubleDia}a${f.extraDoubleSpacing}`);
@@ -349,11 +350,6 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
       ? "≥ 4 thanh thép chủ trên một lớp — được chọn đai lồng / đai kép (shop thép cột)."
       : "Cần ≥ 4 thanh thép chủ trên một lớp mới hiện đai lồng / đai kép (shop thép cột).",
   };
-}
-
-/** Hàng shop đai bổ sung: bỏ hình Đai C (U) — C đã thể hiện trên mặt cắt. */
-export function extraTieShopStripRows<T extends Pick<ScheduleRow, "extraKind">>(rows: T[]) {
-  return rows.filter((r) => r.extraKind !== "c-cx" && r.extraKind !== "c-cy");
 }
 
 /** Thanh chống phình trên mặt dầm / nổ dầm: 2Ø, L = tim gối đầu → tim gối cuối. */

@@ -19,7 +19,6 @@ import {
   doubleHoopOffsetsMm,
   extraTieElevationNote,
   extraTieFlagsForSpan,
-  extraTieShopStripRows,
 } from "../extra-ties";
 
 const PAGE_W = 1684;
@@ -1292,7 +1291,7 @@ function drawCrossSection(
       ctx,
       leftX,
       topY,
-      mt.mark,
+      String(mt.markNum),
       barNotation(model.mainTop[0].qty, model.mainTop[0].dia),
       topXs[0],
       "left",
@@ -1321,17 +1320,26 @@ function drawCrossSection(
       drawLayerCallout(ctx, leftX, antiY, anti.mark, `2Ø${anti.dia}`, innerL, "left");
     }
   }
-  if (cut.extraCCx || cut.extraCCy) {
-    const cRow = extraRow("c-cy") ?? extraRow("c-cx");
-    const cSpec = cRow ? `Ø${cRow.dia} a${cRow.spacing ?? cut.spacing}` : "";
-    drawLayerCallout(ctx, leftX, cY, "C", cSpec, (innerL + innerR) / 2, "left");
+  if (cut.extraCCy) {
+    const cyRow = extraRow("c-cy");
+    if (cyRow) {
+      drawLayerCallout(
+        ctx,
+        leftX,
+        cY,
+        String(cyRow.markNum),
+        `Ø${cyRow.dia} a${cyRow.spacing ?? cut.spacing}`,
+        (innerL + innerR) / 2,
+        "left",
+      );
+    }
   }
   if (mb && model.mainBottom[0] && botN) {
     drawLayerCallout(
       ctx,
       leftX,
       botY,
-      mb.mark,
+      String(mb.markNum),
       barNotation(model.mainBottom[0].qty, model.mainBottom[0].dia),
       botXs[0],
       "left",
@@ -1339,6 +1347,20 @@ function drawCrossSection(
   }
 
   const rightX = cx + W + 40;
+  if (cut.extraCCx) {
+    const cxRow = extraRow("c-cx");
+    if (cxRow) {
+      drawLayerCallout(
+        ctx,
+        rightX,
+        antiY,
+        String(cxRow.markNum),
+        `Ø${cxRow.dia} a${cxRow.spacing ?? cut.spacing}`,
+        innerR,
+        "right",
+      );
+    }
+  }
   for (const e of drawnTopExtras) {
     const row = markForBar(model.schedule, e.bar);
     if (!row) continue;
@@ -1368,6 +1390,7 @@ function drawCrossSection(
     const a = row.spacing ? ` a${row.spacing}` : "";
     extraNotes.push(`${row.mark} ${row.label ?? ""} Ø${row.dia}${a}`.replace(/\s+/g, " ").trim());
   };
+  pushNote("c-cx", cut.extraCCx);
   pushNote("c-cy", cut.extraCCy);
   pushNote("nested-cx", cut.extraNestedCx && !cut.extraDouble);
   pushNote("nested-cy", cut.extraNestedCy && !cut.extraDouble);
@@ -1408,21 +1431,8 @@ function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | 
   if (row.label) textSimple(ctx, row.label, x + w / 2 - 28, y + h + 40, 5.6);
 }
 
-function drawExtraTieShopStrip(ctx: Ctx, x: number, y: number, rows: ScheduleRow[]) {
-  if (!rows.length) return 0;
-  textSimple(ctx, "CHI TIẾT ĐAI BỔ SUNG", x + 4, y, 7.2, true);
-  const pitch = Math.min(168, (PAGE_W - 48) / Math.max(rows.length, 1));
-  rows.forEach((row, i) => {
-    drawStirrupDetail(ctx, x + i * pitch - 16, y + 6, row);
-  });
-  return 78;
-}
-
 function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, h: number) {
-  if (row.label) {
-    textSimple(ctx, row.label, x + w / 2, y + 5.2, 4.7, false, "center");
-  }
-  const cy = y + h / 2 + (row.label ? 3 : 1);
+  const cy = y + h / 2 + 1;
   if (row.shape === "stirrup") {
     const bw = Math.min(40, w * 0.28);
     const bh = Math.min(h - 8, 22);
@@ -1644,7 +1654,6 @@ export async function generateBeamPdf(
   const stirrupRow =
     model.schedule.find((r) => r.family === "D" && !r.extraKind) ??
     model.schedule.find((r) => r.extraKind === "double");
-  const extraRows = model.schedule.filter((r) => r.extraKind);
   const sectTop = y + 8;
   const n = Math.max(uniqueCuts.length, 1);
   const boxW = Math.max(model.B * SECTION_SCALE, 28);
@@ -1661,14 +1670,12 @@ export async function generateBeamPdf(
   }
   const extraNoteLines = Math.max(
     ...uniqueCuts.map((c) =>
-      [c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean).length,
+      [c.extraCCx, c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean)
+        .length,
     ),
     0,
   );
-  const stripY = sectTop + boxH + 42 + extraNoteLines * 7.2;
-  const stripH = drawExtraTieShopStrip(ctx, 24, stripY, extraTieShopStripRows(extraRows));
-
-  const tableY = Math.min(stripY + stripH + 18, PAGE_H - 220);
+  const tableY = Math.min(sectTop + boxH + 42 + extraNoteLines * 7.2 + 18, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 

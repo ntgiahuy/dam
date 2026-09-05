@@ -9,7 +9,6 @@ import {
 import {
   antiBucklingResolvedBars,
   antiBucklingSchedule,
-  extraTieShopStripRows,
   doubleShortSideMm,
   doubleWrapCount,
   extraCDiaOf,
@@ -129,10 +128,6 @@ assert(model.schedule.some((r) => r.extraKind === "anti" && r.dia === 12), "CP �
 const cpBars = antiBucklingResolvedBars(shop);
 assert(cpBars.length === shop.spans.length, "CP trên từng nhịp");
 assert(cpBars.every((b) => b.qty === 2 && b.dia === 12 && b.cutLength === shop.spans[0].L), "CP 2Ø12 L=nhịp");
-const strip = extraTieShopStripRows(model.schedule.filter((r) => r.extraKind));
-assert(!strip.some((r) => r.extraKind === "c-cx" || r.extraKind === "c-cy"), "shop đai C không vẽ hình U");
-assert(strip.some((r) => r.extraKind === "anti"), "shop còn thép chống phình");
-
 const twoLen = createEmptyProject();
 twoLen.spans = [
   { ...twoLen.spans[0], L: 4250 },
