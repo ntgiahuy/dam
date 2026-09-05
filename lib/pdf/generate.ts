@@ -1381,24 +1381,6 @@ function drawCrossSection(
   const underlineY = titleY + titleSize * 0.92;
   line(ctx, cx + W / 2 - titleW / 2 - 1, underlineY, cx + W / 2 + titleW / 2 + 1, underlineY, 0.9);
   textSimple(ctx, "TL: 1/25", cx + W / 2, underlineY + 4, 7, false, "center");
-
-  const extraNotes: string[] = [];
-  const pushNote = (kind: NonNullable<ScheduleRow["extraKind"]>, shown: boolean) => {
-    if (!shown) return;
-    const row = extraRow(kind);
-    if (!row) return;
-    const a = row.spacing ? ` a${row.spacing}` : "";
-    extraNotes.push(`${row.mark} ${row.label ?? ""} Ø${row.dia}${a}`.replace(/\s+/g, " ").trim());
-  };
-  pushNote("c-cx", cut.extraCCx);
-  pushNote("c-cy", cut.extraCCy);
-  pushNote("nested-cx", cut.extraNestedCx && !cut.extraDouble);
-  pushNote("nested-cy", cut.extraNestedCy && !cut.extraDouble);
-  pushNote("double", cut.extraDouble);
-  pushNote("anti", cut.antiBuckling);
-  extraNotes.forEach((note, i) => {
-    textSimple(ctx, note, cx + W / 2, underlineY + 14 + i * 7.2, 5.5, false, "center");
-  });
 }
 
 function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | undefined) {
@@ -1411,7 +1393,15 @@ function drawStirrupDetail(ctx: Ctx, ox: number, oy: number, row: ScheduleRow | 
   const y = oy + 8;
   if (row.shape === "stirrup") {
     drawStirrupFrame(ctx, x, y, w, h, 0.9);
-    dimH(ctx, x, x + w, y + h + 12, String(Math.round(row.segs[0] ?? model.stirrups.innerB)), 6.2);
+    textSimple(
+      ctx,
+      String(Math.round(row.segs[0] ?? model.stirrups.innerB)),
+      x + w / 2,
+      y + 9,
+      6.4,
+      false,
+      "center",
+    );
     dimV(ctx, x + w + 10, y, y + h, String(Math.round(row.segs[1] ?? model.stirrups.innerH)), 6.2);
     dimV(ctx, x - 14, y, y + 10, String(Math.round(row.segs[2] ?? model.stirrups.hook)), 5.8);
   } else if (row.shape === "u-bottom") {
@@ -1439,7 +1429,7 @@ function drawShape(ctx: Ctx, row: ScheduleRow, x: number, y: number, w: number, 
     const sx = x + w / 2 - bw / 2;
     const sy = cy - bh / 2;
     drawStirrupFrame(ctx, sx, sy, bw, bh, 0.65);
-    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), sx + bw / 2, sy + bh + 7, 5.6, false, "center");
+    textSimple(ctx, String(Math.round(row.segs[0] ?? 0)), sx + bw / 2, sy + 6.2, 5.6, false, "center");
     textSimple(ctx, String(Math.round(row.segs[1] ?? 0)), sx + bw + 3, cy + 2, 5.6);
     textSimple(ctx, String(Math.round(row.segs[2] ?? 0)), sx - 12, sy + 2, 5.6);
     return;
@@ -1668,14 +1658,7 @@ export async function generateBeamPdf(
   if (stirrupRow) {
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
-  const extraNoteLines = Math.max(
-    ...uniqueCuts.map((c) =>
-      [c.extraCCx, c.extraCCy, c.extraNestedCx, c.extraNestedCy, c.extraDouble, c.antiBuckling].filter(Boolean)
-        .length,
-    ),
-    0,
-  );
-  const tableY = Math.min(sectTop + boxH + 42 + extraNoteLines * 7.2 + 18, PAGE_H - 220);
+  const tableY = Math.min(sectTop + boxH + 56, PAGE_H - 220);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
