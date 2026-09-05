@@ -92,6 +92,24 @@ function textSimple(
   return width;
 }
 
+/** Tight stacked header lines, vertically centered in the cell. */
+function drawHeaderStack(
+  ctx: Ctx,
+  cx: number,
+  cellTop: number,
+  cellH: number,
+  lines: { text: string; size: number }[],
+  lead: number,
+) {
+  if (!lines.length) return;
+  const block = lines[0].size + lead * (lines.length - 1);
+  let y = cellTop + (cellH - block) / 2 + 1.1;
+  for (const line of lines) {
+    textSimple(ctx, line.text, cx, y, line.size, false, "center");
+    y += lead;
+  }
+}
+
 const CAP_RATIO = 0.72;
 
 function textCentered(
@@ -800,6 +818,33 @@ function a1LabelForRange(ctx: Ctx, x1: number, x2: number) {
   return `Ø${dia}a${spacing}`;
 }
 
+/** Visual-only: step the elevation 6-6 line off midspan dims / marks. */
+function elevCutMarkX(ctx: Ctx, cut: CutLoc) {
+  const x = xAt(ctx, cut.x);
+  if (cut.kind !== "span") return x;
+  const { project, model } = ctx;
+  let i = 0;
+  let best = Infinity;
+  for (let s = 0; s < project.spans.length; s++) {
+    const mid = (supportFaces(project, s).right + supportFaces(project, s + 1).left) / 2;
+    const d = Math.abs(cut.x - mid);
+    if (d < best) {
+      best = d;
+      i = s;
+    }
+  }
+  const left = xAt(ctx, model.xs[i] ?? cut.x);
+  const right = xAt(ctx, model.xs[i + 1] ?? cut.x);
+  const roomL = x - left;
+  const roomR = right - x;
+  // Just enough to miss 2200 / 3150 / 4500 / 12Ø6a200 / mark 9. Prefer left so
+  // the line does not run through "2Ø20" sitting to the right of the mark.
+  const nudge = 26;
+  if (roomL >= nudge + 10) return x - nudge;
+  if (roomR >= nudge + 10) return x + nudge;
+  return roomL >= roomR ? x - Math.min(nudge, roomL * 0.4) : x + Math.min(nudge, roomR * 0.4);
+}
+
 function drawCutMark(ctx: Ctx, x: number, y0: number, y1: number, n: number) {
   line(ctx, x, y0, x, y1, 0.4);
   const s = 3.8;
@@ -917,7 +962,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   project.spans.forEach((sp, i) => {
     const a = xAt(ctx, model.xs[i]);
     const b = xAt(ctx, model.xs[i + 1]);
-    dimH(ctx, a, b, y1 + 48, String(sp.L), 7.5);
+    dimH(ctx, a, b, y1 + 48, String(sp.L), 6.2);
     const extraNote = extraTieElevationNote(project, i);
     if (extraNote) {
       textSimple(ctx, extraNote, (a + b) / 2, y0 - 48, 5.6, false, "center");
@@ -1068,7 +1113,7 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
   line(ctx, elevX - 2, y0, dimX - 8, y0, 0.8);
 
   for (const c of cuts) {
-    drawCutMark(ctx, xAt(ctx, c.x), y0 - 50, y1 + 8, c.n);
+    drawCutMark(ctx, elevCutMarkX(ctx, c), y0 - 50, y1 + 8, c.n);
   }
 
   const extraBotY = y1 + 32;
@@ -1563,7 +1608,7 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
     { w: 50 },
   ];
   const w = cols.reduce((s, c) => s + c.w, 0);
-  const headerH = 52;
+  const headerH = 36;
   const avail = Math.max(PAGE_H - y - 36, 120);
   const rowH = Math.min(21, Math.max(15.5, (avail - headerH - 8) / Math.max(rows.length, 1)));
   const h = headerH + rows.length * rowH;
@@ -1579,32 +1624,53 @@ function drawScheduleTable(ctx: Ctx, x: number, y: number) {
     cx += c.w;
   }
   const mid = (i: number) => colX[i] + cols[i].w / 2;
-  for (let i = 1; i < cols.length; i++) line(ctx, colX[i], ty0, colX[i], ty0 + h, 0.4);
+  const qtySplitY = ty0 + 18;
+  // C.KIỆN is one full-height cell. SỐ THANH spans cols 6–7 above MỘT CK | TOÀN BỘ.
+  for (let i = 1; i < cols.length; i++) {
+    const yStart = i === 7 ? qtySplitY : ty0;
+    line(ctx, colX[i], yStart, colX[i], ty0 + h, 0.4);
+  }
   line(ctx, x, ty0 + headerH, x + w, ty0 + headerH, 0.7);
-  line(ctx, colX[5], ty0 + 18, colX[8], ty0 + 18, 0.4);
-  line(ctx, colX[6], ty0 + 34, colX[8], ty0 + 34, 0.35);
+  line(ctx, colX[6], qtySplitY, colX[8], qtySplitY, 0.4);
 
-  textSimple(ctx, "TÊN", mid(0), ty0 + 16, 6.2, false, "center");
-  textSimple(ctx, "CẤU KIỆN", mid(0), ty0 + 28, 6.2, false, "center");
-  textSimple(ctx, "SỐ", mid(1), ty0 + 16, 6.2, false, "center");
-  textSimple(ctx, "HIỆU", mid(1), ty0 + 28, 6.2, false, "center");
-  textSimple(ctx, "HÌNH DẠNG &", mid(2), ty0 + 14, 6.4, false, "center");
-  textSimple(ctx, "KÍCH THƯỚC (mm)", mid(2), ty0 + 28, 6.4, false, "center");
-  textSimple(ctx, "Ø", mid(3), ty0 + 16, 7, false, "center");
-  textSimple(ctx, "(mm)", mid(3), ty0 + 30, 5.8, false, "center");
-  textSimple(ctx, "CHIỀU DÀI", mid(4), ty0 + 12, 6, false, "center");
-  textSimple(ctx, "1 THANH", mid(4), ty0 + 24, 6, false, "center");
-  textSimple(ctx, "(mm)", mid(4), ty0 + 38, 5.8, false, "center");
-  textSimple(ctx, "SỐ THANH", (mid(5) + mid(7)) / 2, ty0 + 8, 6.2, false, "center");
-  textSimple(ctx, "C.KIỆN", mid(5), ty0 + 42, 5.6, false, "center");
-  textSimple(ctx, "MỘT CK", mid(6), ty0 + 42, 5.6, false, "center");
-  textSimple(ctx, "TOÀN BỘ", mid(7), ty0 + 42, 5.6, false, "center");
-  textSimple(ctx, "TỔNG", mid(8), ty0 + 12, 6, false, "center");
-  textSimple(ctx, "CHIỀU DÀI", mid(8), ty0 + 24, 6, false, "center");
-  textSimple(ctx, "(m)", mid(8), ty0 + 38, 5.8, false, "center");
-  textSimple(ctx, "TỔNG", mid(9), ty0 + 12, 6, false, "center");
-  textSimple(ctx, "TRỌNG LƯỢNG", mid(9), ty0 + 24, 6, false, "center");
-  textSimple(ctx, "(kg)", mid(9), ty0 + 38, 5.8, false, "center");
+  const headerMidY = ty0 + headerH / 2 + 2.0;
+  const soThanhMidY = ty0 + (qtySplitY - ty0) / 2 + 2.0;
+  const subHeadMidY = qtySplitY + (ty0 + headerH - qtySplitY) / 2 + 2.0;
+  drawHeaderStack(ctx, mid(0), ty0, headerH, [
+    { text: "TÊN", size: 6.2 },
+    { text: "CẤU KIỆN", size: 6.2 },
+  ], 9.6);
+  drawHeaderStack(ctx, mid(1), ty0, headerH, [
+    { text: "SỐ", size: 6.2 },
+    { text: "HIỆU", size: 6.2 },
+  ], 9.6);
+  drawHeaderStack(ctx, mid(2), ty0, headerH, [
+    { text: "HÌNH DẠNG &", size: 6.2 },
+    { text: "KÍCH THƯỚC (mm)", size: 6.2 },
+  ], 9.6);
+  drawHeaderStack(ctx, mid(3), ty0, headerH, [
+    { text: "Ø", size: 7 },
+    { text: "(mm)", size: 5.8 },
+  ], 9.6);
+  drawHeaderStack(ctx, mid(4), ty0, headerH, [
+    { text: "CHIỀU DÀI", size: 6 },
+    { text: "1 THANH", size: 6 },
+    { text: "(mm)", size: 5.8 },
+  ], 8.2);
+  textSimple(ctx, "C.KIỆN", mid(5), headerMidY, 6.2, false, "center");
+  textSimple(ctx, "SỐ THANH", (colX[6] + colX[8]) / 2, soThanhMidY, 6.2, false, "center");
+  textSimple(ctx, "MỘT CK", mid(6), subHeadMidY, 5.6, false, "center");
+  textSimple(ctx, "TOÀN BỘ", mid(7), subHeadMidY, 5.6, false, "center");
+  drawHeaderStack(ctx, mid(8), ty0, headerH, [
+    { text: "TỔNG", size: 6 },
+    { text: "CHIỀU DÀI", size: 6 },
+    { text: "(m)", size: 5.8 },
+  ], 8.2);
+  drawHeaderStack(ctx, mid(9), ty0, headerH, [
+    { text: "TỔNG", size: 6 },
+    { text: "TRỌNG LƯỢNG", size: 6 },
+    { text: "(kg)", size: 5.8 },
+  ], 8.2);
 
   rows.forEach((row, i) => {
     const ry = ty0 + headerH + i * rowH;
@@ -1740,7 +1806,7 @@ export async function generateBeamPdf(
   if (stirrupRow) {
     drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
   }
-  const tableY = Math.min(sectTop + boxH + 56, PAGE_H - 220);
+  const tableY = Math.min(sectTop + boxH + 74, PAGE_H - 204);
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 
