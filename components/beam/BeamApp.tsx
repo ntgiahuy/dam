@@ -56,7 +56,6 @@ import type {
   SecondaryKind,
   ShearKind,
   SpanStirrups,
-  StirrupKind,
   StirrupLayout,
   TabId,
 } from "@/lib/types";
@@ -68,7 +67,6 @@ import {
   MAX_SPAN_COUNT,
   QTY_OPTIONS,
   SLAB_TYPES,
-  STIRRUP_KINDS,
   STIRRUP_LAYOUTS,
   TABS,
   CONNECTION_TYPES,
@@ -972,8 +970,9 @@ export function BeamApp() {
 
           {tab === "stirrups" && (
             <div className="flex flex-wrap gap-3">
-              <Panel title="Thông số thép đai" className="min-w-[280px] flex-1">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="flex min-w-[280px] flex-1 flex-col gap-3">
+              <Panel title="Thông số thép đai">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   <Field label="Đường kính đai">
                     <Select
                       value={project.stirrups[selectedSpan]?.dia ?? 6}
@@ -1027,107 +1026,7 @@ export function BeamApp() {
                       </Field>
                     </>
                   )}
-                  <Field label="Kiểu đai">
-                    <Select
-                      value={project.stirrups[selectedSpan]?.kind ?? "don"}
-                      onChange={(e) => patchStirrup({ kind: e.target.value as StirrupKind })}
-                    >
-                      {STIRRUP_KINDS.map((d) => (
-                        <option key={d.value} value={d.value}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
                 </div>
-                {(() => {
-                  const src = project.stirrups[selectedSpan] ?? defaultSpanStirrups();
-                  const st = extraTieStatus(project);
-                  const extraC = Boolean(src.extraC) && st.allowC;
-                  const extraNested = Boolean(src.extraNested) && !Boolean(src.extraDouble) && st.allowInner;
-                  const extraDouble = Boolean(src.extraDouble) && !Boolean(src.extraNested) && st.allowInner;
-                  const hint = extraTiesHint({
-                    ...project,
-                    stirrups: project.stirrups.map((s, i) =>
-                      i === selectedSpan ? { ...s, extraC, extraNested, extraDouble } : s,
-                    ),
-                  });
-                  const row = (
-                    key: "extraC" | "extraNested" | "extraDouble",
-                    label: string,
-                    allowed: boolean,
-                    checked: boolean,
-                    disableHint: string,
-                    blockedHint?: string,
-                  ) => (
-                    <div key={key}>
-                      <label
-                        className={`flex items-center gap-2 text-sm ${
-                          allowed ? "cursor-pointer text-zinc-200" : "cursor-not-allowed text-zinc-500"
-                        }`}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          disabled={!allowed}
-                          onCheckedChange={(value) => {
-                            if (!allowed) return;
-                            const on = value === true;
-                            if (key === "extraNested") {
-                              patchStirrup({ extraNested: on, extraDouble: on ? false : src.extraDouble });
-                              return;
-                            }
-                            if (key === "extraDouble") {
-                              patchStirrup({ extraDouble: on, extraNested: on ? false : src.extraNested });
-                              return;
-                            }
-                            patchStirrup({ extraC: on });
-                          }}
-                        />
-                        {label}
-                      </label>
-                      {!allowed && (
-                        <p className="ml-6 text-[11px] leading-snug text-zinc-500">{blockedHint ?? disableHint}</p>
-                      )}
-                    </div>
-                  );
-                  return (
-                    <fieldset className="mt-3 rounded-md border border-zinc-600 px-3 pb-2 pt-0">
-                      <legend className="px-1 text-sm font-semibold text-sky-300">Đai bổ sung</legend>
-                      <div className="flex flex-col gap-1.5">
-                        {row("extraC", "Đai C", st.allowC, extraC, st.cHint)}
-                        {row(
-                          "extraNested",
-                          "Đai lồng",
-                          st.allowInner && !extraDouble,
-                          extraNested,
-                          st.innerHint,
-                          extraDouble ? "Đã chọn đai kép — không dùng đai lồng." : undefined,
-                        )}
-                        {row(
-                          "extraDouble",
-                          "Đai kép",
-                          st.allowInner && !extraNested,
-                          extraDouble,
-                          st.innerHint,
-                          extraNested ? "Đã chọn đai lồng — không dùng đai kép." : undefined,
-                        )}
-                      </div>
-                      {extraDouble ? (
-                        <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
-                          Đai kép bổ sung thay đai lồng — cùng khoảng đai chính, 2 thanh/vị trí (shop thép cột).
-                        </p>
-                      ) : null}
-                      {hint ? (
-                        <p className="mt-1.5 text-[11px] leading-snug text-zinc-400">{hint}</p>
-                      ) : (
-                        <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
-                          Công thức shop thép cột: đai C = h₀ + 100; đai lồng/kép = 2·(b+h) + 100. Đai C khi số
-                          thanh một lớp lẻ; đai lồng/kép khi ≥ 4 thanh hoặc B ≥ 350.
-                        </p>
-                      )}
-                    </fieldset>
-                  );
-                })()}
                 {(() => {
                   const z = stirrupZonesForSpan(project, selectedSpan);
                   if (z.layout === "dieu") {
@@ -1163,6 +1062,86 @@ export function BeamApp() {
                   <Check /> Áp dụng cho các nhịp
                 </Button>
               </Panel>
+              {(() => {
+                  const src = project.stirrups[selectedSpan] ?? defaultSpanStirrups();
+                  const st = extraTieStatus(project);
+                  const extraC = Boolean(src.extraC) && st.allowC;
+                  const extraNested = Boolean(src.extraNested) && !Boolean(src.extraDouble) && st.allowInner;
+                  const extraDouble = Boolean(src.extraDouble) && !Boolean(src.extraNested) && st.allowInner;
+                  const hint = extraTiesHint({
+                    ...project,
+                    stirrups: project.stirrups.map((s, i) =>
+                      i === selectedSpan ? { ...s, extraC, extraNested, extraDouble } : s,
+                    ),
+                  });
+                  const box = (
+                    key: "extraC" | "extraNested" | "extraDouble",
+                    label: string,
+                    allowed: boolean,
+                    checked: boolean,
+                  ) => (
+                    <label
+                      key={key}
+                      className={`inline-flex shrink-0 items-center gap-2 text-sm ${
+                        allowed ? "cursor-pointer text-zinc-200" : "cursor-not-allowed text-zinc-500"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={!allowed}
+                        onCheckedChange={(value) => {
+                          if (!allowed) return;
+                          const on = value === true;
+                          if (key === "extraNested") {
+                            patchStirrup({ extraNested: on, extraDouble: on ? false : src.extraDouble });
+                            return;
+                          }
+                          if (key === "extraDouble") {
+                            patchStirrup({ extraDouble: on, extraNested: on ? false : src.extraNested });
+                            return;
+                          }
+                          patchStirrup({ extraC: on });
+                        }}
+                      />
+                      {label}
+                    </label>
+                  );
+                  const disableNote = !st.allowC
+                    ? st.cHint
+                    : extraDouble
+                      ? "Đã chọn đai kép — không dùng đai lồng."
+                      : extraNested
+                        ? "Đã chọn đai lồng — không dùng đai kép."
+                        : !st.allowInner
+                          ? st.innerHint
+                          : null;
+                  return (
+                    <Panel title="Đai bổ sung">
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        {box("extraC", "Đai C", st.allowC, extraC)}
+                        {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
+                        {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
+                      </div>
+                      {extraDouble ? (
+                        <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+                          Đai kép bổ sung thay đai lồng — cùng khoảng đai chính, 2 thanh/vị trí (shop thép cột).
+                        </p>
+                      ) : null}
+                      {disableNote ? (
+                        <p className="mt-2 text-[11px] leading-snug text-zinc-500">{disableNote}</p>
+                      ) : null}
+                      {hint ? (
+                        <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
+                      ) : (
+                        <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+                          Công thức shop thép cột: đai C = h₀ + 100; đai lồng/kép = 2·(b+h) + 100. Đai C khi số
+                          thanh một lớp lẻ; đai lồng/kép khi ≥ 4 thanh hoặc B ≥ 350.
+                        </p>
+                      )}
+                    </Panel>
+                  );
+                })()}
+              </div>
               <StirrupSketch
                 kind={project.stirrups[selectedSpan]?.kind ?? "don"}
                 extraC={Boolean(project.stirrups[selectedSpan]?.extraC)}
