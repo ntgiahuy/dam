@@ -1113,6 +1113,10 @@ function drawCrossSection(
   if (botN) placeDots(ctx, botXs, botY, barR);
   if (cut.antiBuckling) {
     const midY = (topY + botY) / 2;
+    const hook = 5.2;
+    line(ctx, innerL, midY - hook, innerL, midY, 0.7);
+    line(ctx, innerL, midY, innerR, midY, 0.7);
+    line(ctx, innerR, midY, innerR, midY - hook, 0.7);
     placeDots(ctx, [innerL, innerR], midY, barR);
   }
 

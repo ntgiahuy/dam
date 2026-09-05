@@ -164,10 +164,10 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
     flags,
     antiBuckling: anti,
     cHint: anti
-      ? "Đai C móc 2 cây chống phình tại giữa chiều cao H."
+      ? "Đai C nằm ngang, móc 2 cây chống phình tại giữa H."
       : allowC
         ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
-        : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình.",
+        : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình Ø.",
     innerHint: allowInner
       ? bars >= 4
         ? "≥ 4 thanh trên một lớp — đủ đai lồng / đai kép (shop thép cột)."
@@ -218,21 +218,23 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 
   const nestedW = wrapWidthMm(innerB, bars, dia, wrapNested(bars));
   const doubleW = wrapWidthMm(innerB, bars, dia, wrapDouble(bars));
+  const skinOn = project.stirrups.some((s) => s.antiBuckling);
+  const cSpan = skinOn ? innerB : innerH;
 
   const items: ExtraTieResolved[] = [
     {
       key: "c",
-      label: "Đai C (móc thép giữa)",
+      label: skinOn ? "Đai C (ngang thép chống phình)" : "Đai C (móc thép giữa)",
       allowed: allowC,
       enabled: used.extraC && allowC,
       disableHint: extraTieStatus(project).cHint,
       spacing: EXTRA_TIE_SPACING_MM,
-      widthMm: 0,
-      heightMm: innerH,
-      lengthMm: extraCLengthMm(innerH),
+      widthMm: skinOn ? innerB : 0,
+      heightMm: skinOn ? 0 : innerH,
+      lengthMm: extraCLengthMm(cSpan),
       copies: 1,
       countEach: 0,
-      segs: [EXTRA_TIE_HOOK_MM, innerH, EXTRA_TIE_HOOK_MM],
+      segs: [EXTRA_TIE_HOOK_MM, cSpan, EXTRA_TIE_HOOK_MM],
       shape: "u-bottom",
     },
     {
@@ -287,7 +289,7 @@ export function extraTiesHint(project: BeamProject): string {
     .map((r) => `${r.label}: ${r.countEach}Ø${project.stirrups[0]?.dia ?? 6} L=${r.lengthMm} a${r.spacing}`)
     .join(" · ");
   const skin = antiBucklingSchedule(project)
-    .map((r) => `Thép chống phình: ${r.qtyEach}Ø${r.dia} L=${r.lengthMm} (giữa H, 1 cây/bên đai)`)
+    .map((r) => `Thép chống phình Ø: ${r.qtyEach}Ø${r.dia} L=${r.lengthMm} (giữa H, đai C ngang)`)
     .join(" · ");
   return [ties, skin].filter(Boolean).join(" · ");
 }

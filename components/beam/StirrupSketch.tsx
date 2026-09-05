@@ -122,15 +122,17 @@ export function StirrupSketch({
           />
         </>
       ) : null}
-      {extraC || antiBuckling ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
       {antiBuckling ? (
         <g>
+          <CTieH x1={sx} x2={sx + sw} y={sy + sh / 2} />
           <circle cx={sx} cy={sy + sh / 2} r={barR} fill="#e879f9" />
           <circle cx={sx + sw} cy={sy + sh / 2} r={barR} fill="#e879f9" />
           <text x={sx + sw + 6} y={sy + sh / 2 + 3} fill="#f0abfc" fontSize={8}>
             CP
           </text>
         </g>
+      ) : extraC ? (
+        <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} />
       ) : null}
 
       {[1, 2, 3].map((layer) => {
@@ -249,6 +251,22 @@ function CTie({ x, y1, y2 }: { x: number; y1: number; y2: number }) {
   return (
     <path
       d={`M ${x + hook} ${y1 + bump} L ${x + hook} ${y1} L ${x} ${y1} L ${x} ${y2} L ${x + hook} ${y2} L ${x + hook} ${y2 - bump}`}
+      fill="none"
+      stroke="#ffa94d"
+      strokeWidth={4.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  );
+}
+
+/** Đai C ngang — móc 2 cây chống phình tại giữa H. */
+function CTieH({ x1, x2, y }: { x1: number; x2: number; y: number }) {
+  const hook = 14;
+  const bump = 8;
+  return (
+    <path
+      d={`M ${x1 + bump} ${y - hook} L ${x1} ${y - hook} L ${x1} ${y} L ${x2} ${y} L ${x2} ${y - hook} L ${x2 - bump} ${y - hook}`}
       fill="none"
       stroke="#ffa94d"
       strokeWidth={4.5}

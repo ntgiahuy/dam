@@ -37,7 +37,7 @@ import {
   stirrupZonesForSpan,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
-import { ANTI_BUCKLING_DIAS, extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
+import { extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
   migrateLoadedProject,
@@ -1130,9 +1130,6 @@ export function BeamApp() {
                   return (
                     <Panel title="Thép bổ sung">
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                        {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
-                        {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
-                        {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
                         <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
                           <Checkbox
                             checked={antiOn}
@@ -1145,28 +1142,11 @@ export function BeamApp() {
                               });
                             }}
                           />
-                          Thép chống phình
+                          Thép chống phình Ø
                         </label>
-                        {antiOn ? (
-                          <Field label="Ø chống phình" className="w-[88px]">
-                            <Select
-                              value={normalizeAntiBucklingDia(src.antiBucklingDia)}
-                              onChange={(e) =>
-                                patchStirrup({
-                                  antiBuckling: true,
-                                  extraC: true,
-                                  antiBucklingDia: Number(e.target.value),
-                                })
-                              }
-                            >
-                              {ANTI_BUCKLING_DIAS.map((d) => (
-                                <option key={d} value={d}>
-                                  {d}
-                                </option>
-                              ))}
-                            </Select>
-                          </Field>
-                        ) : null}
+                        {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
+                        {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
+                        {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
@@ -1180,8 +1160,8 @@ export function BeamApp() {
                         <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
                       ) : (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Thép chống phình: 2 cây tại giữa H, mỗi bên đai 1 cây (Ø10–16). Tick sẽ bật đai C để
-                          móc 2 cây này. Đai C = h₀ + 100; đai lồng/kép = 2·(b+h) + 100.
+                          Thép chống phình Ø: 2 cây tại giữa H, mỗi bên đai 1 cây. Tick sẽ bật đai C nằm ngang
+                          móc 2 cây này. Đai C đứng (chủ lẻ) = h₀ + 100; đai C ngang = b₀ + 100.
                         </p>
                       )}
                     </Panel>
