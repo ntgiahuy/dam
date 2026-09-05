@@ -45,8 +45,22 @@ export function hasOddMainLayer(project: BeamProject): boolean {
   return [...project.mainBottom, ...project.mainTop].some((b) => b.qty % 2 === 1);
 }
 
-export function extraTieAllowC(project: BeamProject): boolean {
-  return hasOddMainLayer(project);
+export const ANTI_BUCKLING_DIAS = [10, 12, 14, 16] as const;
+export const ANTI_BUCKLING_QTY = 2;
+
+export function normalizeAntiBucklingDia(dia?: number) {
+  const n = Math.round(Number(dia) || 0);
+  return (ANTI_BUCKLING_DIAS as readonly number[]).includes(n) ? n : 12;
+}
+
+export function spanHasAntiBuckling(project: BeamProject, index: number) {
+  return Boolean(project.stirrups[index]?.antiBuckling);
+}
+
+export function extraTieAllowC(project: BeamProject, spanIndex?: number): boolean {
+  if (hasOddMainLayer(project)) return true;
+  if (spanIndex != null) return spanHasAntiBuckling(project, spanIndex);
+  return project.stirrups.some((s) => s.antiBuckling);
 }
 
 export function extraTieAllowNested(project: BeamProject): boolean {
@@ -137,25 +151,44 @@ function countMainStations(project: BeamProject) {
   }, 0);
 }
 
-export function extraTieStatus(project: BeamProject) {
-  const allowC = extraTieAllowC(project);
+export function extraTieStatus(project: BeamProject, spanIndex = 0) {
+  const anti = spanHasAntiBuckling(project, spanIndex);
+  const allowC = extraTieAllowC(project, spanIndex);
   const allowInner = extraTieAllowNested(project);
-  const flags = flagsOf(project.stirrups[0] ?? project.stirrups[project.spans.length ? 0 : 0]);
+  const flags = flagsOf(project.stirrups[spanIndex] ?? project.stirrups[0]);
   const bars = barsAcrossLayer(project);
   return {
     allowC,
     allowInner,
     bars,
     flags,
-    cHint: allowC
-      ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
-      : "Cần một lớp thép chủ số thanh lẻ để bố trí đai C.",
+    antiBuckling: anti,
+    cHint: anti
+      ? "Đai C móc 2 cây chống phình tại giữa chiều cao H."
+      : allowC
+        ? "Móc thép giữa lớp có số thanh lẻ (shop thép cột)."
+        : "Cần lớp chủ số thanh lẻ, hoặc tick Thép chống phình.",
     innerHint: allowInner
       ? bars >= 4
         ? "≥ 4 thanh trên một lớp — đủ đai lồng / đai kép (shop thép cột)."
         : `B ≥ ${WIDE_BEAM_MM} mm — dầm rộng, được đai lồng / đai kép cấu tạo.`
       : "Cần ≥ 4 thanh trên một lớp (shop thép cột) hoặc B ≥ 350 mm.",
   };
+}
+
+/** Thống kê thép chống phình: 2 cây / nhịp bật, L = chiều dài nhịp. */
+export function antiBucklingSchedule(project: BeamProject) {
+  const groups = new Map<string, { dia: number; lengthMm: number; qtyEach: number }>();
+  project.spans.forEach((span, i) => {
+    if (!spanHasAntiBuckling(project, i)) return;
+    const dia = normalizeAntiBucklingDia(project.stirrups[i]?.antiBucklingDia);
+    const lengthMm = Math.max(0, Math.round(span.L));
+    const key = `${dia}|${lengthMm}`;
+    const cur = groups.get(key) ?? { dia, lengthMm, qtyEach: 0 };
+    cur.qtyEach += ANTI_BUCKLING_QTY;
+    groups.set(key, cur);
+  });
+  return [...groups.values()];
 }
 
 export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
@@ -250,8 +283,11 @@ export function resolveExtraTies(project: BeamProject): ExtraTieResolved[] {
 
 export function extraTiesHint(project: BeamProject): string {
   const rows = resolveExtraTies(project).filter((r) => r.enabled && r.countEach > 0);
-  if (!rows.length) return "";
-  return rows
+  const ties = rows
     .map((r) => `${r.label}: ${r.countEach}Ø${project.stirrups[0]?.dia ?? 6} L=${r.lengthMm} a${r.spacing}`)
     .join(" · ");
+  const skin = antiBucklingSchedule(project)
+    .map((r) => `Thép chống phình: ${r.qtyEach}Ø${r.dia} L=${r.lengthMm} (giữa H, 1 cây/bên đai)`)
+    .join(" · ");
+  return [ties, skin].filter(Boolean).join(" · ");
 }

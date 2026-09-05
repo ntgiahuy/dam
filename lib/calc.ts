@@ -1,4 +1,4 @@
-import { resolveExtraTies } from "./extra-ties";
+import { antiBucklingSchedule, resolveExtraTies } from "./extra-ties";
 import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
@@ -1254,6 +1254,27 @@ export function computeModel(project: BeamProject): ComputedModel {
       bars: [],
     };
     tableRows.push(row);
+    mark += 1;
+  }
+
+  for (const skin of antiBucklingSchedule(project)) {
+    if (skin.qtyEach <= 0 || skin.lengthMm <= 0) continue;
+    const barLength = skin.lengthMm;
+    tableRows.push({
+      mark: String(mark),
+      markNum: mark,
+      family: "B2",
+      shape: "straight",
+      segs: [barLength],
+      dia: skin.dia,
+      barLength,
+      qtyMembers: sl,
+      qtyEach: skin.qtyEach,
+      qtyTotal: skin.qtyEach * sl,
+      totalM: (barLength * skin.qtyEach * sl) / 1000,
+      weight: ((barLength * skin.qtyEach * sl) / 1000) * unitWeight(skin.dia),
+      bars: [],
+    });
     mark += 1;
   }
 

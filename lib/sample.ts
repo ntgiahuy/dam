@@ -97,10 +97,19 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   if (!r || typeof r !== "object") return fallback;
   const layout: StirrupLayout = r.layout === "dieu" ? "dieu" : "1/4";
   const kind = r.kind === "kep" ? "kep" : "don";
-  const extraC = Boolean(r.extraC);
   const extraNested = Boolean(r.extraNested) && !Boolean(r.extraDouble);
   const extraDouble = Boolean(r.extraDouble) && !extraNested;
-  const extras = { extraC, extraNested, extraDouble };
+  const antiBuckling = Boolean(r.antiBuckling);
+  const extraC = Boolean(r.extraC) || antiBuckling;
+  const extras = {
+    extraC,
+    extraNested,
+    extraDouble,
+    antiBuckling,
+    antiBucklingDia: [10, 12, 14, 16].includes(Number(r.antiBucklingDia))
+      ? Number(r.antiBucklingDia)
+      : 12,
+  };
   if (typeof r.a1 === "number" || typeof r.a2 === "number") {
     return {
       dia: Number(r.dia) || fallback.dia,

@@ -37,7 +37,7 @@ import {
   stirrupZonesForSpan,
   syncSpanSupportGeometry,
 } from "@/lib/calc";
-import { extraTieStatus, extraTiesHint } from "@/lib/extra-ties";
+import { ANTI_BUCKLING_DIAS, extraTieStatus, extraTiesHint, normalizeAntiBucklingDia } from "@/lib/extra-ties";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
   migrateLoadedProject,
@@ -1064,14 +1064,25 @@ export function BeamApp() {
               </Panel>
               {(() => {
                   const src = project.stirrups[selectedSpan] ?? defaultSpanStirrups();
-                  const st = extraTieStatus(project);
-                  const extraC = Boolean(src.extraC) && st.allowC;
+                  const antiOn = Boolean(src.antiBuckling);
+                  const st = extraTieStatus(
+                    {
+                      ...project,
+                      stirrups: project.stirrups.map((s, i) =>
+                        i === selectedSpan ? { ...s, antiBuckling: antiOn } : s,
+                      ),
+                    },
+                    selectedSpan,
+                  );
+                  const extraC = (Boolean(src.extraC) || antiOn) && st.allowC;
                   const extraNested = Boolean(src.extraNested) && !Boolean(src.extraDouble) && st.allowInner;
                   const extraDouble = Boolean(src.extraDouble) && !Boolean(src.extraNested) && st.allowInner;
                   const hint = extraTiesHint({
                     ...project,
                     stirrups: project.stirrups.map((s, i) =>
-                      i === selectedSpan ? { ...s, extraC, extraNested, extraDouble } : s,
+                      i === selectedSpan
+                        ? { ...s, extraC, extraNested, extraDouble, antiBuckling: antiOn }
+                        : s,
                     ),
                   });
                   const box = (
@@ -1083,7 +1094,7 @@ export function BeamApp() {
                     <label
                       key={key}
                       className={`inline-flex shrink-0 items-center gap-2 text-sm ${
-                        allowed ? "cursor-pointer text-zinc-200" : "cursor-not-allowed text-zinc-500"
+                        allowed || checked ? "cursor-pointer text-zinc-200" : "cursor-not-allowed text-zinc-500"
                       }`}
                     >
                       <Checkbox
@@ -1100,13 +1111,14 @@ export function BeamApp() {
                             patchStirrup({ extraDouble: on, extraNested: on ? false : src.extraNested });
                             return;
                           }
+                          if (antiOn && !on) return;
                           patchStirrup({ extraC: on });
                         }}
                       />
                       {label}
                     </label>
                   );
-                  const disableNote = !st.allowC
+                  const disableNote = !st.allowC && !antiOn
                     ? st.cHint
                     : extraDouble
                       ? "Đã chọn đai kép — không dùng đai lồng."
@@ -1116,11 +1128,45 @@ export function BeamApp() {
                           ? st.innerHint
                           : null;
                   return (
-                    <Panel title="Đai bổ sung">
+                    <Panel title="Thép bổ sung">
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                        {box("extraC", "Đai C", st.allowC, extraC)}
+                        {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
                         {box("extraNested", "Đai lồng", st.allowInner && !extraDouble, extraNested)}
                         {box("extraDouble", "Đai kép", st.allowInner && !extraNested, extraDouble)}
+                        <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
+                          <Checkbox
+                            checked={antiOn}
+                            onCheckedChange={(value) => {
+                              const on = value === true;
+                              patchStirrup({
+                                antiBuckling: on,
+                                extraC: on ? true : src.extraC,
+                                antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
+                              });
+                            }}
+                          />
+                          Thép chống phình
+                        </label>
+                        {antiOn ? (
+                          <Field label="Ø chống phình" className="w-[88px]">
+                            <Select
+                              value={normalizeAntiBucklingDia(src.antiBucklingDia)}
+                              onChange={(e) =>
+                                patchStirrup({
+                                  antiBuckling: true,
+                                  extraC: true,
+                                  antiBucklingDia: Number(e.target.value),
+                                })
+                              }
+                            >
+                              {ANTI_BUCKLING_DIAS.map((d) => (
+                                <option key={d} value={d}>
+                                  {d}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                        ) : null}
                       </div>
                       {extraDouble ? (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
@@ -1134,8 +1180,8 @@ export function BeamApp() {
                         <p className="mt-2 text-[11px] leading-snug text-zinc-400">{hint}</p>
                       ) : (
                         <p className="mt-2 text-[11px] leading-snug text-zinc-500">
-                          Công thức shop thép cột: đai C = h₀ + 100; đai lồng/kép = 2·(b+h) + 100. Đai C khi số
-                          thanh một lớp lẻ; đai lồng/kép khi ≥ 4 thanh hoặc B ≥ 350.
+                          Thép chống phình: 2 cây tại giữa H, mỗi bên đai 1 cây (Ø10–16). Tick sẽ bật đai C để
+                          móc 2 cây này. Đai C = h₀ + 100; đai lồng/kép = 2·(b+h) + 100.
                         </p>
                       )}
                     </Panel>
@@ -1147,6 +1193,7 @@ export function BeamApp() {
                 extraC={Boolean(project.stirrups[selectedSpan]?.extraC)}
                 extraNested={Boolean(project.stirrups[selectedSpan]?.extraNested)}
                 extraDouble={Boolean(project.stirrups[selectedSpan]?.extraDouble)}
+                antiBuckling={Boolean(project.stirrups[selectedSpan]?.antiBuckling)}
                 B={span?.B ?? 200}
                 H={span?.H ?? 500}
                 cover={project.info.cover || 25}

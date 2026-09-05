@@ -14,6 +14,7 @@ export function StirrupSketch({
   extraC = false,
   extraNested = false,
   extraDouble = false,
+  antiBuckling = false,
   B = 200,
   H = 500,
   cover = 25,
@@ -26,6 +27,7 @@ export function StirrupSketch({
   extraC?: boolean;
   extraNested?: boolean;
   extraDouble?: boolean;
+  antiBuckling?: boolean;
   B?: number;
   H?: number;
   cover?: number;
@@ -120,7 +122,16 @@ export function StirrupSketch({
           />
         </>
       ) : null}
-      {extraC ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
+      {extraC || antiBuckling ? <CTie x={sx + sw / 2} y1={sy} y2={sy + sh} /> : null}
+      {antiBuckling ? (
+        <g>
+          <circle cx={sx} cy={sy + sh / 2} r={barR} fill="#e879f9" />
+          <circle cx={sx + sw} cy={sy + sh / 2} r={barR} fill="#e879f9" />
+          <text x={sx + sw + 6} y={sy + sh / 2 + 3} fill="#f0abfc" fontSize={8}>
+            CP
+          </text>
+        </g>
+      ) : null}
 
       {[1, 2, 3].map((layer) => {
         const yT = layerY(topY, layer, 1);

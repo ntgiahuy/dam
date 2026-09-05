@@ -257,6 +257,22 @@ export function BeamPreview({
               opacity={tab === "extraTop" ? 0.35 : 1}
             />
         ))}
+        {project.spans.map((_, i) => {
+          if (!project.stirrups[i]?.antiBuckling) return null;
+          const midY = (planes.topMain + planes.botMain) / 2;
+          return (
+            <line
+              key={`cp-${i}`}
+              x1={x(model.xs[i])}
+              x2={x(model.xs[i + 1] ?? model.xs[i])}
+              y1={midY}
+              y2={midY}
+              stroke="#e879f9"
+              strokeWidth={1.6}
+              pointerEvents="none"
+            />
+          );
+        })}
 
         {!focusExtra &&
           model.stirrups.ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
