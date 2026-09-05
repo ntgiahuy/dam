@@ -660,7 +660,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
   return y + 2;
 }
 
-type CutLoc = {
+export type CutLoc = {
   n: number;
   x: number;
   kind: "support" | "span";
@@ -677,8 +677,7 @@ type CutLoc = {
   extraNestedSpacing: number;
 };
 
-function buildCuts(ctx: Ctx): CutLoc[] {
-  const { project, model } = ctx;
+export function buildShopCuts(project: BeamProject, model: ComputedModel): CutLoc[] {
   const raw: Omit<CutLoc, "n">[] = [];
   project.supports.forEach((_, i) => {
     const f = supportFaces(project, i);
@@ -1760,7 +1759,7 @@ export async function generateBeamPdf(
   const originX = originLeft - xMin * scale;
 
   const ctx: Ctx = { page, font, fontBold, project, model, originX, scale };
-  const cuts = buildCuts(ctx);
+  const cuts = buildShopCuts(project, model);
 
   ctx.page.drawRectangle({
     x: 16,
@@ -1800,14 +1799,40 @@ export async function generateBeamPdf(
   const cellW = 70 + boxW + 78;
   const stirrupW = stirrupRow ? 140 : 16;
   const avail = PAGE_W - 36 - stirrupW;
-  const pitch = Math.min(cellW + 8, avail / n);
+  const minPitch = Math.max(cellW + 10, 158);
+  const maxPerRow = Math.max(1, Math.floor(avail / minPitch));
+  const pitch = Math.max(minPitch, avail / Math.min(n, maxPerRow));
   uniqueCuts.forEach((c, i) => {
-    drawCrossSection(ctx, 18 + i * pitch, sectTop, c, `${c.n}-${c.n}`);
+    const row = Math.floor(i / maxPerRow);
+    const col = i % maxPerRow;
+    drawCrossSection(ctx, 18 + col * pitch, sectTop + row * (boxH + 78), c, `${c.n}-${c.n}`);
   });
+  let sectRows = Math.ceil(n / maxPerRow);
   if (stirrupRow) {
-    drawStirrupDetail(ctx, 18 + n * pitch, sectTop + 12, stirrupRow);
+    const lastCol = (n - 1) % maxPerRow;
+    const lastRow = Math.floor((n - 1) / maxPerRow);
+    const sameRow = lastCol + 1 < maxPerRow;
+    const sx = sameRow ? 18 + (lastCol + 1) * pitch : 18;
+    const sy = sameRow ? lastRow : lastRow + 1;
+    if (!sameRow) sectRows += 1;
+    drawStirrupDetail(ctx, sx, sectTop + sy * (boxH + 78) + 12, stirrupRow);
   }
-  const tableY = Math.min(sectTop + boxH + 74, PAGE_H - 204);
+  const afterSect = sectTop + sectRows * (boxH + 78);
+  const estTableH = 56 + Math.max(model.schedule.length, 1) * 16 + 48;
+  let tableY = afterSect + 14;
+  if (tableY + estTableH > PAGE_H - 22) {
+    const page2 = pdf.addPage([PAGE_W, PAGE_H]);
+    page2.drawRectangle({
+      x: 16,
+      y: 16,
+      width: PAGE_W - 32,
+      height: PAGE_H - 32,
+      borderColor: BLACK,
+      borderWidth: 1.05,
+    });
+    ctx.page = page2;
+    tableY = 36;
+  }
   const table = drawScheduleTable(ctx, 36, tableY);
   drawSummaryTable(ctx, 36 + table.w + 28, tableY);
 

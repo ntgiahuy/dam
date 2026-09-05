@@ -47,7 +47,8 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
    - **Thép bổ sung** (shop thép cột): **Đai C** khi một lớp thép chủ có số thanh lẻ, hoặc khi tick thép chống phình. **Đai lồng** / **Đai kép** chỉ hiện khi một lớp thép chủ ≥ 4 thanh. **Đai kép thay đai đơn** — không vẽ / không thống kê đai đơn; cạnh ngắn theo B = 2/3 đai đơn, ôm ngoài thép chủ được ôm. Lồng và kép loại trừ nhau. Mỗi loại chọn Ø6 / 8 / 10 / 12 / 14. **Thép chống phình** vẽ trên mặt dầm và shop nổ (2Ø); chọn **1 / 2 / 3 đoạn** — `L` từ **tim gối đầu** đến **tim gối cuối** khoảng đó; hàng **CP nằm giữa M− và M+**; cùng Ø dùng **một số hiệu**, ghi `L=…-CP`. Mặt cắt: số hiệu đai đơn ở **2/3 H**, chống phình giữa H; đai C ghi **số hiệu** (Cx móc chống phình / Cy đứng), không ghi chữ C. Dưới **TL: 1/25** không còn khối chú thích.
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
-6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm.
+6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm. Dầm dài / nhiều mặt cắt: các mặt cắt **xuống hàng** (không đè nhau); bảng kê nhiều số hiệu **sang trang 2**.
+7. Bấm **Xuất CAD (DXF)** khi dầm lớn — bản vẽ không bị cắt theo khổ giấy. Mở bằng AutoCAD, NanoCAD hoặc LibreCAD (đơn vị mm, mặt dầm TL 1/50).
 
 Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Save As** mở hộp thoại chọn nơi lưu (tên mặc định `[Giahuy.net]-shop_dam.json`); **Open** mở lại file đó để sửa. Dùng Chrome hoặc Edge để hiện hộp thoại. **Mẫu D1** khôi phục bộ số liệu demo.
 

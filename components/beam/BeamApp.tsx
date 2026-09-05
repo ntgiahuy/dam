@@ -58,6 +58,8 @@ import {
   normalizeAntiBucklingDia,
   normalizeAntiBucklingSegments,
 } from "@/lib/extra-ties";
+import { downloadTextFile } from "@/lib/cad/dxf";
+import { generateBeamDxf } from "@/lib/cad/generate";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
 import {
   migrateLoadedProject,
@@ -297,6 +299,24 @@ export function BeamApp() {
     } catch (e) {
       const message = e instanceof Error ? e.message : "Không xuất được PDF.";
       console.error("Xuất PDF thất bại:", e);
+      setError(message);
+      setStatus(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function exportCad() {
+    setBusy(true);
+    setError(null);
+    setStatus("Đang tạo file CAD (DXF)…");
+    try {
+      const dxf = generateBeamDxf(workingProject);
+      downloadTextFile(dxf, `KetCauDam_${project.info.name}.dxf`);
+      setStatus("Đã xuất DXF — mở bằng AutoCAD, NanoCAD hoặc LibreCAD.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Không xuất được CAD.";
+      console.error("Xuất CAD thất bại:", e);
       setError(message);
       setStatus(null);
     } finally {
@@ -598,7 +618,7 @@ export function BeamApp() {
               Shop drawing thép dầm
             </div>
             <div className="text-[11px] leading-snug text-zinc-400">
-              Nhập kích thước dầm, bấm nút xanh để xem bản vẽ. Tải PDF khi cần.
+              Nhập kích thước dầm, xuất PDF (A2) hoặc CAD (DXF) khi dầm dài / nhiều số hiệu.
             </div>
           </div>
         </div>
@@ -650,6 +670,9 @@ export function BeamApp() {
           </Button>
           <Button size="sm" disabled={busy} onClick={exportPdf}>
             <Download /> {busy ? "Đang xuất…" : "Xuất PDF"}
+          </Button>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={exportCad}>
+            <Download /> Xuất CAD (DXF)
           </Button>
           {status && <span className="text-xs text-emerald-400">{status}</span>}
           {error && <span className="max-w-xs text-xs text-red-400">{error}</span>}
