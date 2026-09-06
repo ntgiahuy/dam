@@ -1,6 +1,5 @@
 import type { BeamProject } from "../types";
 import { DxfDoc } from "./dxf";
-import { buildShopCad } from "./generate";
 
 const LAYER_COLOR: Record<string, number> = {
   "0": 7,
@@ -18,8 +17,11 @@ function isRealDwg(bytes: Uint8Array) {
   return magic.startsWith("AC10");
 }
 
-async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
-  const acad = await import("@node-projects/acad-ts");
+async function loadAcad() {
+  return import("./acad-runtime") as Promise<typeof import("@node-projects/acad-ts")>;
+}
+
+export async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
   const {
     ACadVersion,
     Arc,
@@ -34,7 +36,7 @@ async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
     TextVerticalAlignmentType,
     UnitsType,
     XYZ,
-  } = acad;
+  } = await loadAcad();
 
   const ents = drawing.toCadPrimitives();
   const doc = new CadDocument(ACadVersion.AC1027);
@@ -107,5 +109,6 @@ async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
 }
 
 export async function generateBeamDwg(project: BeamProject): Promise<Uint8Array> {
+  const { buildShopCad } = await import("./generate");
   return writeShopDwg(buildShopCad(project, "DWG"));
 }

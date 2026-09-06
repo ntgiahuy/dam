@@ -334,7 +334,10 @@ export function BeamApp() {
       downloadBinaryFile(bytes, `KetCauDam_${project.info.name}.dwg`, "application/acad");
       setStatus("Đã xuất DWG — mở bằng AutoCAD (đơn vị mm).");
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Không xuất được DWG.";
+      const raw = e instanceof Error ? e.message : "Không xuất được DWG.";
+      const message = /before initialization|Cannot access/i.test(raw)
+        ? "Không khởi tạo được thư viện DWG."
+        : raw;
       console.error("Xuất DWG thất bại:", e);
       setError(`${message} Có thể dùng Xuất DXF.`);
       setStatus(null);

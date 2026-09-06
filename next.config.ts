@@ -5,7 +5,11 @@ const nextConfig: NextConfig = {
   output: "export",
   images: { unoptimized: true },
   trailingSlash: true,
-  transpilePackages: ["@node-projects/acad-ts"],
+  turbopack: {
+    resolveAlias: {
+      "@node-projects/acad-ts": "./node_modules/@node-projects/acad-ts/dist/index-min.js",
+    },
+  },
 };
 
 export default nextConfig;
