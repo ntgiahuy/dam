@@ -1,15 +1,5 @@
 import type { BeamProject } from "../types";
-import { DxfDoc } from "./dxf";
-
-const LAYER_COLOR: Record<string, number> = {
-  "0": 7,
-  SHOP: 7,
-  AXIS: 8,
-  DIM: 1,
-  TEXT: 7,
-  TITLE: 5,
-  TABLE: 7,
-};
+import { CAD_LAYER_COLOR, DxfDoc } from "./dxf";
 
 function isRealDwg(bytes: Uint8Array) {
   let magic = "";
@@ -31,21 +21,33 @@ export async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
     DwgWriter,
     Layer,
     Line,
+    MeasurementUnits,
     TextEntity,
     TextHorizontalAlignment,
     TextVerticalAlignmentType,
     UnitsType,
+    XY,
     XYZ,
   } = await loadAcad();
 
   const ents = drawing.toCadPrimitives();
+  const box = drawing.boundsFrom(ents);
   const doc = new CadDocument(ACadVersion.AC1027);
   if (!doc.header || !doc.layers || !doc.modelSpace) {
     throw new Error("Không khởi tạo được tài liệu DWG.");
   }
   doc.header.version = ACadVersion.AC1027;
   doc.header.insUnits = UnitsType.Millimeters;
+  doc.header.measurementUnits = MeasurementUnits.Metric;
   doc.header.codePage = "ANSI_1258";
+  doc.header.tileModeEnabled = true;
+  doc.header.modelSpaceExtMin = new XYZ(box.minX, box.minY, 0);
+  doc.header.modelSpaceExtMax = new XYZ(box.maxX, box.maxY, 0);
+  const active = doc.vPorts?.tryGetValue("*Active");
+  if (active) {
+    active.center = new XY((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2);
+    active.viewHeight = Math.max(box.maxY - box.minY, 1);
+  }
 
   const layers = new Map<string, InstanceType<typeof Layer>>();
   const ensureLayer = (name: string) => {
@@ -54,12 +56,12 @@ export async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
     if (existing) return existing;
     if (key === "0") {
       const zero = doc.layers!.tryGetValue("0") ?? new Layer("0");
-      zero.color = new Color(LAYER_COLOR["0"]);
+      zero.color = new Color(CAD_LAYER_COLOR["0"]);
       layers.set("0", zero);
       return zero;
     }
     const layer = new Layer(key);
-    layer.color = new Color(LAYER_COLOR[key] ?? 7);
+    layer.color = new Color(CAD_LAYER_COLOR[key] ?? 250);
     doc.layers!.add(layer);
     layers.set(key, layer);
     return layer;
@@ -69,6 +71,7 @@ export async function writeShopDwg(drawing: DxfDoc): Promise<Uint8Array> {
   const space = doc.modelSpace.entities;
   const add = (entity: InstanceType<typeof Line | typeof Circle | typeof Arc | typeof TextEntity>, layerName: string) => {
     entity.layer = ensureLayer(layerName);
+    entity.color = Color.byLayer;
     space.add(entity);
   };
 

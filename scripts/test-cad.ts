@@ -26,7 +26,17 @@ async function main() {
   if (!dxf.includes("BẢNG THỐNG KÊ CỐT THÉP")) throw new Error("missing schedule title");
   if (!dxf.includes("1-1")) throw new Error("missing section 1-1");
   if (!dxf.includes("0\nEOF")) throw new Error("missing EOF");
+  if (!dxf.includes("$EXTMIN")) throw new Error("missing EXTMIN");
+  if (!dxf.includes("$TILEMODE")) throw new Error("missing TILEMODE");
+  if (!dxf.includes("*MODEL_SPACE")) throw new Error("missing MODEL_SPACE");
+  if (!dxf.includes("2\nBLOCKS")) throw new Error("missing BLOCKS");
   writeFileSync("/tmp/shop-d1.dxf", dxf);
+  const { DxfReader } = await import("@node-projects/acad-ts");
+  const dxfBytes = new TextEncoder().encode(dxf);
+  const dxfDoc = DxfReader.readFromStream(dxfBytes);
+  let dxfN = 0;
+  for (const _ of dxfDoc.modelSpace?.entities ?? []) dxfN += 1;
+  if (dxfN < 50) throw new Error(`DXF lost entities: ${dxfN}`);
 
   const dwg = await generateBeamDwg(p);
   const magic = Buffer.from(dwg.subarray(0, 6)).toString();
@@ -44,7 +54,7 @@ async function main() {
     (e) => "value" in e && String((e as { value?: string }).value || "").includes("BẢNG THỐNG KÊ"),
   );
   if (!title) throw new Error("DWG missing Vietnamese schedule title");
-  console.log("cad tests ok", dxf.length, "dxf bytes,", dwg.length, "dwg bytes,", n, "entities");
+  console.log("cad tests ok", dxf.length, "dxf bytes,", dxfN, "dxf ents,", dwg.length, "dwg bytes,", n, "entities");
 }
 
 void main();

@@ -306,14 +306,14 @@ export function BeamApp() {
     }
   }
 
-  function exportDxf() {
+  async function exportDxf() {
     setBusy(true);
     setError(null);
     setStatus("Đang tạo file CAD (DXF)…");
     try {
       const dxf = generateBeamDxf(workingProject);
-      downloadTextFile(dxf, `KetCauDam_${project.info.name}.dxf`);
-      setStatus("Đã xuất DXF — mở bằng AutoCAD, NanoCAD hoặc LibreCAD.");
+      await downloadTextFile(dxf, `KetCauDam_${project.info.name}.dxf`);
+      setStatus("Đã xuất DXF. Mở bằng AutoCAD — nếu trắng, gõ Z rồi E (Zoom Extents).");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Không xuất được DXF.";
       console.error("Xuất DXF thất bại:", e);
@@ -331,8 +331,8 @@ export function BeamApp() {
     try {
       const { generateBeamDwg } = await import("@/lib/cad/dwg");
       const bytes = await generateBeamDwg(workingProject);
-      downloadBinaryFile(bytes, `KetCauDam_${project.info.name}.dwg`, "application/acad");
-      setStatus("Đã xuất DWG — mở bằng AutoCAD (đơn vị mm).");
+      await downloadBinaryFile(bytes, `KetCauDam_${project.info.name}.dwg`);
+      setStatus("Đã xuất DWG. Mở bằng AutoCAD — nếu trắng, gõ Z rồi E (Zoom Extents).");
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Không xuất được DWG.";
       const message = /before initialization|Cannot access/i.test(raw)
@@ -696,7 +696,7 @@ export function BeamApp() {
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => void exportDwg()}>
             <Download /> Xuất CAD (DWG)
           </Button>
-          <Button variant="secondary" size="sm" disabled={busy} onClick={exportDxf}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void exportDxf()}>
             <Download /> Xuất DXF
           </Button>
           {status && <span className="text-xs text-emerald-400">{status}</span>}
