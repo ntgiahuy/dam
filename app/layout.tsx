@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Shop drawing thép dầm | GiaHuy.Net",
   description:
-    "Nhập số liệu dầm BTCT và xuất shop thép + bảng thống kê cốt thép ra PDF",
+    "Nhập số liệu dầm BTCT và xuất shop thép + bảng thống kê cốt thép ra PDF hoặc CAD (DWG/DXF)",
   icons: {
     icon: [
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },

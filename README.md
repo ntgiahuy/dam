@@ -1,6 +1,6 @@
 # Shop drawing thép dầm
 
-Công cụ nhập số liệu dầm bê tông cốt thép (theo quy trình shop thép dầm) và **xuất bản vẽ PDF** gồm:
+Công cụ nhập số liệu dầm bê tông cốt thép (theo quy trình shop thép dầm) và **xuất bản vẽ PDF / DWG / DXF** gồm:
 
 - Mặt dầm (trục, gối, đai, thép tăng cường) + kích thước nhịp
 - Shop nổ T1 / T2 / B2 / B1, căn theo trục như bản vẽ mẫu
@@ -48,7 +48,7 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 4. (Tuỳ chọn) dầm phụ / trụ trên dầm và đai gia cường chống cắt.
 5. Điền **thông tin dầm** (tên, số lượng, cao độ).
 6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm. Dầm dài / nhiều mặt cắt: các mặt cắt **xuống hàng** (không đè nhau); bảng kê nhiều số hiệu **sang trang 2**.
-7. Bấm **Xuất CAD (DXF)** khi dầm lớn — bản vẽ không bị cắt theo khổ giấy. Mở bằng AutoCAD, NanoCAD hoặc LibreCAD (đơn vị mm, mặt dầm TL 1/50).
+7. Bấm **Xuất CAD (DWG)** khi dầm lớn — file DWG thật (AutoCAD 2013, đơn vị mm, mặt dầm TL 1/50), không bị cắt theo khổ giấy. **Xuất DXF** vẫn có nếu cần NanoCAD / LibreCAD.
 
 Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Save As** mở hộp thoại chọn nơi lưu (tên mặc định `[Giahuy.net]-shop_dam.json`); **Open** mở lại file đó để sửa. Dùng Chrome hoặc Edge để hiện hộp thoại. **Mẫu D1** khôi phục bộ số liệu demo.
 

@@ -225,7 +225,7 @@ function drawSummary(d: DxfDoc, x: number, y: number, model: ComputedModel) {
   });
 }
 
-export function generateBeamDxf(project: BeamProject): string {
+export function buildShopCad(project: BeamProject, formatLabel: "DXF" | "DWG"): DxfDoc {
   const model = computeModel(project);
   const cuts = buildShopCuts(project, model);
   const d = new DxfDoc();
@@ -236,7 +236,7 @@ export function generateBeamDxf(project: BeamProject): string {
   const lastF = supportFaces(project, project.spans.length);
   const midX = (xAt(ORIGIN_X, first.left) + xAt(ORIGIN_X, lastF.right)) / 2;
   d.text(midX, y, 4.2, title, "center", "TITLE");
-  d.text(midX, y + 6, 2.6, "TL: 1/50  ·  file CAD (DXF) — không bị cắt khổ giấy", "center", "TEXT");
+  d.text(midX, y + 6, 2.6, `TL: 1/50  ·  file CAD (${formatLabel}) — không bị cắt khổ giấy`, "center", "TEXT");
   y += 16;
 
   const uniques = uniqueCuts(cuts);
@@ -251,5 +251,9 @@ export function generateBeamDxf(project: BeamProject): string {
 
   const table = drawSchedule(d, 16, y, project, model.schedule);
   drawSummary(d, 16 + table.w + 12, y, model);
-  return d.toString();
+  return d;
+}
+
+export function generateBeamDxf(project: BeamProject): string {
+  return buildShopCad(project, "DXF").toString();
 }
