@@ -11,7 +11,7 @@ Trọng lượng tính theo `d² / 162.2` (kg/m), nhân với số lượng dầ
 
 ## Địa chỉ
 
-- Trên web: [https://dam.giahuy.net/](https://dam.giahuy.net/)
+- Trên web: [https://ntgiahuy.github.io/dam/](https://ntgiahuy.github.io/dam/)
 - Mã nguồn GitHub: [ntgiahuy/dam](https://github.com/ntgiahuy/dam)
 
 ## Chạy local
@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Mở trình duyệt tại cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1** (5 nhịp); danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí.
+Mở trình duyệt tại `/dam/` trên cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1** (5 nhịp); danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí.
 
 Xuất site tĩnh cho GitHub Pages:
 

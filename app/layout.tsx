@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withBasePath } from "@/lib/base-path";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,10 +8,10 @@ export const metadata: Metadata = {
     "Nhập số liệu dầm BTCT và xuất shop thép + bảng thống kê cốt thép ra PDF hoặc CAD (DWG/DXF)",
   icons: {
     icon: [
-      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: withBasePath("/favicon-96x96.png"), sizes: "96x96", type: "image/png" },
+      { url: withBasePath("/favicon.ico") },
     ],
-    apple: [{ url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" }],
+    apple: [{ url: withBasePath("/favicon-96x96.png"), sizes: "96x96", type: "image/png" }],
   },
 };
 

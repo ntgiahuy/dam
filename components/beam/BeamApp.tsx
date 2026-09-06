@@ -58,6 +58,7 @@ import {
   normalizeAntiBucklingDia,
   normalizeAntiBucklingSegments,
 } from "@/lib/extra-ties";
+import { withBasePath } from "@/lib/base-path";
 import { downloadBinaryFile, downloadTextFile } from "@/lib/cad/dxf";
 import { generateBeamDxf } from "@/lib/cad/generate";
 import { downloadPdf, generateBeamPdf } from "@/lib/pdf/generate";
@@ -628,7 +629,7 @@ export function BeamApp() {
             className="inline-flex shrink-0 items-center leading-none"
           >
             <img
-              src="/giahuy-logo.png"
+              src={withBasePath("/giahuy-logo.png")}
               alt="GiaHuy"
               width={171}
               height={47}
