@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Mở trình duyệt tại `/dam/` trên cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1**: **SL = 4**, cao độ **4200**, **5 nhịp**, mỗi nhịp **L = 4000 mm**, **H = 500**, **B = 200**, **B1 = 100**, **dH = 0**; sàn **1 — Sàn hai bên**, **HSL = HSR = 120 mm**, **HL = HR = 0**; gối **Cột**, **B = 200**, **B1 = 100** (cân giữa), **H** để trống, tên trục **1 … 6**; lớp bảo vệ **25 mm**, bê tông **B25**, thép **CB400-V**; danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí. Nút **Mới** cũng tạo **5 nhịp** L = 4000, **SL = 4**.
+Mở trình duyệt tại `/dam/` trên cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm 1**: **SL = 1**, cao độ **4200**, **1 nhịp** **L = 6500 mm**, **H = 500**, **B = 200**, **B1 = 100**, **dH = 0**; sàn **1 — Sàn hai bên**, **HSL = HSR = 120 mm**, **HL = HR = 0**; gối **Cột**, **B = 200**, **B1 = 100** (cân giữa), **H** để trống, tên trục **1 … 2**; lớp bảo vệ **25 mm**, bê tông **B25**, thép **CB400-V**; danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí. Nút **Mới** cùng bộ mặc định này.
 
 Xuất site tĩnh cho GitHub Pages:
 
@@ -50,6 +50,6 @@ Thư mục `out/` (sao chép sang `docs/` trên repo GitHub) là bản phát hà
 6. Bấm **Xuất PDF** — khổ A2 ngang, tiêu đề `{Tên} (SL=…; L=…)` và `TL: 1/50` dưới mặt dầm. Dầm dài / nhiều mặt cắt: các mặt cắt **xuống hàng** (không đè nhau); bảng kê nhiều số hiệu **sang trang 2**.
 7. Bấm **Xuất CAD (DWG)** khi dầm lớn — file DWG thật (AutoCAD 2013, đơn vị mm, mặt dầm TL 1/50), không bị cắt theo khổ giấy. **Xuất DXF** vẫn có nếu cần NanoCAD / LibreCAD.
 
-Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Save As** mở hộp thoại chọn nơi lưu (tên mặc định `[Giahuy.net]-shop_dam.json`); **Open** mở lại file đó để sửa. Dùng Chrome hoặc Edge để hiện hộp thoại. **Mẫu D1** khôi phục bộ số liệu demo.
+Dữ liệu được lưu tự động trên trình duyệt (localStorage). **Save As** mở hộp thoại chọn nơi lưu (tên mặc định `[Giahuy.net]-shop_dam.json`); **Open** mở lại file đó để sửa. Dùng Chrome hoặc Edge để hiện hộp thoại. **Mới** khôi phục bộ số liệu mặc định (tên **1**, SL = 1, 1 nhịp L = 6500).
 
 Nhấp vào nhịp hoặc gối trên bản vẽ preview để chọn đối tượng đang sửa.

@@ -40,8 +40,10 @@ function support(i: number, _n: number): Support {
   };
 }
 
-const DEFAULT_SPAN_COUNT = 5;
-const DEFAULT_SPAN_L_MM = 4000;
+const DEFAULT_SPAN_COUNT = 1;
+const DEFAULT_SPAN_L_MM = 6500;
+const DEFAULT_BEAM_NAME = "1";
+const DEFAULT_BEAM_QUANTITY = 1;
 
 function defaultSpanGeometry() {
   const Ls = Array.from({ length: DEFAULT_SPAN_COUNT }, () => DEFAULT_SPAN_L_MM);
@@ -56,7 +58,7 @@ function projectWithGeometry(quantity: number): BeamProject {
   const geo = defaultSpanGeometry();
   return {
     info: {
-      name: "D1",
+      name: DEFAULT_BEAM_NAME,
       quantity,
       elevation: 4200,
       axisName: "",
@@ -76,12 +78,12 @@ function projectWithGeometry(quantity: number): BeamProject {
 }
 
 export function createEmptyProject(): BeamProject {
-  return projectWithGeometry(4);
+  return projectWithGeometry(DEFAULT_BEAM_QUANTITY);
 }
 
-/** Hình học mẫu dầm D1 (5 nhịp L=4000, H=500, B=200, B1=100, dH=0). Danh sách thép để trống. */
+/** Hình học mẫu: 1 nhịp L=6500, tên dầm 1, SL=1. Danh sách thép để trống. */
 export function createSampleD1(): BeamProject {
-  return projectWithGeometry(4);
+  return projectWithGeometry(DEFAULT_BEAM_QUANTITY);
 }
 
 export function defaultSpanStirrups(): SpanStirrups {

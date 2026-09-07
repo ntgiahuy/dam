@@ -97,7 +97,8 @@ import {
 import { CONCRETE_GRADES, STEEL_GRADES } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
-const STORE_KEY = "thep-dam-project-v4";
+const STORE_KEY = "thep-dam-project-v5";
+const STORE_KEY_V4 = "thep-dam-project-v4";
 const STORE_KEY_V3 = "thep-dam-project-v3";
 const STORE_KEY_V2 = "thep-dam-project-v2";
 
@@ -110,10 +111,9 @@ function hasNoSteel(project: BeamProject) {
   );
 }
 
-/** Dầm trống còn sót từ Mới (1 nhịp hoặc SL=1) — nạp lại mẫu 5 nhịp / SL=4. */
+/** Dầm trống trên bản cũ — bỏ qua để nạp mẫu mới (tên 1, SL=1, L=6500). */
 function isUnusedDefaultDraft(project: BeamProject) {
-  if (!hasNoSteel(project)) return false;
-  return project.spans.length === 1 || project.info.quantity === 1;
+  return hasNoSteel(project);
 }
 
 function axisOptions(n: number) {
@@ -251,17 +251,18 @@ export function BeamApp() {
 
   useEffect(() => {
     try {
-      const hydrate = (raw: string | null, fromV2: boolean) => {
+      const hydrate = (raw: string | null, fromV2: boolean, skipEmpty: boolean) => {
         if (!raw) return false;
         const next = migrateLoadedProject(JSON.parse(raw) as BeamProject, fromV2);
-        if (isUnusedDefaultDraft(next)) return false;
+        if (skipEmpty && isUnusedDefaultDraft(next)) return false;
         setProject(next);
         localStorage.setItem(STORE_KEY, JSON.stringify(next));
         return true;
       };
-      if (hydrate(localStorage.getItem(STORE_KEY), false)) return;
-      if (hydrate(localStorage.getItem(STORE_KEY_V3), false)) return;
-      hydrate(localStorage.getItem(STORE_KEY_V2), true);
+      if (hydrate(localStorage.getItem(STORE_KEY), false, false)) return;
+      if (hydrate(localStorage.getItem(STORE_KEY_V4), false, true)) return;
+      if (hydrate(localStorage.getItem(STORE_KEY_V3), false, true)) return;
+      hydrate(localStorage.getItem(STORE_KEY_V2), true, true);
     } catch {
       /* keep sample */
     }
