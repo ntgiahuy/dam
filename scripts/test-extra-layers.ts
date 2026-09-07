@@ -206,7 +206,8 @@ twoLen.stirrups = [
 const twoModel = computeModel(twoLen);
 const antis = twoModel.schedule.filter((r) => r.extraKind === "anti");
 assert(antis.length === 2, "CP hai chiều dài nhịp");
-assert(antis[0].mark === antis[1].mark, "cùng Ø cùng số hiệu");
+assert(antis[0].markNum === antis[1].markNum, "cùng Ø cùng số hiệu gốc");
+assert(antis[0].mark !== antis[1].mark && /[a-z]$/.test(antis[0].mark) && /[a-z]$/.test(antis[1].mark), "tách số hiệu a/b");
 assert(new Set(antis.map((r) => r.barLength)).size === 2, "vẫn tách L trên thống kê");
 assert(normalizeAntiBucklingSegments(2) === 2 && normalizeAntiBucklingSegments(9) === 1, "số đoạn 1/2/3");
 
@@ -253,11 +254,48 @@ const longNeed = antiBucklingRunEnds(longCp, 0, 1).lengthMm;
 assert(longNeed > STOCK_BAR_MM && longBars.length === 2, "dầm dài 20 m cắt 2 cây");
 assert(longBars[0].cutLength === 11700 && longBars[1].cutLength === longNeed - (11700 - 360), "11700 + đoạn còn lại, nối 360");
 assert(antiBucklingSchedule(longCp).every((s) => s.qtyEach === 2), "mỗi đoạn cắt vẫn 2Ø");
+const longSched = computeModel(longCp).schedule.filter((r) => r.extraKind === "anti");
+assert(longSched.length === 2, "thống kê tách 2 đoạn cắt");
+assert(longSched[0].mark.endsWith("a") && longSched[1].mark.endsWith("b"), "số hiệu Xa / Xb");
+assert(longSched[0].markNum === longSched[1].markNum, "Xa Xb cùng số gốc");
+assert(longSched[0].barLength === 11700 && longSched[0].bars.length > 0, "hàng 11700 gắn thanh shop");
+assert(longBars[0].spliceLapMm === 360, "shop nối 30D=360");
 
 const oneCp = syncGeometry(createEmptyProject(), 1);
 oneCp.stirrups[0] = { ...oneCp.stirrups[0], antiBuckling: true, antiBucklingDia: 12 };
 const oneBar = antiBucklingResolvedBars(oneCp)[0];
 assert(oneBar.x1 === -50 && oneBar.x2 === 6550 && oneBar.cutLength === 6600, "1 nhịp mặc định: da+50 → da−50");
+const oneSched = computeModel(oneCp).schedule.filter((r) => r.extraKind === "anti");
+assert(oneSched.length === 1 && oneSched[0].mark.endsWith("a") && oneSched[0].qtyEach === 2, "một kích thước → Xa, 2 cây");
+
+const twin = syncGeometry(createEmptyProject(), 2);
+twin.spans = twin.spans.map((s) => ({ ...s, L: 6500 }));
+twin.stirrups = twin.stirrups.map((s) => ({
+  ...s,
+  antiBuckling: true,
+  antiBucklingDia: 12,
+  antiBucklingStartAxis: undefined,
+  antiBucklingEndAxis: undefined,
+  antiBucklingSegments: 1 as const,
+}));
+const twinBars = antiBucklingResolvedBars(twin);
+const twinLens = twinBars.map((b) => Math.round(b.cutLength));
+assert(twinLens.length === 2 && twinLens[0] === twinLens[1], "hai nhịp cùng L → cùng chiều dài CP");
+const twinSched = computeModel(twin).schedule.filter((r) => r.extraKind === "anti");
+assert(twinSched.length === 1 && twinSched[0].mark.endsWith("a"), "cùng kích thước → một số hiệu Xa");
+assert(twinSched[0].qtyEach === 4, "2 cây × 2 đoạn cùng L = 4 trên hàng Xa");
+
+const manyStock = syncGeometry(createEmptyProject(), 1);
+manyStock.spans = [{ ...manyStock.spans[0], L: 35000 }];
+manyStock.stirrups[0] = { ...manyStock.stirrups[0], antiBuckling: true, antiBucklingDia: 12 };
+const manyBars = antiBucklingResolvedBars(manyStock);
+const stockPieces = manyBars.filter((b) => Math.round(b.cutLength) === STOCK_BAR_MM);
+assert(stockPieces.length >= 3, "dầm rất dài: ≥3 cây 11700");
+const manySched = computeModel(manyStock).schedule.filter((r) => r.extraKind === "anti");
+const xa11700 = manySched.filter((r) => r.barLength === STOCK_BAR_MM);
+assert(xa11700.length === 1 && xa11700[0].mark.endsWith("a"), "mọi cây 11700 dùng chung Xa");
+assert(xa11700[0].qtyEach === stockPieces.length * 2, "SL Xa = số đoạn 11700 × 2");
+assert(manySched.filter((r) => r.barLength !== STOCK_BAR_MM).every((r) => r.mark.endsWith("b")), "đoạn còn lại khác L → Xb");
 
 const midOnly = { ...pack3 };
 midOnly.stirrups = pack3.stirrups.map((s, i) => ({
@@ -280,6 +318,12 @@ const rangedBar = antiBucklingResolvedBars(ranged);
 const rangedGeo = antiBucklingRunEnds(ranged, 0, 2);
 assert(rangedBar.length >= 1 && rangedBar[0].x1 === rangedGeo.x1 && Math.round(rangedBar[rangedBar.length - 1].x2) === Math.round(rangedGeo.x2), "CP theo trục 1→3");
 assert(normalizeAntiBucklingRange(ranged.stirrups[0], 0, 3).end === 2, "range 0→2");
+
+const grow = syncGeometry(createEmptyProject(), 1);
+grow.stirrups[0] = { ...grow.stirrups[0], antiBuckling: true, antiBucklingStartAxis: 0, antiBucklingEndAxis: 1 };
+const grown = syncGeometry(grow, 5);
+assert(grown.stirrups[0].antiBucklingEndAxis === 5, "đổi số nhịp: kết thúc CP theo trục cuối");
+assert(normalizeAntiBucklingRange({ antiBucklingStartAxis: 0 }, 0, 5).end === 5, "thiếu end → trục cuối");
 
 assert(doubleWrapCount(4) === 3, "kép ôm 2/3 của 4 thanh = 3");
 assert(doubleWrapCount(6) === 4, "kép ôm 2/3 của 6 thanh = 4");

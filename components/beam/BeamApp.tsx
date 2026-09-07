@@ -1337,8 +1337,8 @@ export function BeamApp() {
                         {(() => {
                           const cpRange = cpFormRange(src, selectedSpan, lastAxis);
                           const persistRange = (start: number, end: number) => {
-                            const a = Math.min(start, end);
-                            const b = Math.max(start, end);
+                            const a = Math.max(0, Math.min(start, lastAxis));
+                            const b = Math.max(0, Math.min(Math.max(end, a), lastAxis));
                             patchStirrup({
                               antiBuckling: antiOn ? true : src.antiBuckling,
                               extraC: antiOn ? true : src.extraC,
@@ -1351,11 +1351,11 @@ export function BeamApp() {
                               <Field label="Chọn vị trí bắt đầu">
                                 <Select
                                   className="h-8"
-                                  value={cpRange.start}
-                                  onChange={(e) => persistRange(Number(e.target.value), cpRange.end)}
+                                  value={String(cpRange.start)}
+                                  onChange={(e) => persistRange(Number(e.target.value), lastAxis)}
                                 >
                                   {axisOptions(lastAxis).map((i) => (
-                                    <option key={i} value={i}>
+                                    <option key={i} value={String(i)}>
                                       {axisDisplayNo(i)}
                                     </option>
                                   ))}
@@ -1364,11 +1364,11 @@ export function BeamApp() {
                               <Field label="Chọn vị trí kết thúc">
                                 <Select
                                   className="h-8"
-                                  value={cpRange.end}
+                                  value={String(cpRange.end)}
                                   onChange={(e) => persistRange(cpRange.start, Number(e.target.value))}
                                 >
                                   {axisOptions(lastAxis).map((i) => (
-                                    <option key={i} value={i}>
+                                    <option key={i} value={String(i)}>
                                       {axisDisplayNo(i)}
                                     </option>
                                   ))}

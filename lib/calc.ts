@@ -1,5 +1,5 @@
 import {
-  antiBucklingSchedule,
+  antiBucklingResolvedBars,
   extraTieFlagsForSpan,
   resolveExtraTies,
   type ExtraTieKind,
@@ -1283,35 +1283,49 @@ export function computeModel(project: BeamProject): ComputedModel {
     mark += 1;
   }
 
-  const skinList = antiBucklingSchedule(project).filter((s) => s.qtyEach > 0 && s.lengthMm > 0);
-  const antiByDia = new Map<number, typeof skinList>();
-  for (const skin of skinList) {
-    const arr = antiByDia.get(skin.dia) ?? [];
-    arr.push(skin);
-    antiByDia.set(skin.dia, arr);
+  const antiBars = antiBucklingResolvedBars(project);
+  const antiByDia = new Map<number, ResolvedBar[]>();
+  for (const bar of antiBars) {
+    if (bar.cutLength <= 0) continue;
+    const arr = antiByDia.get(bar.dia) ?? [];
+    arr.push(bar);
+    antiByDia.set(bar.dia, arr);
   }
-  for (const skins of antiByDia.values()) {
-    const markNum = mark;
-    for (const skin of skins) {
-      const barLength = skin.lengthMm;
+  for (const cluster of [...antiByDia.values()].sort((a, b) => (a[0]?.dia ?? 0) - (b[0]?.dia ?? 0))) {
+    const byLen = new Map<number, ResolvedBar[]>();
+    for (const bar of cluster) {
+      const len = Math.round(bar.cutLength);
+      const arr = byLen.get(len) ?? [];
+      arr.push(bar);
+      byLen.set(len, arr);
+    }
+    const groups = [...byLen.values()].sort((a, b) => a[0].x1 - b[0].x1);
+    const n = mark;
+    groups.forEach((g, i) => {
+      const b = g[0];
+      if (!b) return;
+      const qtyEach = g.reduce((s, x) => s + x.qty, 0);
+      const qtyTotal = qtyEach * sl;
+      const barLength = Math.round(b.cutLength);
       tableRows.push({
-        mark: String(markNum),
-        markNum,
+        mark: `${n}${markLetter(i)}`,
+        markNum: n,
+        sub: i,
         family: "B2",
         shape: "straight",
         segs: [barLength],
-        dia: skin.dia,
+        dia: b.dia,
         barLength,
         qtyMembers: sl,
-        qtyEach: skin.qtyEach,
-        qtyTotal: skin.qtyEach * sl,
-        totalM: (barLength * skin.qtyEach * sl) / 1000,
-        weight: ((barLength * skin.qtyEach * sl) / 1000) * unitWeight(skin.dia),
-        bars: [],
+        qtyEach,
+        qtyTotal,
+        totalM: (barLength * qtyTotal) / 1000,
+        weight: ((barLength * qtyTotal) / 1000) * unitWeight(b.dia),
+        bars: g,
         label: "Thép chống phình",
         extraKind: "anti",
       });
-    }
+    });
     mark += 1;
   }
 

@@ -199,6 +199,7 @@ export function syncGeometry(project: BeamProject, spanCount: number): BeamProje
       : defaultSpanStirrups();
   });
   const last = count;
+  const prevLast = project.spans.length;
   const clampBar = <T extends { startAxis: number; endAxis: number }>(b: T): T => ({
     ...b,
     startAxis: Math.min(b.startAxis, last),
@@ -209,8 +210,11 @@ export function syncGeometry(project: BeamProject, spanCount: number): BeamProje
     if (next.antiBucklingStartAxis != null) {
       next.antiBucklingStartAxis = Math.max(0, Math.min(next.antiBucklingStartAxis, last));
     }
-    if (next.antiBucklingEndAxis != null) {
-      next.antiBucklingEndAxis = Math.max(0, Math.min(next.antiBucklingEndAxis, last));
+    const end = next.antiBucklingEndAxis;
+    if (end == null || end === prevLast) {
+      next.antiBucklingEndAxis = last;
+    } else {
+      next.antiBucklingEndAxis = Math.max(0, Math.min(end, last));
     }
     return next;
   };

@@ -372,14 +372,6 @@ function covers(bar: ResolvedBar, x: number, pad = 30) {
 }
 
 function markForBar(schedule: ScheduleRow[], bar: ResolvedBar) {
-  if (bar.sourceId.startsWith("anti-")) {
-    return schedule.find(
-      (r) =>
-        r.extraKind === "anti" &&
-        r.dia === bar.dia &&
-        Math.round(r.barLength) === Math.round(bar.cutLength),
-    );
-  }
   const piece = bar.pieceIndex ?? 0;
   const exact = schedule.find(
     (r) =>
@@ -584,6 +576,23 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
   });
 }
 
+function drawAntiShopPiece(ctx: Ctx, bar: ResolvedBar, y: number, dimSide: 1 | -1) {
+  const row = markForBar(ctx.model.schedule, bar);
+  const mark = row?.mark ?? "";
+  const x1 = xAt(ctx, bar.x1);
+  const x2 = xAt(ctx, bar.x2);
+  drawHookedBar(ctx, x1, x2, y, 0, 0, -1, 1.05);
+  const markX = placeBarMarks([{ x1, x2 }], 6.2)[0] ?? (x1 + x2) / 2;
+  if (bar.straight > 80) {
+    dimH(ctx, x1, x2, y + dimSide * 10, String(Math.round(bar.cutLength)), 6, markX);
+  }
+  if (bar.spliceLapMm && bar.spliceLapMm > 0) {
+    const lapX1 = xAt(ctx, bar.x2 - bar.spliceLapMm);
+    dimH(ctx, lapX1, x2, y - dimSide * 9, `30D=${Math.round(bar.spliceLapMm)}`, 5.6);
+  }
+  drawShopSpec(ctx, x1, x2, y, mark, shopSpec(bar.qty, bar, "CP"), markX);
+}
+
 function antiShopBlockH(bars: ResolvedBar[]) {
   const groups = groupMainShopSources(bars);
   if (!groups.some((g) => g.length > 1)) return EXTRA_SHOP_H;
@@ -593,13 +602,17 @@ function antiShopBlockH(bars: ResolvedBar[]) {
 function drawAntiShopRows(ctx: Ctx, bars: ResolvedBar[], y: number) {
   const groups = groupMainShopSources(bars);
   if (!groups.some((g) => g.length > 1)) {
-    drawExtraShopRow(ctx, bars, ctx.model.schedule, y, -1);
+    let yy = y;
+    for (const bar of bars) {
+      drawAntiShopPiece(ctx, bar, yy, -1);
+    }
     return y + EXTRA_SHOP_H;
   }
   let yy = y;
   for (const group of groups) {
     if (group.length <= 1) {
-      drawExtraShopRow(ctx, group, ctx.model.schedule, yy, -1);
+      const bar = group[0];
+      if (bar) drawAntiShopPiece(ctx, bar, yy, -1);
       yy += EXTRA_SHOP_H;
       continue;
     }
@@ -607,7 +620,8 @@ function drawAntiShopRows(ctx: Ctx, bars: ResolvedBar[], y: number) {
     for (let i = 0; i < group.length; i++) {
       const lower = i % 2 === 1;
       const yBar = y0 + (lower ? SPLICE_LANE : 0);
-      drawExtraShopRow(ctx, [group[i]], ctx.model.schedule, yBar, -1);
+      const dimSide = (lower ? 1 : -1) as 1 | -1;
+      drawAntiShopPiece(ctx, group[i], yBar, dimSide);
     }
     yy += SPLICE_BLOCK_H;
   }
