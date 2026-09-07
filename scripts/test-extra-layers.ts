@@ -34,6 +34,7 @@ import {
   extraTieFlagsForSpan,
   nestedHoopFromBarXs,
   nestedWrapRange,
+  normalizeAntiBucklingRange,
   normalizeAntiBucklingSegments,
   normalizeExtraTieDia,
 } from "../lib/extra-ties";
@@ -266,6 +267,19 @@ midOnly.stirrups = pack3.stirrups.map((s, i) => ({
 }));
 const midBar = antiBucklingResolvedBars(midOnly)[0];
 assert(midBar.x1 === 4250 && midBar.x2 === 8500 && midBar.cutLength === 4250, "nhịp giữa: tim → tim");
+
+const ranged = { ...pack3 };
+ranged.stirrups = pack3.stirrups.map((s, i) => ({
+  ...s,
+  antiBuckling: i === 0,
+  antiBucklingStartAxis: 0,
+  antiBucklingEndAxis: 2,
+  antiBucklingSegments: 1 as const,
+}));
+const rangedBar = antiBucklingResolvedBars(ranged);
+const rangedGeo = antiBucklingRunEnds(ranged, 0, 2);
+assert(rangedBar.length >= 1 && rangedBar[0].x1 === rangedGeo.x1 && Math.round(rangedBar[rangedBar.length - 1].x2) === Math.round(rangedGeo.x2), "CP theo trục 1→3");
+assert(normalizeAntiBucklingRange(ranged.stirrups[0], 0, 3).end === 2, "range 0→2");
 
 assert(doubleWrapCount(4) === 3, "kép ôm 2/3 của 4 thanh = 3");
 assert(doubleWrapCount(6) === 4, "kép ôm 2/3 của 6 thanh = 4");

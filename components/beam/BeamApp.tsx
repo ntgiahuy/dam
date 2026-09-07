@@ -44,7 +44,6 @@ import {
 } from "@/lib/calc";
 import {
   ANTI_BUCKLING_DIAS,
-  ANTI_BUCKLING_SEGMENTS,
   EXTRA_TIE_DIAS,
   extraCDiaOf,
   extraCDirs,
@@ -56,7 +55,7 @@ import {
   extraTieAllowNested,
   extraTieStatus,
   normalizeAntiBucklingDia,
-  normalizeAntiBucklingSegments,
+  normalizeAntiBucklingRange,
 } from "@/lib/extra-ties";
 import { withBasePath } from "@/lib/base-path";
 import { downloadBinaryFile, downloadTextFile } from "@/lib/cad/dxf";
@@ -1299,7 +1298,8 @@ export function BeamApp() {
                                   extraCSpacing: extraCSpacingOf(src),
                                   extraCCy: extraCDirs(src).cy,
                                   antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
-                                  antiBucklingSegments: normalizeAntiBucklingSegments(src.antiBucklingSegments),
+                                  antiBucklingStartAxis: 0,
+                                  antiBucklingEndAxis: lastAxis,
                                 });
                               }}
                             />
@@ -1323,26 +1323,56 @@ export function BeamApp() {
                           </Select>
                         </div>
                         {antiOn ? (
-                          <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
-                            Số đoạn
-                            <Select
-                              className="h-8 w-[72px]"
-                              value={normalizeAntiBucklingSegments(src.antiBucklingSegments)}
-                              onChange={(e) =>
-                                patchStirrup({
-                                  antiBuckling: true,
-                                  extraC: true,
-                                  antiBucklingSegments: normalizeAntiBucklingSegments(Number(e.target.value)),
-                                })
-                              }
-                            >
-                              {ANTI_BUCKLING_SEGMENTS.map((n) => (
-                                <option key={n} value={n}>
-                                  {n}
-                                </option>
-                              ))}
-                            </Select>
-                          </label>
+                          <div className="flex w-full flex-wrap gap-3">
+                            {(() => {
+                              const cpRange = normalizeAntiBucklingRange(src, selectedSpan, lastAxis);
+                              return (
+                                <>
+                                  <Field label="Chọn vị trí bắt đầu" className="w-[9rem]">
+                                    <Select
+                                      className="h-8"
+                                      value={cpRange.start}
+                                      onChange={(e) => {
+                                        const startAxis = Number(e.target.value);
+                                        patchStirrup({
+                                          antiBuckling: true,
+                                          extraC: true,
+                                          antiBucklingStartAxis: startAxis,
+                                          antiBucklingEndAxis: lastAxis,
+                                        });
+                                      }}
+                                    >
+                                      {axisOptions(lastAxis).map((i) => (
+                                        <option key={i} value={i}>
+                                          {axisSelectLabel(project, i)}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </Field>
+                                  <Field label="Chọn vị trí kết thúc" className="w-[9rem]">
+                                    <Select
+                                      className="h-8"
+                                      value={cpRange.end}
+                                      onChange={(e) =>
+                                        patchStirrup({
+                                          antiBuckling: true,
+                                          extraC: true,
+                                          antiBucklingStartAxis: cpRange.start,
+                                          antiBucklingEndAxis: Number(e.target.value),
+                                        })
+                                      }
+                                    >
+                                      {axisOptions(lastAxis).map((i) => (
+                                        <option key={i} value={i}>
+                                          {axisSelectLabel(project, i)}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </Field>
+                                </>
+                              );
+                            })()}
+                          </div>
                         ) : null}
                         <div className="min-w-[220px]">
                           {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}

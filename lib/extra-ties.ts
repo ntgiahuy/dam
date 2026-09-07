@@ -96,6 +96,34 @@ export function normalizeAntiBucklingSegments(n?: number): 1 | 2 | 3 {
   return 1;
 }
 
+function clampAxis(value: number, lastAxis: number) {
+  return Math.max(0, Math.min(Math.round(value), lastAxis));
+}
+
+/** Trục CP: form mới start/end; file cũ không có thì lấy số đoạn từ nhịp đang tick. */
+export function normalizeAntiBucklingRange(
+  raw: SpanStirrups | undefined,
+  spanIndex: number,
+  lastAxis: number,
+): { start: number; end: number } {
+  const last = Math.max(0, lastAxis);
+  const hasStart = raw?.antiBucklingStartAxis != null && Number.isFinite(Number(raw.antiBucklingStartAxis));
+  const hasEnd = raw?.antiBucklingEndAxis != null && Number.isFinite(Number(raw.antiBucklingEndAxis));
+  if (!hasStart && !hasEnd) {
+    const segs = normalizeAntiBucklingSegments(raw?.antiBucklingSegments);
+    const start = clampAxis(spanIndex, last);
+    return { start, end: Math.max(start, Math.min(start + segs, last)) };
+  }
+  let start = hasStart ? clampAxis(Number(raw?.antiBucklingStartAxis), last) : 0;
+  let end = hasEnd ? clampAxis(Number(raw?.antiBucklingEndAxis), last) : last;
+  if (end < start) {
+    const t = start;
+    start = end;
+    end = t;
+  }
+  return { start, end };
+}
+
 export function normalizeExtraTieDia(dia?: number, fallback = 6) {
   const n = Math.round(Number(dia) || 0);
   if ((EXTRA_TIE_DIAS as readonly number[]).includes(n)) return n;
@@ -168,19 +196,20 @@ export interface AntiBucklingRun {
   x2: number;
 }
 
-/** Gói các nhịp đã tick thành thanh CP: 1 / 2 / 3 đoạn. */
+/** Gói các nhịp đã tick thành thanh CP theo trục bắt đầu → kết thúc. */
 export function antiBucklingRuns(project: BeamProject): AntiBucklingRun[] {
   const n = project.spans.length;
+  const last = n;
   const taken = Array.from({ length: n }, () => false);
   const runs: AntiBucklingRun[] = [];
   for (let i = 0; i < n; i++) {
     if (taken[i] || !spanHasAntiBuckling(project, i)) continue;
-    const segs = normalizeAntiBucklingSegments(project.stirrups[i]?.antiBucklingSegments);
-    const end = Math.min(i + segs, n);
+    const { start, end } = normalizeAntiBucklingRange(project.stirrups[i], i, last);
+    if (end <= start) continue;
     const dia = normalizeAntiBucklingDia(project.stirrups[i]?.antiBucklingDia);
-    const geo = antiBucklingRunEnds(project, i, end);
-    runs.push({ start: i, end, dia, ...geo });
-    for (let k = i; k < end; k++) taken[k] = true;
+    const geo = antiBucklingRunEnds(project, start, end);
+    runs.push({ start, end, dia, ...geo });
+    for (let k = start; k < end; k++) taken[k] = true;
   }
   return runs;
 }

@@ -148,6 +148,12 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
       if (n === 3) return 3 as const;
       return 1 as const;
     })(),
+    antiBucklingStartAxis: Number.isFinite(Number(r.antiBucklingStartAxis))
+      ? Math.round(Number(r.antiBucklingStartAxis))
+      : undefined,
+    antiBucklingEndAxis: Number.isFinite(Number(r.antiBucklingEndAxis))
+      ? Math.round(Number(r.antiBucklingEndAxis))
+      : undefined,
   };
   if (typeof r.a1 === "number" || typeof r.a2 === "number") {
     return {
@@ -198,11 +204,21 @@ export function syncGeometry(project: BeamProject, spanCount: number): BeamProje
     startAxis: Math.min(b.startAxis, last),
     endAxis: Math.min(Math.max(b.endAxis, b.startAxis), last),
   });
+  const clampAnti = (s: SpanStirrups): SpanStirrups => {
+    const next = { ...s };
+    if (next.antiBucklingStartAxis != null) {
+      next.antiBucklingStartAxis = Math.max(0, Math.min(next.antiBucklingStartAxis, last));
+    }
+    if (next.antiBucklingEndAxis != null) {
+      next.antiBucklingEndAxis = Math.max(0, Math.min(next.antiBucklingEndAxis, last));
+    }
+    return next;
+  };
   return {
     ...project,
     spans,
     supports,
-    stirrups,
+    stirrups: stirrups.map(clampAnti),
     mainBottom: project.mainBottom.map(clampBar),
     extraBottom: project.extraBottom.map(clampBar),
     mainTop: project.mainTop.map(clampBar),

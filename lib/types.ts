@@ -125,8 +125,12 @@ export interface SpanStirrups {
   antiBuckling?: boolean;
   /** Ø thép chống phình: 10 / 12 / 14 / 16. */
   antiBucklingDia?: number;
-  /** Số nhịp một thanh CP ôm: 1 / 2 / 3. Gối 1 và hết dầm: da bê tông lùi 50 mm. */
+  /** File cũ: số nhịp một thanh CP ôm (1 / 2 / 3). Bản mới dùng trục bắt đầu / kết thúc. */
   antiBucklingSegments?: 1 | 2 | 3;
+  /** Trục bắt đầu CP (0-based, form hiện 1…n+1). Mặc định 0. */
+  antiBucklingStartAxis?: number;
+  /** Trục kết thúc CP (0-based). Mặc định trục cuối. */
+  antiBucklingEndAxis?: number;
 }
 
 export interface SecondaryMember {
