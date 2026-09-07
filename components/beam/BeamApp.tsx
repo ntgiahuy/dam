@@ -104,12 +104,26 @@ function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
 }
 
+/** Số trục hiện trên form thép chủ: 1 … n+1 (bỏ 0). */
+function axisDisplayNo(index: number) {
+  return index + 1;
+}
+
+function axisSelectLabel(project: BeamProject, index: number) {
+  const name = project.supports[index]?.axisName?.trim();
+  return name || String(axisDisplayNo(index));
+}
+
+function mainAxisRangeLabel(start: number, end: number) {
+  return `${axisDisplayNo(start)}→${axisDisplayNo(end)}`;
+}
+
 function mainAutoCutOn(bar: Pick<MainBar, "autoCut">) {
   return bar.autoCut !== false;
 }
 
 function barListLabel(b: MainBar) {
-  const parts = [`${b.qty}Ø${b.dia}  (${b.startAxis}→${b.endAxis})`];
+  const parts = [`${b.qty}Ø${b.dia}  (${mainAxisRangeLabel(b.startAxis, b.endAxis)})`];
   if (b.hooksBothEnds) {
     const h =
       b.hookHeightMm && b.hookHeightMm > 0 ? b.hookHeightMm : defaultBottomMainHookMm(b.dia);
@@ -470,11 +484,23 @@ export function BeamApp() {
     }
     if (tab === "mainBottom" || tab === "mainTop") {
       setMainForm((f) => {
-        if (f.autoCut === true && f.lapMultiple) return f;
-        return { ...f, autoCut: true, lapMultiple: normalizeLapMultiple(f.lapMultiple) };
+        const autoCut = f.autoCut === true && f.lapMultiple ? f : { ...f, autoCut: true, lapMultiple: normalizeLapMultiple(f.lapMultiple) };
+        const startAxis = Math.min(autoCut.startAxis, lastAxis);
+        const endAxis = selectedBar
+          ? Math.min(Math.max(autoCut.endAxis, startAxis), lastAxis)
+          : lastAxis;
+        if (
+          autoCut.autoCut === f.autoCut &&
+          autoCut.lapMultiple === f.lapMultiple &&
+          startAxis === f.startAxis &&
+          endAxis === f.endAxis
+        ) {
+          return f;
+        }
+        return { ...autoCut, startAxis, endAxis };
       });
     }
-  }, [tab, lastAxis]);
+  }, [tab, lastAxis, selectedBar]);
 
   const barRegion =
     tab === "extraBottom" || tab === "extraTop"
@@ -1742,11 +1768,14 @@ function MainBarPanel({
           <Field label="Chọn vị trí bắt đầu">
             <Select
               value={form.startAxis}
-              onChange={(e) => setForm({ ...form, startAxis: Number(e.target.value) })}
+              onChange={(e) => {
+                const startAxis = Number(e.target.value);
+                setForm({ ...form, startAxis, endAxis: lastAxis });
+              }}
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
-                  {i}
+                  {axisSelectLabel(project, i)}
                 </option>
               ))}
             </Select>
@@ -1758,7 +1787,7 @@ function MainBarPanel({
             >
               {axisOptions(lastAxis).map((i) => (
                 <option key={i} value={i}>
-                  {i}
+                  {axisSelectLabel(project, i)}
                 </option>
               ))}
             </Select>
@@ -1889,7 +1918,7 @@ function MainBarPanel({
             }}
             canShiftLeft={canShiftAxisRange(form.startAxis, form.endAxis, -1, lastAxis)}
             canShiftRight={canShiftAxisRange(form.startAxis, form.endAxis, 1, lastAxis)}
-            rangeLabel={`${form.startAxis} → ${form.endAxis}`}
+            rangeLabel={`${axisDisplayNo(form.startAxis)} → ${axisDisplayNo(form.endAxis)}`}
           />
         </div>
         <p className={`mt-2 text-[11px] leading-snug ${!clearance.ok || addBlocked ? "text-amber-400" : "text-zinc-400"}`}>
