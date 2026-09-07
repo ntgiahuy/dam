@@ -2,9 +2,9 @@ import { MAX_SPAN_COUNT, type BeamProject, type ConnectionType, type Span, type 
 import { uid } from "./utils";
 
 const DEFAULT_SUPPORT_TYPE: ConnectionType = "cot";
-const DEFAULT_SUPPORT_B_MM = 300;
+const DEFAULT_SUPPORT_B_MM = 200;
 /** B/2 — gối cân giữa tim trục. */
-const DEFAULT_SUPPORT_B1_MM = 150;
+const DEFAULT_SUPPORT_B1_MM = 100;
 /** 0 = để trống trên form (chiều cao gối không bắt buộc). */
 const DEFAULT_SUPPORT_H_MM = 0;
 
@@ -42,7 +42,7 @@ function support(i: number, _n: number): Support {
 
 const DEFAULT_SPAN_COUNT = 1;
 const DEFAULT_SPAN_L_MM = 6500;
-const DEFAULT_BEAM_NAME = "1";
+const DEFAULT_BEAM_NAME = "D1";
 const DEFAULT_BEAM_QUANTITY = 1;
 
 function defaultSpanGeometry() {
@@ -81,7 +81,7 @@ export function createEmptyProject(): BeamProject {
   return projectWithGeometry(DEFAULT_BEAM_QUANTITY);
 }
 
-/** Hình học mẫu: 1 nhịp L=6500, tên dầm 1, SL=1. Danh sách thép để trống. */
+/** Hình học mẫu: 1 nhịp L=6500, tên dầm D1, SL=1. Danh sách thép để trống. */
 export function createSampleD1(): BeamProject {
   return projectWithGeometry(DEFAULT_BEAM_QUANTITY);
 }
