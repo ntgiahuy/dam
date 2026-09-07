@@ -127,6 +127,18 @@ function axisDisplayNo(index: number) {
   return index + 1;
 }
 
+/** Form chống phình: hiện 1 → trục cuối khi chưa chọn đoạn. */
+function cpFormRange(
+  src: { antiBucklingStartAxis?: number; antiBucklingEndAxis?: number },
+  selectedSpan: number,
+  lastAxis: number,
+) {
+  if (src.antiBucklingStartAxis != null || src.antiBucklingEndAxis != null) {
+    return normalizeAntiBucklingRange(src, selectedSpan, lastAxis);
+  }
+  return { start: 0, end: lastAxis };
+}
+
 function axisSelectLabel(project: BeamProject, index: number) {
   const name = project.supports[index]?.axisName?.trim();
   return name || String(axisDisplayNo(index));
@@ -1322,58 +1334,49 @@ export function BeamApp() {
                             ))}
                           </Select>
                         </div>
-                        {antiOn ? (
-                          <div className="flex w-full flex-wrap gap-3">
-                            {(() => {
-                              const cpRange = normalizeAntiBucklingRange(src, selectedSpan, lastAxis);
-                              return (
-                                <>
-                                  <Field label="Chọn vị trí bắt đầu" className="w-[9rem]">
-                                    <Select
-                                      className="h-8"
-                                      value={cpRange.start}
-                                      onChange={(e) => {
-                                        const startAxis = Number(e.target.value);
-                                        patchStirrup({
-                                          antiBuckling: true,
-                                          extraC: true,
-                                          antiBucklingStartAxis: startAxis,
-                                          antiBucklingEndAxis: lastAxis,
-                                        });
-                                      }}
-                                    >
-                                      {axisOptions(lastAxis).map((i) => (
-                                        <option key={i} value={i}>
-                                          {axisSelectLabel(project, i)}
-                                        </option>
-                                      ))}
-                                    </Select>
-                                  </Field>
-                                  <Field label="Chọn vị trí kết thúc" className="w-[9rem]">
-                                    <Select
-                                      className="h-8"
-                                      value={cpRange.end}
-                                      onChange={(e) =>
-                                        patchStirrup({
-                                          antiBuckling: true,
-                                          extraC: true,
-                                          antiBucklingStartAxis: cpRange.start,
-                                          antiBucklingEndAxis: Number(e.target.value),
-                                        })
-                                      }
-                                    >
-                                      {axisOptions(lastAxis).map((i) => (
-                                        <option key={i} value={i}>
-                                          {axisSelectLabel(project, i)}
-                                        </option>
-                                      ))}
-                                    </Select>
-                                  </Field>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        ) : null}
+                        {(() => {
+                          const cpRange = cpFormRange(src, selectedSpan, lastAxis);
+                          const persistRange = (start: number, end: number) => {
+                            const a = Math.min(start, end);
+                            const b = Math.max(start, end);
+                            patchStirrup({
+                              antiBuckling: antiOn ? true : src.antiBuckling,
+                              extraC: antiOn ? true : src.extraC,
+                              antiBucklingStartAxis: a,
+                              antiBucklingEndAxis: b,
+                            });
+                          };
+                          return (
+                            <div className="grid w-full max-w-[22rem] grid-cols-2 gap-2">
+                              <Field label="Chọn vị trí bắt đầu">
+                                <Select
+                                  className="h-8"
+                                  value={cpRange.start}
+                                  onChange={(e) => persistRange(Number(e.target.value), cpRange.end)}
+                                >
+                                  {axisOptions(lastAxis).map((i) => (
+                                    <option key={i} value={i}>
+                                      {axisDisplayNo(i)}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </Field>
+                              <Field label="Chọn vị trí kết thúc">
+                                <Select
+                                  className="h-8"
+                                  value={cpRange.end}
+                                  onChange={(e) => persistRange(cpRange.start, Number(e.target.value))}
+                                >
+                                  {axisOptions(lastAxis).map((i) => (
+                                    <option key={i} value={i}>
+                                      {axisDisplayNo(i)}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </Field>
+                            </div>
+                          );
+                        })()}
                         <div className="min-w-[220px]">
                           {box("extraC", "Đai C", st.allowC && !antiOn, extraC)}
                           {extraC ? (

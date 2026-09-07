@@ -102,7 +102,9 @@ function clampAxis(value: number, lastAxis: number) {
 
 /** Trục CP: form mới start/end; file cũ không có thì lấy số đoạn từ nhịp đang tick. */
 export function normalizeAntiBucklingRange(
-  raw: SpanStirrups | undefined,
+  raw:
+    | Pick<SpanStirrups, "antiBucklingStartAxis" | "antiBucklingEndAxis" | "antiBucklingSegments">
+    | undefined,
   spanIndex: number,
   lastAxis: number,
 ): { start: number; end: number } {
