@@ -1285,41 +1285,43 @@ export function BeamApp() {
                   return (
                     <Panel title="Thép bổ sung">
                       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-                        <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
-                          <Checkbox
-                            checked={antiOn}
-                            onCheckedChange={(value) => {
-                              const on = value === true;
+                        <div className="inline-flex h-8 shrink-0 items-center gap-2 text-sm leading-none text-zinc-200">
+                          <label className="inline-flex items-center gap-2">
+                            <Checkbox
+                              checked={antiOn}
+                              onCheckedChange={(value) => {
+                                const on = value === true;
+                                patchStirrup({
+                                  antiBuckling: on,
+                                  extraC: on ? true : src.extraC,
+                                  extraCDia: extraCDiaOf(src),
+                                  extraCCx: on ? true : extraCDirs(src).cx,
+                                  extraCSpacing: extraCSpacingOf(src),
+                                  extraCCy: extraCDirs(src).cy,
+                                  antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
+                                  antiBucklingSegments: normalizeAntiBucklingSegments(src.antiBucklingSegments),
+                                });
+                              }}
+                            />
+                            Thép chống phình Ø
+                          </label>
+                          <Select
+                            className="h-7 w-[72px] self-center"
+                            value={normalizeAntiBucklingDia(src.antiBucklingDia)}
+                            onChange={(e) =>
                               patchStirrup({
-                                antiBuckling: on,
-                                extraC: on ? true : src.extraC,
-                                extraCDia: extraCDiaOf(src),
-                                extraCCx: on ? true : extraCDirs(src).cx,
-                                extraCSpacing: extraCSpacingOf(src),
-                                extraCCy: extraCDirs(src).cy,
-                                antiBucklingDia: normalizeAntiBucklingDia(src.antiBucklingDia),
-                                antiBucklingSegments: normalizeAntiBucklingSegments(src.antiBucklingSegments),
-                              });
-                            }}
-                          />
-                          Thép chống phình Ø
-                        </label>
-                        <Select
-                          className="h-8 w-[72px]"
-                          value={normalizeAntiBucklingDia(src.antiBucklingDia)}
-                          onChange={(e) =>
-                            patchStirrup({
-                              antiBucklingDia: Number(e.target.value),
-                              extraC: antiOn ? true : src.extraC,
-                            })
-                          }
-                        >
-                          {ANTI_BUCKLING_DIAS.map((d) => (
-                            <option key={d} value={d}>
-                              {d}
-                            </option>
-                          ))}
-                        </Select>
+                                antiBucklingDia: Number(e.target.value),
+                                extraC: antiOn ? true : src.extraC,
+                              })
+                            }
+                          >
+                            {ANTI_BUCKLING_DIAS.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
                         {antiOn ? (
                           <label className="inline-flex shrink-0 items-center gap-2 text-sm text-zinc-200">
                             Số đoạn

@@ -575,9 +575,43 @@ function drawExtraShopRow(ctx: Ctx, bars: ResolvedBar[], schedule: ScheduleRow[]
     const he = Math.max(b.hookEnd * ctx.scale * 0.28, b.hookEnd > 0 ? 8 : 0);
     if (b.hookStart > 0) dimV(ctx, x1 - 10, y, y + dir * hs, String(Math.round(b.hookStart)), 6);
     if (b.hookEnd > 0) dimV(ctx, x2 + 7, y, y + dir * he, String(Math.round(b.hookEnd)), 6);
+    if (b.spliceLapMm && b.spliceLapMm > 0) {
+      const lapX1 = xAt(ctx, b.x2 - b.spliceLapMm);
+      dimH(ctx, lapX1, x2, y - (dir === 1 ? 11 : -11), String(Math.round(b.spliceLapMm)), 5.8);
+    }
     const nextMark = markXs[i + 1];
     drawShopSpec(ctx, x1, x2, y, mark, shopSpec(b.qty, b, family), markX, nextMark);
   });
+}
+
+function antiShopBlockH(bars: ResolvedBar[]) {
+  const groups = groupMainShopSources(bars);
+  if (!groups.some((g) => g.length > 1)) return EXTRA_SHOP_H;
+  return groups.reduce((h, g) => h + (g.length <= 1 ? EXTRA_SHOP_H : SPLICE_BLOCK_H), 0);
+}
+
+function drawAntiShopRows(ctx: Ctx, bars: ResolvedBar[], y: number) {
+  const groups = groupMainShopSources(bars);
+  if (!groups.some((g) => g.length > 1)) {
+    drawExtraShopRow(ctx, bars, ctx.model.schedule, y, -1);
+    return y + EXTRA_SHOP_H;
+  }
+  let yy = y;
+  for (const group of groups) {
+    if (group.length <= 1) {
+      drawExtraShopRow(ctx, group, ctx.model.schedule, yy, -1);
+      yy += EXTRA_SHOP_H;
+      continue;
+    }
+    const y0 = yy + SPLICE_PAD;
+    for (let i = 0; i < group.length; i++) {
+      const lower = i % 2 === 1;
+      const yBar = y0 + (lower ? SPLICE_LANE : 0);
+      drawExtraShopRow(ctx, [group[i]], ctx.model.schedule, yBar, -1);
+    }
+    yy += SPLICE_BLOCK_H;
+  }
+  return yy;
 }
 
 const MAIN_SHOP_H = 24;
@@ -607,7 +641,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
     padTop +
     topLayers.length * EXTRA_SHOP_H +
     (hasAnti && topLayers.length ? gapAroundCp : 0) +
-    (hasAnti ? EXTRA_SHOP_H : 0) +
+    (hasAnti ? antiShopBlockH(antiBars) : 0) +
     (hasAnti && botLayers.length ? gapAroundCp : 0) +
     gapMoments +
     botLayers.length * EXTRA_SHOP_H +
@@ -638,8 +672,7 @@ function drawExplodedShops(ctx: Ctx, yStart: number) {
     openBand();
     if (topLayers.length) y += gapAroundCp;
     textSimple(ctx, "CP", 108, y + 1, 7, true, "right");
-    drawExtraShopRow(ctx, antiBars, model.schedule, y, -1);
-    y += EXTRA_SHOP_H;
+    y = drawAntiShopRows(ctx, antiBars, y);
   }
 
   if (botLayers.length) {
@@ -1072,11 +1105,13 @@ function drawElevation(ctx: Ctx, yTop: number, beamH: number, cuts: CutLoc[]) {
       y: botY - extraLayerOffsetMm(bar.layer) * mmToPt,
       fullMark: false,
     })),
-    ...antiBars.map((bar) => ({
-      bar,
-      y: midY,
-      fullMark: true,
-    })),
+    ...antiBars
+      .filter((bar) => (bar.pieceIndex ?? 0) === 0)
+      .map((bar) => ({
+        bar,
+        y: midY,
+        fullMark: false,
+      })),
   ]);
   void extraMarks;
 

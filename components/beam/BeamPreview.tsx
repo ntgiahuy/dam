@@ -260,18 +260,31 @@ export function BeamPreview({
         ))}
         {antiBucklingResolvedBars(project).map((b) => {
           const midY = (planes.topMain + planes.botMain) / 2;
+          const lap = b.spliceLapMm && b.spliceLapMm > 0 ? b.spliceLapMm : 0;
           return (
-            <g key={b.sourceId} pointerEvents="none">
+            <g key={`${b.sourceId}-${b.pieceIndex ?? 0}`} pointerEvents="none">
               {Array.from({ length: ANTI_BUCKLING_QTY }, (_, k) => (
-                <line
-                  key={k}
-                  x1={x(b.x1)}
-                  x2={x(b.x2)}
-                  y1={midY + (k === 0 ? -1.4 : 1.4)}
-                  y2={midY + (k === 0 ? -1.4 : 1.4)}
-                  stroke="#e879f9"
-                  strokeWidth={1.5}
-                />
+                <g key={k}>
+                  <line
+                    x1={x(b.x1)}
+                    x2={x(b.x2)}
+                    y1={midY + (k === 0 ? -1.4 : 1.4)}
+                    y2={midY + (k === 0 ? -1.4 : 1.4)}
+                    stroke="#e879f9"
+                    strokeWidth={1.5}
+                  />
+                  {lap > 0 ? (
+                    <line
+                      x1={x(b.x2 - lap)}
+                      x2={x(b.x2)}
+                      y1={midY + (k === 0 ? -1.4 : 1.4)}
+                      y2={midY + (k === 0 ? -1.4 : 1.4)}
+                      stroke="#e879f9"
+                      strokeWidth={2.8}
+                      opacity={0.45}
+                    />
+                  ) : null}
+                </g>
               ))}
             </g>
           );

@@ -13,9 +13,13 @@ import {
   extrasBetweenMains,
   extrasForSpanSection,
   mainsQtyForSpan,
+  STOCK_BAR_MM,
 } from "../lib/calc";
 import {
+  ANTI_BUCKLING_END_COVER_MM,
+  ANTI_BUCKLING_LAP_MULTIPLE,
   antiBucklingResolvedBars,
+  antiBucklingRunEnds,
   antiBucklingSchedule,
   doubleShortSideMm,
   doubleWrapCount,
@@ -175,8 +179,15 @@ assert(model.schedule.some((r) => r.extraKind === "c-cx" && r.dia === 8), "C Ø8
 assert(model.schedule.some((r) => r.extraKind === "nested-cx" && r.dia === 10), "lồng Ø10");
 assert(model.schedule.some((r) => r.extraKind === "anti" && r.dia === 12), "CP Ø12");
 const cpBars = antiBucklingResolvedBars(shop);
+const shopCp = antiBucklingRunEnds(shop, 0, shop.spans.length);
+assert(ANTI_BUCKLING_END_COVER_MM === 50, "CP lùi 50 mm từ da");
 assert(cpBars.length === shop.spans.length, "CP trên từng nhịp");
-assert(cpBars.every((b) => b.qty === 2 && b.dia === 12 && b.cutLength === shop.spans[0].L), "CP 2Ø12 L=nhịp");
+assert(
+  cpBars.every((b) => b.qty === 2 && b.dia === 12 && b.cutLength === shopCp.lengthMm),
+  "CP 2Ø12 gối 1 / hết dầm lùi 50 mm từ da",
+);
+assert(Math.round(cpBars[0].x1) === Math.round(shopCp.x1), "CP đầu gối 1 = da + 50");
+assert(Math.round(cpBars[0].x2) === Math.round(shopCp.x2), "CP cuối dầm = da − 50");
 const twoLen = createEmptyProject();
 twoLen.spans = [
   { ...twoLen.spans[0], L: 4250 },
@@ -203,7 +214,9 @@ const pack2 = {
   stirrups: twoLen.stirrups.map((s) => ({ ...s, antiBuckling: true, antiBucklingSegments: 2 as const })),
 };
 const bars2 = antiBucklingResolvedBars(pack2);
-assert(bars2.length === 1 && bars2[0].cutLength === 9250, "2 đoạn L=tim→tim 4250+5000");
+const pack2Len = antiBucklingRunEnds(pack2, 0, 2).lengthMm;
+assert(bars2.length === 1 && bars2[0].cutLength === pack2Len, "2 đoạn hết dầm: da gối 1 → da gối cuối, mỗi đầu 50 mm");
+assert(pack2Len === 9350, "2 đoạn 4250+5000, B1=100: 9350");
 
 const pack3 = createEmptyProject();
 pack3.spans = [
@@ -223,8 +236,36 @@ pack3.stirrups = [
   { ...pack3.stirrups[0], antiBuckling: false },
 ];
 const bars3 = antiBucklingResolvedBars(pack3);
-assert(bars3.length === 1 && bars3[0].cutLength === 13500, "3 đoạn L=4250+4250+5000");
+const pack3Len = antiBucklingRunEnds(pack3, 0, 3).lengthMm;
+const pack3Lap = ANTI_BUCKLING_LAP_MULTIPLE * 12;
+assert(pack3Len === 13600, "3 đoạn 4250+4250+5000, B1=100: 13600");
+assert(bars3.length === 2, "CP > 11,7 m tự cắt 2 đoạn");
+assert(bars3[0].cutLength === STOCK_BAR_MM && bars3[0].spliceLapMm === pack3Lap, "cây đầu 11700, nối 30D");
+assert(bars3[1].cutLength === pack3Len - (STOCK_BAR_MM - pack3Lap), "cây cuối = phần còn lại");
 assert(extraTieFlagsForSpan(pack3, 2).antiBuckling, "nhịp trong khoảng 3 đoạn vẫn có CP");
+const longCp = syncGeometry(createEmptyProject(), 1);
+longCp.spans = [{ ...longCp.spans[0], L: 20000 }];
+longCp.supports = [longCp.supports[0], { ...longCp.supports[1], id: "sup-end" }];
+longCp.stirrups = [{ ...longCp.stirrups[0], antiBuckling: true, antiBucklingDia: 12 }];
+const longBars = antiBucklingResolvedBars(longCp);
+const longNeed = antiBucklingRunEnds(longCp, 0, 1).lengthMm;
+assert(longNeed > STOCK_BAR_MM && longBars.length === 2, "dầm dài 20 m cắt 2 cây");
+assert(longBars[0].cutLength === 11700 && longBars[1].cutLength === longNeed - (11700 - 360), "11700 + đoạn còn lại, nối 360");
+assert(antiBucklingSchedule(longCp).every((s) => s.qtyEach === 2), "mỗi đoạn cắt vẫn 2Ø");
+
+const oneCp = syncGeometry(createEmptyProject(), 1);
+oneCp.stirrups[0] = { ...oneCp.stirrups[0], antiBuckling: true, antiBucklingDia: 12 };
+const oneBar = antiBucklingResolvedBars(oneCp)[0];
+assert(oneBar.x1 === -50 && oneBar.x2 === 6550 && oneBar.cutLength === 6600, "1 nhịp mặc định: da+50 → da−50");
+
+const midOnly = { ...pack3 };
+midOnly.stirrups = pack3.stirrups.map((s, i) => ({
+  ...s,
+  antiBuckling: i === 1,
+  antiBucklingSegments: 1 as const,
+}));
+const midBar = antiBucklingResolvedBars(midOnly)[0];
+assert(midBar.x1 === 4250 && midBar.x2 === 8500 && midBar.cutLength === 4250, "nhịp giữa: tim → tim");
 
 assert(doubleWrapCount(4) === 3, "kép ôm 2/3 của 4 thanh = 3");
 assert(doubleWrapCount(6) === 4, "kép ôm 2/3 của 6 thanh = 4");

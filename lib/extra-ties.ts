@@ -1,5 +1,5 @@
 import { mainLayerClearanceOk } from "./bar-clearance";
-import type { BarShape, ResolvedBar } from "./calc";
+import { lapLengthMm, STOCK_BAR_MM, type BarShape, type ResolvedBar } from "./calc";
 import type { BeamProject, SpanStirrups } from "./types";
 
 function typicalH(spans: { H: number }[]) {
@@ -129,16 +129,47 @@ export function antiBucklingAxisPositions(project: BeamProject) {
   return xs;
 }
 
+/** Đầu biên: lùi 50 mm từ da bê tông gối (cùng lớp bảo vệ đầu dầm). */
+export const ANTI_BUCKLING_END_COVER_MM = 50;
+
+function supportExtents(project: BeamProject, axisIndex: number) {
+  const xs = antiBucklingAxisPositions(project);
+  const last = Math.max(0, xs.length - 1);
+  const i = Math.max(0, Math.min(axisIndex, last));
+  const axis = xs[i] ?? 0;
+  const sup = project.supports[i] ?? project.supports[0];
+  const width = sup?.B && sup.B > 0 ? sup.B : 200;
+  const leftToAxis = Number.isFinite(sup?.B1) ? Number(sup.B1) : width / 2;
+  const left = axis - leftToAxis;
+  return { axis, left, right: left + width };
+}
+
+/** Gối 1: da bê tông + 50 mm. Hết dầm: da gối cuối − 50 mm. Gối giữa: tim trục. */
+export function antiBucklingRunEnds(project: BeamProject, start: number, end: number) {
+  const xs = antiBucklingAxisPositions(project);
+  const last = project.spans.length;
+  let x1 = xs[start] ?? 0;
+  let x2 = xs[end] ?? x1;
+  if (start === 0) {
+    x1 = supportExtents(project, 0).left + ANTI_BUCKLING_END_COVER_MM;
+  }
+  if (end >= last) {
+    x2 = supportExtents(project, last).right - ANTI_BUCKLING_END_COVER_MM;
+  }
+  return { x1, x2, lengthMm: Math.max(0, Math.round(x2 - x1)) };
+}
+
 export interface AntiBucklingRun {
   start: number;
   end: number;
   dia: number;
   lengthMm: number;
+  x1: number;
+  x2: number;
 }
 
-/** Gói các nhịp đã tick thành thanh CP: 1 / 2 / 3 đoạn, L = tim gối → tim gối. */
+/** Gói các nhịp đã tick thành thanh CP: 1 / 2 / 3 đoạn. */
 export function antiBucklingRuns(project: BeamProject): AntiBucklingRun[] {
-  const xs = antiBucklingAxisPositions(project);
   const n = project.spans.length;
   const taken = Array.from({ length: n }, () => false);
   const runs: AntiBucklingRun[] = [];
@@ -147,8 +178,8 @@ export function antiBucklingRuns(project: BeamProject): AntiBucklingRun[] {
     const segs = normalizeAntiBucklingSegments(project.stirrups[i]?.antiBucklingSegments);
     const end = Math.min(i + segs, n);
     const dia = normalizeAntiBucklingDia(project.stirrups[i]?.antiBucklingDia);
-    const lengthMm = Math.max(0, Math.round((xs[end] ?? 0) - (xs[i] ?? 0)));
-    runs.push({ start: i, end, dia, lengthMm });
+    const geo = antiBucklingRunEnds(project, i, end);
+    runs.push({ start: i, end, dia, ...geo });
     for (let k = i; k < end; k++) taken[k] = true;
   }
   return runs;
@@ -386,35 +417,87 @@ export function extraTieStatus(project: BeamProject, spanIndex = 0) {
   };
 }
 
-/** Thanh chống phình trên mặt dầm / nổ dầm: 2Ø, L = tim gối đầu → tim gối cuối. */
-export function antiBucklingResolvedBars(project: BeamProject): ResolvedBar[] {
-  const xs = antiBucklingAxisPositions(project);
-  return antiBucklingRuns(project).map((run, i) => ({
-    sourceId: `anti-${i}`,
-    face: "bottom" as const,
-    kind: "extra" as const,
-    layer: 1,
-    dia: run.dia,
-    qty: ANTI_BUCKLING_QTY,
-    x1: xs[run.start] ?? 0,
-    x2: xs[run.end] ?? run.lengthMm,
-    startType: 0,
-    endType: 0,
-    hookStart: 0,
-    hookEnd: 0,
-    straight: run.lengthMm,
-    cutLength: run.lengthMm,
-  }));
+/** Nối chống phình: luôn 30D, không né gối / giữa nhịp. */
+export const ANTI_BUCKLING_LAP_MULTIPLE = 30;
+
+/** Cắt thanh 11,7 m; đoạn còn lại là cây cuối. Không cần vùng nối. */
+export function splitBarToStockFree(continuous: ResolvedBar, lapMm: number): ResolvedBar[] {
+  const stock = STOCK_BAR_MM;
+  const lap = Math.max(0, lapMm);
+  if (continuous.cutLength <= stock + 0.5) {
+    return [{ ...continuous, pieceIndex: 0, spliceLapMm: 0 }];
+  }
+  const pieces: ResolvedBar[] = [];
+  let start = continuous.x1;
+  let leftHook = continuous.hookStart;
+  for (let guard = 0; guard < 24; guard++) {
+    const remaining = continuous.x2 - start;
+    const thisLastCut = remaining + leftHook + continuous.hookEnd;
+    if (thisLastCut <= stock + 0.5) {
+      pieces.push({
+        ...continuous,
+        x1: start,
+        x2: continuous.x2,
+        hookStart: leftHook,
+        hookEnd: continuous.hookEnd,
+        straight: remaining,
+        cutLength: thisLastCut,
+        pieceIndex: pieces.length,
+        spliceLapMm: 0,
+      });
+      break;
+    }
+    const straight = stock - leftHook;
+    const x2 = start + straight;
+    pieces.push({
+      ...continuous,
+      x1: start,
+      x2,
+      hookStart: leftHook,
+      hookEnd: 0,
+      straight,
+      cutLength: leftHook + straight,
+      pieceIndex: pieces.length,
+      spliceLapMm: lap,
+    });
+    start = lap > 0 ? x2 - lap : x2;
+    leftHook = 0;
+  }
+  return pieces.length ? pieces : [{ ...continuous, pieceIndex: 0, spliceLapMm: 0 }];
 }
 
-/** Thống kê thép chống phình: 2 cây / đoạn, L = tim → tim khoảng đã chọn. */
+/** Thanh chống phình trên mặt dầm / nổ dầm: 2Ø; gối 1 / hết dầm lùi 50 mm từ da. Tự cắt 11,7 m / 30D. */
+export function antiBucklingResolvedBars(project: BeamProject): ResolvedBar[] {
+  return antiBucklingRuns(project).flatMap((run, i) => {
+    const continuous: ResolvedBar = {
+      sourceId: `anti-${i}`,
+      face: "bottom",
+      kind: "extra",
+      layer: 1,
+      dia: run.dia,
+      qty: ANTI_BUCKLING_QTY,
+      x1: run.x1,
+      x2: run.x2,
+      startType: 0,
+      endType: 0,
+      hookStart: 0,
+      hookEnd: 0,
+      straight: run.lengthMm,
+      cutLength: run.lengthMm,
+    };
+    return splitBarToStockFree(continuous, lapLengthMm(run.dia, ANTI_BUCKLING_LAP_MULTIPLE));
+  });
+}
+
+/** Thống kê thép chống phình: 2 cây / đoạn cắt, cùng Ø một số hiệu. */
 export function antiBucklingSchedule(project: BeamProject) {
   const groups = new Map<string, { dia: number; lengthMm: number; qtyEach: number }>();
-  for (const run of antiBucklingRuns(project)) {
-    if (run.lengthMm <= 0) continue;
-    const key = `${run.dia}|${run.lengthMm}`;
-    const cur = groups.get(key) ?? { dia: run.dia, lengthMm: run.lengthMm, qtyEach: 0 };
-    cur.qtyEach += ANTI_BUCKLING_QTY;
+  for (const bar of antiBucklingResolvedBars(project)) {
+    const lengthMm = Math.round(bar.cutLength);
+    if (lengthMm <= 0) continue;
+    const key = `${bar.dia}|${lengthMm}`;
+    const cur = groups.get(key) ?? { dia: bar.dia, lengthMm, qtyEach: 0 };
+    cur.qtyEach += bar.qty;
     groups.set(key, cur);
   }
   return [...groups.values()];
