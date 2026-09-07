@@ -97,7 +97,8 @@ import {
 import { CONCRETE_GRADES, STEEL_GRADES } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
-const STORE_KEY = "thep-dam-project-v5";
+const STORE_KEY = "thep-dam-project-v6";
+const STORE_KEY_V5 = "thep-dam-project-v5";
 const STORE_KEY_V4 = "thep-dam-project-v4";
 const STORE_KEY_V3 = "thep-dam-project-v3";
 const STORE_KEY_V2 = "thep-dam-project-v2";
@@ -260,6 +261,7 @@ export function BeamApp() {
         return true;
       };
       if (hydrate(localStorage.getItem(STORE_KEY), false, false)) return;
+      if (hydrate(localStorage.getItem(STORE_KEY_V5), false, true)) return;
       if (hydrate(localStorage.getItem(STORE_KEY_V4), false, true)) return;
       if (hydrate(localStorage.getItem(STORE_KEY_V3), false, true)) return;
       hydrate(localStorage.getItem(STORE_KEY_V2), true, true);

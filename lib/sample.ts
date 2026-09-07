@@ -2,7 +2,7 @@ import { MAX_SPAN_COUNT, type BeamProject, type ConnectionType, type Span, type 
 import { uid } from "./utils";
 
 const DEFAULT_SUPPORT_TYPE: ConnectionType = "cot";
-const DEFAULT_SUPPORT_B_MM = 200;
+const DEFAULT_SUPPORT_B_MM = 300;
 /** B/2 — gối cân giữa tim trục. */
 const DEFAULT_SUPPORT_B1_MM = 100;
 /** 0 = để trống trên form (chiều cao gối không bắt buộc). */
