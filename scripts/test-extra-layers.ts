@@ -33,7 +33,7 @@ import {
   normalizeAntiBucklingSegments,
   normalizeExtraTieDia,
 } from "../lib/extra-ties";
-import { createEmptyProject } from "../lib/sample";
+import { createEmptyProject, syncGeometry } from "../lib/sample";
 import type { ExtraBar } from "../lib/types";
 
 function assert(cond: unknown, msg: string) {
@@ -76,7 +76,7 @@ assert(extrasForSpanSection(top, 2, "top").length === 0, "top misses span 2");
 assert(mainsQtyForSpan([{ qty: 3, startAxis: 0, endAxis: 2 }], 1, "bottom") === 3, "mains qty");
 assert(mainsQtyForSpan([{ qty: 3, startAxis: 0, endAxis: 1 }], 1, "bottom") === 0, "mains miss span 1");
 
-const empty = createEmptyProject();
+const empty = syncGeometry(createEmptyProject(), 1);
 assert(!extraTieAllowC(empty, 0), "C off without odd mains or skin");
 empty.stirrups[0] = { ...empty.stirrups[0], antiBuckling: true, extraC: true, antiBucklingDia: 12 };
 assert(extraTieAllowC(empty, 0), "C allowed with chống phình");

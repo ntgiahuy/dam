@@ -76,26 +76,7 @@ function projectWithGeometry(quantity: number): BeamProject {
 }
 
 export function createEmptyProject(): BeamProject {
-  const spans = [span({ L: DEFAULT_SPAN_L_MM })];
-  return {
-    info: {
-      name: "D1",
-      quantity: 1,
-      elevation: 4200,
-      axisName: "",
-      cover: 25,
-      concreteGrade: "B25",
-      steelGrade: "CB400-V",
-    },
-    spans,
-    supports: [support(0, 1), support(1, 1)],
-    mainBottom: [],
-    extraBottom: [],
-    mainTop: [],
-    extraTop: [],
-    stirrups: [emptyStirrupsForLength(DEFAULT_SPAN_L_MM)],
-    secondary: [],
-  };
+  return projectWithGeometry(1);
 }
 
 /** Hình học mẫu dầm D1 (5 nhịp L=4000, H=500, B=200, B1=100, dH=0). Danh sách thép để trống. */

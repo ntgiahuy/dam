@@ -97,8 +97,19 @@ import {
 import { CONCRETE_GRADES, STEEL_GRADES } from "@/lib/tcvn5574";
 import { uid } from "@/lib/utils";
 
-const STORE_KEY = "thep-dam-project-v3";
+const STORE_KEY = "thep-dam-project-v4";
+const STORE_KEY_V3 = "thep-dam-project-v3";
 const STORE_KEY_V2 = "thep-dam-project-v2";
+
+function isUnusedOneSpanDraft(project: BeamProject) {
+  return (
+    project.spans.length === 1 &&
+    project.mainBottom.length === 0 &&
+    project.mainTop.length === 0 &&
+    project.extraBottom.length === 0 &&
+    project.extraTop.length === 0
+  );
+}
 
 function axisOptions(n: number) {
   return Array.from({ length: n + 1 }, (_, i) => i);
@@ -235,19 +246,17 @@ export function BeamApp() {
 
   useEffect(() => {
     try {
-      const raw3 = localStorage.getItem(STORE_KEY);
-      if (raw3) {
-        const next = migrateLoadedProject(JSON.parse(raw3) as BeamProject, false);
+      const hydrate = (raw: string | null, fromV2: boolean) => {
+        if (!raw) return false;
+        const next = migrateLoadedProject(JSON.parse(raw) as BeamProject, fromV2);
+        if (isUnusedOneSpanDraft(next)) return false;
         setProject(next);
         localStorage.setItem(STORE_KEY, JSON.stringify(next));
-        return;
-      }
-      const raw2 = localStorage.getItem(STORE_KEY_V2);
-      if (raw2) {
-        const next = migrateLoadedProject(JSON.parse(raw2) as BeamProject, true);
-        setProject(next);
-        localStorage.setItem(STORE_KEY, JSON.stringify(next));
-      }
+        return true;
+      };
+      if (hydrate(localStorage.getItem(STORE_KEY), false)) return;
+      if (hydrate(localStorage.getItem(STORE_KEY_V3), false)) return;
+      hydrate(localStorage.getItem(STORE_KEY_V2), true);
     } catch {
       /* keep sample */
     }
@@ -376,12 +385,12 @@ export function BeamApp() {
   }
 
   const draftMain = useCallback(
-    (face: "top" | "bottom"): MainBar => ({
+    (face: "top" | "bottom", axisCount = lastAxis): MainBar => ({
       id: uid("bar"),
       dia: 18,
       qty: 3,
       startAxis: 0,
-      endAxis: lastAxis,
+      endAxis: axisCount,
       hooksBothEnds: face === "bottom" ? false : undefined,
       autoCut: true,
       lapMultiple: 30,
@@ -394,7 +403,7 @@ export function BeamApp() {
     setSelectedSpan(0);
     setSelectedSupport(0);
     setSelectedBar(null);
-    setMainForm(draftMain("bottom"));
+    setMainForm(draftMain("bottom", next.spans.length));
     setExtraForm(draftExtra("bottom", next.spans.length));
     setTab("spans");
     setError(null);
@@ -687,12 +696,13 @@ export function BeamApp() {
             variant="secondary"
             size="sm"
             onClick={() => {
-              persist(createEmptyProject());
+              const next = createEmptyProject();
+              persist(next);
               setSelectedSpan(0);
               setSelectedSupport(0);
               setSelectedBar(null);
-              setMainForm(draftMain("bottom"));
-              setExtraForm(draftExtra("bottom", 1));
+              setMainForm(draftMain("bottom", next.spans.length));
+              setExtraForm(draftExtra("bottom", next.spans.length));
               setStatus("Đã tạo dầm mới.");
             }}
           >
