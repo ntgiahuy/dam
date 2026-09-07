@@ -287,8 +287,8 @@ export function BeamApp() {
     setStatus("Đang tạo bản vẽ PDF…");
     try {
       const fontRes = await Promise.all([
-        fetch("/fonts/BeVietnamPro-Regular.ttf"),
-        fetch("/fonts/BeVietnamPro-Bold.ttf"),
+        fetch(withBasePath("/fonts/BeVietnamPro-Regular.ttf")),
+        fetch(withBasePath("/fonts/BeVietnamPro-Bold.ttf")),
       ]);
       if (fontRes.some((r) => !r.ok)) {
         throw new Error("Không tải được font chữ cho PDF.");
