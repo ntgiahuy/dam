@@ -5,6 +5,7 @@ import {
   type ExtraTieKind,
 } from "./extra-ties";
 import type { BeamProject, ExtraBar, LapMultiple, MainBar, Span, StirrupKind, StirrupLayout } from "./types";
+import { defaultSpanStirrups } from "./sample";
 import { roundTo } from "./utils";
 import { hook90ExtensionMm } from "./tcvn5574";
 
@@ -931,7 +932,7 @@ export function resolveStirrups(project: BeamProject): StirrupResolved {
   const cover = project.info.cover || 25;
   const innerB = B - 2 * cover;
   const innerH = H - 2 * cover;
-  const dia = project.stirrups[0]?.dia ?? 6;
+  const dia = project.stirrups[0]?.dia ?? defaultSpanStirrups().dia;
   const hook = 50;
   const cutLength = 2 * (innerB + innerH) + 2 * hook;
   const xs = axisPositions(project.spans);
@@ -1028,9 +1029,10 @@ export function stirrupZonesForSpan(
   const span = project.spans[spanIndex];
   const L = span?.L ?? 0;
   const raw = project.stirrups[spanIndex] ?? project.stirrups[0];
-  const dia = raw?.dia ?? 6;
-  const a1 = raw?.a1 ?? 150;
-  const a2 = raw?.a2 ?? 200;
+  const fallback = defaultSpanStirrups();
+  const dia = raw?.dia ?? fallback.dia;
+  const a1 = raw?.a1 ?? fallback.a1;
+  const a2 = raw?.a2 ?? fallback.a2;
   const layout: StirrupLayout = raw?.layout === "dieu" ? "dieu" : "1/4";
   const kind: StirrupKind = raw?.kind === "kep" ? "kep" : "don";
   if (layout === "dieu") {

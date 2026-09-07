@@ -1,15 +1,22 @@
-import { MAX_SPAN_COUNT, type BeamProject, type Span, type SpanStirrups, type StirrupLayout, type Support } from "./types";
+import { MAX_SPAN_COUNT, type BeamProject, type ConnectionType, type Span, type SpanStirrups, type StirrupLayout, type Support } from "./types";
 import { uid } from "./utils";
+
+const DEFAULT_SUPPORT_TYPE: ConnectionType = "cot";
+const DEFAULT_SUPPORT_B_MM = 200;
+/** B/2 — gối cân giữa tim trục. */
+const DEFAULT_SUPPORT_B1_MM = 100;
+/** 0 = để trống trên form (chiều cao gối không bắt buộc). */
+const DEFAULT_SUPPORT_H_MM = 0;
 
 function span(partial: Partial<Span> & Pick<Span, "L">): Span {
   return {
     id: uid("span"),
     H: 500,
-    B: 200,
-    B1: 100,
+    B: DEFAULT_SUPPORT_B_MM,
+    B1: DEFAULT_SUPPORT_B1_MM,
     dH: 0,
-    slabType: 3,
-    Hsl: 0,
+    slabType: 1,
+    Hsl: 120,
     Hl: 0,
     Hsr: 120,
     Hr: 0,
@@ -25,21 +32,56 @@ export function defaultSupportAxisName(index: number) {
 function support(i: number, _n: number): Support {
   return {
     id: uid("sup"),
-    type: "cot",
-    B: 200,
-    B1: 100,
-    H: 0,
+    type: DEFAULT_SUPPORT_TYPE,
+    B: DEFAULT_SUPPORT_B_MM,
+    B1: DEFAULT_SUPPORT_B1_MM,
+    H: DEFAULT_SUPPORT_H_MM,
     axisName: defaultSupportAxisName(i),
   };
 }
 
+const DEFAULT_SPAN_COUNT = 5;
+const DEFAULT_SPAN_L_MM = 4000;
+
+function defaultSpanGeometry() {
+  const Ls = Array.from({ length: DEFAULT_SPAN_COUNT }, () => DEFAULT_SPAN_L_MM);
+  return {
+    spans: Ls.map((L) => span({ L })),
+    supports: Array.from({ length: DEFAULT_SPAN_COUNT + 1 }, (_, i) => support(i, DEFAULT_SPAN_COUNT)),
+    stirrups: Ls.map((L) => emptyStirrupsForLength(L)),
+  };
+}
+
+function projectWithGeometry(quantity: number): BeamProject {
+  const geo = defaultSpanGeometry();
+  return {
+    info: {
+      name: "D1",
+      quantity,
+      elevation: 4200,
+      axisName: "",
+      cover: 25,
+      concreteGrade: "B25",
+      steelGrade: "CB400-V",
+    },
+    spans: geo.spans,
+    supports: geo.supports,
+    mainBottom: [],
+    extraBottom: [],
+    mainTop: [],
+    extraTop: [],
+    stirrups: geo.stirrups,
+    secondary: [],
+  };
+}
+
 export function createEmptyProject(): BeamProject {
-  const spans = [span({ L: 4000 })];
+  const spans = [span({ L: DEFAULT_SPAN_L_MM })];
   return {
     info: {
       name: "D1",
       quantity: 1,
-      elevation: 0,
+      elevation: 4200,
       axisName: "",
       cover: 25,
       concreteGrade: "B25",
@@ -51,40 +93,18 @@ export function createEmptyProject(): BeamProject {
     extraBottom: [],
     mainTop: [],
     extraTop: [],
-    stirrups: [emptyStirrupsForLength(4000)],
+    stirrups: [emptyStirrupsForLength(DEFAULT_SPAN_L_MM)],
     secondary: [],
   };
 }
 
-/** Hình học mẫu dầm D1 (5 nhịp). Danh sách thép để trống — người dùng tự thêm. */
+/** Hình học mẫu dầm D1 (5 nhịp L=4000, H=500, B=200, B1=100, dH=0). Danh sách thép để trống. */
 export function createSampleD1(): BeamProject {
-  const Ls = [4250, 4250, 5000, 4250, 4250];
-  const spans = Ls.map((L) => span({ L }));
-  const supports = Array.from({ length: 6 }, (_, i) => support(i, 5));
-
-  return {
-    info: {
-      name: "D1",
-      quantity: 2,
-      elevation: 0,
-      axisName: "",
-      cover: 25,
-      concreteGrade: "B25",
-      steelGrade: "CB400-V",
-    },
-    spans,
-    supports,
-    mainBottom: [],
-    extraBottom: [],
-    mainTop: [],
-    extraTop: [],
-    stirrups: Ls.map((L) => emptyStirrupsForLength(L)),
-    secondary: [],
-  };
+  return projectWithGeometry(4);
 }
 
 export function defaultSpanStirrups(): SpanStirrups {
-  return { dia: 6, layout: "1/4", a1: 150, a2: 200, kind: "don" };
+  return { dia: 8, layout: "1/4", a1: 100, a2: 200, kind: "don" };
 }
 
 /** @deprecated dùng defaultSpanStirrups — giữ tên cũ cho chỗ gọi theo L. */
@@ -111,7 +131,7 @@ export function normalizeSpanStirrups(raw: unknown): SpanStirrups {
   const extraCCy = r.extraCCy !== false;
   const extraNestedSpacing = Number(r.extraNestedSpacing) >= 50 ? Number(r.extraNestedSpacing) : 200;
   const extraDoubleSpacing = Number(r.extraDoubleSpacing) >= 50 ? Number(r.extraDoubleSpacing) : 200;
-  const tieDiaFallback = [6, 8, 10, 12, 14].includes(Number(r.dia)) ? Number(r.dia) : 6;
+  const tieDiaFallback = [6, 8, 10, 12, 14].includes(Number(r.dia)) ? Number(r.dia) : fallback.dia;
   const extraCDia = [6, 8, 10, 12, 14].includes(Number(r.extraCDia))
     ? Number(r.extraCDia)
     : tieDiaFallback;

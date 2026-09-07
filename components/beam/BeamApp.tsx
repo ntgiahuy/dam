@@ -206,6 +206,20 @@ function extraBottomAtSpan(spanIndex: number, lastAxis: number) {
   return { startAxis: s, endAxis: s + 1 };
 }
 
+function draftExtra(face: "top" | "bottom", lastAxis: number): ExtraBar {
+  const base = {
+    id: uid("ex"),
+    dia: 20,
+    qty: 2,
+    startType: 1 as const,
+    endType: 1 as const,
+  };
+  if (face === "top") {
+    return { ...base, layer: 2, ...extraTopAtSupport(0, lastAxis) };
+  }
+  return { ...base, layer: 2, ...extraBottomAtSpan(0, lastAxis) };
+}
+
 export function BeamApp() {
   const [project, setProject] = useState<BeamProject>(() => createSampleD1());
   const [tab, setTab] = useState<TabId>("spans");
@@ -365,7 +379,7 @@ export function BeamApp() {
     (face: "top" | "bottom"): MainBar => ({
       id: uid("bar"),
       dia: 18,
-      qty: 2,
+      qty: 3,
       startAxis: 0,
       endAxis: lastAxis,
       hooksBothEnds: face === "bottom" ? false : undefined,
@@ -381,6 +395,7 @@ export function BeamApp() {
     setSelectedSupport(0);
     setSelectedBar(null);
     setMainForm(draftMain("bottom"));
+    setExtraForm(draftExtra("bottom", next.spans.length));
     setTab("spans");
     setError(null);
   }
@@ -411,16 +426,7 @@ export function BeamApp() {
   }
 
   const [mainForm, setMainForm] = useState<MainBar>(() => draftMain("bottom"));
-  const [extraForm, setExtraForm] = useState<ExtraBar>(() => ({
-    id: uid("ex"),
-    layer: 1,
-    dia: 20,
-    qty: 2,
-    startAxis: 0,
-    endAxis: 1,
-    startType: 1,
-    endType: 1,
-  }));
+  const [extraForm, setExtraForm] = useState<ExtraBar>(() => draftExtra("bottom", lastAxis));
 
   const workingProject = useMemo(() => {
     let next = project;
@@ -460,9 +466,14 @@ export function BeamApp() {
   useEffect(() => {
     if (tab === "extraTop") {
       setExtraForm((f) => {
+        const fromSpan = f.startAxis !== f.endAxis;
+        const axis = fromSpan ? Math.min(f.startAxis, f.endAxis) : f.startAxis;
+        const pinned = extraTopAtSupport(axis, lastAxis);
         const startType = f.startType === 1 ? 1 : 2;
         const endType = f.endType === 1 ? 1 : 2;
-        const pinned = extraTopAtSupport(f.startAxis, lastAxis);
+        if (fromSpan) {
+          return { ...draftExtra("top", lastAxis), id: f.id, ...pinned };
+        }
         if (
           startType === f.startType &&
           endType === f.endType &&
@@ -681,6 +692,7 @@ export function BeamApp() {
               setSelectedSupport(0);
               setSelectedBar(null);
               setMainForm(draftMain("bottom"));
+              setExtraForm(draftExtra("bottom", 1));
               setStatus("Đã tạo dầm mới.");
             }}
           >
@@ -1090,7 +1102,7 @@ export function BeamApp() {
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   <Field label="Đường kính đai">
                     <Select
-                      value={project.stirrups[selectedSpan]?.dia ?? 6}
+                      value={project.stirrups[selectedSpan]?.dia ?? defaultSpanStirrups().dia}
                       onChange={(e) => patchStirrup({ dia: Number(e.target.value) })}
                     >
                       {DIAMETERS.filter((d) => d <= 12).map((d) => (
@@ -1117,7 +1129,7 @@ export function BeamApp() {
                       <Input
                         type="number"
                         min={50}
-                        value={project.stirrups[selectedSpan]?.a1 ?? 150}
+                        value={project.stirrups[selectedSpan]?.a1 ?? defaultSpanStirrups().a1}
                         onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
                       />
                     </Field>
@@ -1127,7 +1139,7 @@ export function BeamApp() {
                         <Input
                           type="number"
                           min={50}
-                          value={project.stirrups[selectedSpan]?.a1 ?? 150}
+                          value={project.stirrups[selectedSpan]?.a1 ?? defaultSpanStirrups().a1}
                           onChange={(e) => patchStirrup({ a1: Number(e.target.value) || 0 })}
                         />
                       </Field>
@@ -1135,7 +1147,7 @@ export function BeamApp() {
                         <Input
                           type="number"
                           min={50}
-                          value={project.stirrups[selectedSpan]?.a2 ?? 200}
+                          value={project.stirrups[selectedSpan]?.a2 ?? defaultSpanStirrups().a2}
                           onChange={(e) => patchStirrup({ a2: Number(e.target.value) || 0 })}
                         />
                       </Field>
