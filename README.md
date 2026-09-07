@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Mở trình duyệt tại `/dam/` trên cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1**: **SL = 4**, cao độ **4200**, **5 nhịp**, mỗi nhịp **L = 4000 mm**, **H = 500**, **B = 200**, **B1 = 100**, **dH = 0**; sàn **1 — Sàn hai bên**, **HSL = HSR = 120 mm**, **HL = HR = 0**; gối **Cột**, **B = 200**, **B1 = 100** (cân giữa), **H** để trống, tên trục **1 … 6**; lớp bảo vệ **25 mm**, bê tông **B25**, thép **CB400-V**; danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí. Nút **Mới** cũng tạo **5 nhịp** L = 4000 (SL = 1).
+Mở trình duyệt tại `/dam/` trên cổng dev (mặc định in ra terminal). Ứng dụng nạp hình học mẫu **dầm D1**: **SL = 4**, cao độ **4200**, **5 nhịp**, mỗi nhịp **L = 4000 mm**, **H = 500**, **B = 200**, **B1 = 100**, **dH = 0**; sàn **1 — Sàn hai bên**, **HSL = HSR = 120 mm**, **HL = HR = 0**; gối **Cột**, **B = 200**, **B1 = 100** (cân giữa), **H** để trống, tên trục **1 … 6**; lớp bảo vệ **25 mm**, bê tông **B25**, thép **CB400-V**; danh sách thép để trống — dùng **Thêm** trên từng tab thép để bố trí. Nút **Mới** cũng tạo **5 nhịp** L = 4000, **SL = 4**.
 
 Xuất site tĩnh cho GitHub Pages:
 

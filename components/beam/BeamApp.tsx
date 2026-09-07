@@ -101,14 +101,19 @@ const STORE_KEY = "thep-dam-project-v4";
 const STORE_KEY_V3 = "thep-dam-project-v3";
 const STORE_KEY_V2 = "thep-dam-project-v2";
 
-function isUnusedOneSpanDraft(project: BeamProject) {
+function hasNoSteel(project: BeamProject) {
   return (
-    project.spans.length === 1 &&
     project.mainBottom.length === 0 &&
     project.mainTop.length === 0 &&
     project.extraBottom.length === 0 &&
     project.extraTop.length === 0
   );
+}
+
+/** Dầm trống còn sót từ Mới (1 nhịp hoặc SL=1) — nạp lại mẫu 5 nhịp / SL=4. */
+function isUnusedDefaultDraft(project: BeamProject) {
+  if (!hasNoSteel(project)) return false;
+  return project.spans.length === 1 || project.info.quantity === 1;
 }
 
 function axisOptions(n: number) {
@@ -249,7 +254,7 @@ export function BeamApp() {
       const hydrate = (raw: string | null, fromV2: boolean) => {
         if (!raw) return false;
         const next = migrateLoadedProject(JSON.parse(raw) as BeamProject, fromV2);
-        if (isUnusedOneSpanDraft(next)) return false;
+        if (isUnusedDefaultDraft(next)) return false;
         setProject(next);
         localStorage.setItem(STORE_KEY, JSON.stringify(next));
         return true;

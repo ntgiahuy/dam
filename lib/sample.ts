@@ -76,7 +76,7 @@ function projectWithGeometry(quantity: number): BeamProject {
 }
 
 export function createEmptyProject(): BeamProject {
-  return projectWithGeometry(1);
+  return projectWithGeometry(4);
 }
 
 /** Hình học mẫu dầm D1 (5 nhịp L=4000, H=500, B=200, B1=100, dH=0). Danh sách thép để trống. */
