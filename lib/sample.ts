@@ -44,6 +44,8 @@ const DEFAULT_SPAN_COUNT = 1;
 const DEFAULT_SPAN_L_MM = 6500;
 const DEFAULT_BEAM_NAME = "D1";
 const DEFAULT_BEAM_QUANTITY = 1;
+/** Cao độ dầm trên form / bản vẽ, đơn vị mét. */
+const DEFAULT_BEAM_ELEVATION_M = 4.2;
 
 function defaultSpanGeometry() {
   const Ls = Array.from({ length: DEFAULT_SPAN_COUNT }, () => DEFAULT_SPAN_L_MM);
@@ -60,7 +62,7 @@ function projectWithGeometry(quantity: number): BeamProject {
     info: {
       name: DEFAULT_BEAM_NAME,
       quantity,
-      elevation: 4200,
+      elevation: DEFAULT_BEAM_ELEVATION_M,
       axisName: "",
       cover: 25,
       concreteGrade: "B25",

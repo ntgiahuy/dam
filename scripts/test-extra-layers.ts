@@ -82,6 +82,7 @@ assert(mainsQtyForSpan([{ qty: 3, startAxis: 0, endAxis: 2 }], 1, "bottom") === 
 assert(mainsQtyForSpan([{ qty: 3, startAxis: 0, endAxis: 1 }], 1, "bottom") === 0, "mains miss span 1");
 
 const empty = syncGeometry(createEmptyProject(), 1);
+assert(empty.info.elevation === 4.2, "cao độ dầm mặc định 4.2 m");
 assert(!extraTieAllowC(empty, 0), "C off without odd mains or skin");
 empty.stirrups[0] = { ...empty.stirrups[0], antiBuckling: true, extraC: true, antiBucklingDia: 12 };
 assert(extraTieAllowC(empty, 0), "C allowed with chống phình");
